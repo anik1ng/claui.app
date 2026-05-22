@@ -2,6 +2,7 @@ mod claude;
 mod ipc;
 mod menu;
 mod pty;
+mod sessions;
 mod state;
 mod statusline;
 
@@ -32,6 +33,7 @@ pub fn run() {
             ipc::pty_input,
             ipc::pty_resize,
             ipc::pty_close,
+            ipc::list_sessions,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

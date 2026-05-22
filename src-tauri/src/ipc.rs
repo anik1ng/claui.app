@@ -151,3 +151,8 @@ pub fn pty_resize(state: State<'_, AppState>, id: u32, cols: u16, rows: u16) {
 pub fn pty_close(state: State<'_, AppState>, id: u32) {
     state.close(id);
 }
+
+#[tauri::command]
+pub fn list_sessions(path: String) -> Vec<crate::sessions::SessionInfo> {
+    crate::sessions::list_sessions(&path)
+}
