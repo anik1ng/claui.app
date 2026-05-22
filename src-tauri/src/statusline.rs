@@ -114,11 +114,18 @@ pub fn install_wrapper(app: &AppHandle) -> std::io::Result<()> {
 pub fn settings_arg(app: &AppHandle) -> String {
     // Single-quote the wrapper path: `claude` runs the statusline command
     // through a shell, and the macOS app-config path contains a space
-    // ("Application Support").
-    format!(
-        r#"{{"statusLine":{{"type":"command","command":"'{}'"}}}}"#,
-        wrapper_path(app).to_string_lossy(),
-    )
+    // ("Application Support"). INVARIANT: the wrapper path must not contain
+    // a single quote — that would prematurely terminate the quoted token and
+    // break `claude`'s parsing of the statusline command. Tauri's
+    // `app_config_dir()` is derived from the bundle identifier, which is
+    // ASCII-letters-dots-only by convention, so this holds in practice.
+    let path = wrapper_path(app);
+    let path = path.to_string_lossy();
+    debug_assert!(
+        !path.contains('\''),
+        "wrapper path must not contain a single quote: {path}",
+    );
+    format!(r#"{{"statusLine":{{"type":"command","command":"'{path}'"}}}}"#)
 }
 
 /// Watch the config directory for the wrapper's status file and emit a parsed
@@ -137,8 +144,10 @@ pub fn start_watcher(app: AppHandle) -> notify::Result<()> {
         let _watcher = watcher;
         for result in rx {
             let Ok(event) = result else { continue };
-            // The wrapper renames its temp file onto `status_path`; reading on
-            // any event that touches that exact path always sees a whole file.
+            // INVARIANT: the wrapper does an atomic rename (cat > tmp && mv -f
+            // tmp final), so any read triggered by a path-match event always
+            // sees a complete file. Changing the wrapper to a non-atomic write
+            // would silently break this read-without-locking contract.
             if event.paths.contains(&status_path) {
                 if let Ok(text) = std::fs::read_to_string(&status_path) {
                     let _ = app.emit("status:update", parse(&text));
