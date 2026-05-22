@@ -1,7 +1,8 @@
 mod claude;
+mod ipc;
+mod menu;
 mod pty;
 mod state;
-mod ipc;
 
 use state::AppState;
 
@@ -13,6 +14,10 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState::new())
+        .setup(|app| {
+            menu::init(app)?;
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             ipc::get_last_project,
             ipc::open_project,
