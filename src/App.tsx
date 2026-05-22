@@ -3,6 +3,7 @@ import { listen } from '@tauri-apps/api/event';
 import { ProjectPicker } from './project/ProjectPicker';
 import { Layout } from './layout/Layout';
 import { getLastProject } from './ipc/commands';
+import { pickProjectFolder } from './project/pickProjectFolder';
 import { defaultTheme, setTheme } from './theme/themeStore';
 import './App.css';
 
@@ -17,9 +18,20 @@ export default function App() {
       setProject(await getLastProject());
       setReady(true);
     })();
-    const unlisten = listen('claude:not-found', () => setClaudeMissing(true));
+    const unlistenNotFound = listen('claude:not-found', () =>
+      setClaudeMissing(true),
+    );
+    const unlistenOpen = listen('menu:open-project', () => {
+      void (async () => {
+        const folder = await pickProjectFolder();
+        // Same folder is a no-op (setProject bails on an unchanged value);
+        // a new folder re-runs Layout's terminals against the new path.
+        if (folder) setProject(folder);
+      })();
+    });
     return () => {
-      void unlisten.then((fn) => fn());
+      void unlistenNotFound.then((fn) => fn());
+      void unlistenOpen.then((fn) => fn());
     };
   }, []);
 
