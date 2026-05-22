@@ -1,4 +1,4 @@
-import { open } from '@tauri-apps/plugin-dialog';
+import { pickProjectFolder } from './pickProjectFolder';
 import './ProjectPicker.css';
 
 interface Props {
@@ -7,12 +7,8 @@ interface Props {
 
 export function ProjectPicker({ onPick }: Props) {
   const pick = async () => {
-    const folder = await open({
-      directory: true,
-      multiple: false,
-      title: 'Select a project folder',
-    });
-    if (typeof folder === 'string') onPick(folder);
+    const folder = await pickProjectFolder();
+    if (folder) onPick(folder);
   };
   return (
     <div className="project-picker">
