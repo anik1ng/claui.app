@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::Mutex;
 
 use crate::pty::PtySession;
@@ -13,7 +12,6 @@ pub struct AppState {
 struct Inner {
     terminals: HashMap<u32, PtySession>,
     next_id: u32,
-    project: Option<PathBuf>,
 }
 
 impl AppState {
@@ -22,7 +20,6 @@ impl AppState {
             inner: Mutex::new(Inner {
                 terminals: HashMap::new(),
                 next_id: 1,
-                project: None,
             }),
         }
     }
@@ -53,10 +50,6 @@ impl AppState {
         if let Some(session) = inner.terminals.get(&id) {
             let _ = session.resize(cols, rows);
         }
-    }
-
-    pub fn set_project(&self, path: PathBuf) {
-        self.inner.lock().unwrap().project = Some(path);
     }
 }
 

@@ -15,10 +15,11 @@ export const openProject = (
 ) => invoke<number>('open_project', { path, onOutput, cols, rows });
 
 export const openCommandTerminal = (
+  path: string,
   onOutput: Channel<ArrayBuffer>,
   cols: number,
   rows: number,
-) => invoke<number>('open_command_terminal', { onOutput, cols, rows });
+) => invoke<number>('open_command_terminal', { path, onOutput, cols, rows });
 
 export const ptyInput = (id: number, data: string) =>
   invoke('pty_input', { id, data });

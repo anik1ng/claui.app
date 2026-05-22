@@ -36,8 +36,8 @@ export function Layout({ theme, projectPath }: Props) {
   );
   const openShell = useCallback(
     (ch: Channel<ArrayBuffer>, cols: number, rows: number) =>
-      openCommandTerminal(ch, cols, rows),
-    [],
+      openCommandTerminal(projectPath, ch, cols, rows),
+    [projectPath],
   );
 
   // Divider drag to resize the drawer.

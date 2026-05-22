@@ -59,7 +59,6 @@ pub fn open_project(
         on_output,
     )?;
 
-    state.set_project(PathBuf::from(&path));
     if let Some(file) = config_file(&app) {
         if let Some(dir) = file.parent() {
             let _ = std::fs::create_dir_all(dir);
@@ -79,12 +78,13 @@ pub fn open_project(
 pub fn open_command_terminal(
     app: AppHandle,
     state: State<'_, AppState>,
+    path: String,
     on_output: Channel<Vec<u8>>,
     cols: u16,
     rows: u16,
 ) -> Result<u32, String> {
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".into());
-    spawn_terminal(&app, &state, &shell, &["-l"], None, cols, rows, on_output)
+    spawn_terminal(&app, &state, &shell, &["-l"], Some(path.as_str()), cols, rows, on_output)
 }
 
 /// Spawn a PTY, wire its output to `on_output`, register it, and emit
