@@ -24,9 +24,12 @@ interface Props {
 export function TerminalView({ theme, open, autoFocus }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [exited, setExited] = useState(false);
+  // Bumped by the restart affordance to force the effect to re-run — a fresh
+  // terminal and a freshly spawned process.
+  const [restartKey, setRestartKey] = useState(0);
 
   useEffect(() => {
-    // Re-runs on a project switch — clear a stale "process exited" overlay.
+    // Re-runs on a project switch or a restart — clear the exited overlay.
     setExited(false);
     const host = hostRef.current!;
     const cfg = themeToXterm(theme);
@@ -95,17 +98,27 @@ export function TerminalView({ theme, open, autoFocus }: Props) {
       term.dispose();
       if (id != null) void ptyClose(id);
     };
-    // INVARIANT: `autoFocus` is deliberately omitted from this dependency
-    // list. Layout passes `autoFocus={drawerOpen}`, so it flips on every
-    // command-drawer toggle; including it would re-run this effect and
-    // respawn the shell PTY — losing its `claude`/shell session — each time.
+    // INVARIANT: this dependency list is hand-tuned, so exhaustive-deps is
+    // disabled for it. `autoFocus` is deliberately excluded — Layout passes
+    // `autoFocus={drawerOpen}`, which flips on every command-drawer toggle,
+    // and re-running would respawn the shell PTY each time. `restartKey` is
+    // deliberately included though the body never reads it: bumping it is how
+    // the restart affordance forces a fresh terminal.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [theme, open]);
+  }, [theme, open, restartKey]);
 
   return (
     <div className="terminal-view">
       <div ref={hostRef} className="terminal-host" />
-      {exited && <div className="terminal-exited">process exited</div>}
+      {exited && (
+        <button
+          type="button"
+          className="terminal-exited"
+          onClick={() => setRestartKey((k) => k + 1)}
+        >
+          process exited · restart
+        </button>
+      )}
     </div>
   );
 }

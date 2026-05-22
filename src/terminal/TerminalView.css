@@ -17,5 +17,10 @@
   font-family: var(--claui-font-family);
   background: var(--claui-divider);
   color: var(--claui-fg);
+  border: none;
   border-radius: 4px;
+  cursor: pointer;
+}
+.terminal-exited:hover {
+  filter: brightness(1.3);
 }
