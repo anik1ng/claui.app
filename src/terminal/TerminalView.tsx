@@ -6,7 +6,7 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import { listen } from '@tauri-apps/api/event';
 import '@xterm/xterm/css/xterm.css';
 import { themeToXterm } from './xtermTheme';
-import { type Channel, makeOutputChannel, ptyInput, ptyResize } from '../ipc/commands';
+import { type Channel, makeOutputChannel, ptyClose, ptyInput, ptyResize } from '../ipc/commands';
 import type { Theme } from '../theme/themeStore';
 import './TerminalView.css';
 
@@ -26,6 +26,8 @@ export function TerminalView({ theme, open, autoFocus }: Props) {
   const [exited, setExited] = useState(false);
 
   useEffect(() => {
+    // Re-runs on a project switch — clear a stale "process exited" overlay.
+    setExited(false);
     const host = hostRef.current!;
     const cfg = themeToXterm(theme);
     const term = new Terminal({
@@ -54,7 +56,10 @@ export function TerminalView({ theme, open, autoFocus }: Props) {
     const channel = makeOutputChannel((bytes) => term.write(bytes));
     open(channel, term.cols, term.rows)
       .then((tid) => {
-        if (!cancelled) id = tid;
+        // If teardown already ran, the PTY still spawned on the backend —
+        // close it now, since the cleanup below never saw its id.
+        if (cancelled) void ptyClose(tid);
+        else id = tid;
       })
       .catch(() => {
         if (!cancelled) setExited(true);
@@ -88,6 +93,7 @@ export function TerminalView({ theme, open, autoFocus }: Props) {
       dataSub.dispose();
       void exitUnlisten.then((fn) => fn());
       term.dispose();
+      if (id != null) void ptyClose(id);
     };
     // INVARIANT: `autoFocus` is deliberately omitted from this dependency
     // list. Layout passes `autoFocus={drawerOpen}`, so it flips on every

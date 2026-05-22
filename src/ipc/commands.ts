@@ -27,6 +27,8 @@ export const ptyInput = (id: number, data: string) =>
 export const ptyResize = (id: number, cols: number, rows: number) =>
   invoke('pty_resize', { id, cols, rows });
 
+export const ptyClose = (id: number) => invoke('pty_close', { id });
+
 /**
  * Create a Channel that normalizes the backend's binary payload to a
  * Uint8Array and forwards it. Tauri may deliver `Vec<u8>` as an ArrayBuffer,
