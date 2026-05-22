@@ -133,3 +133,8 @@ pub fn pty_input(state: State<'_, AppState>, id: u32, data: String) {
 pub fn pty_resize(state: State<'_, AppState>, id: u32, cols: u16, rows: u16) {
     state.resize(id, cols, rows);
 }
+
+#[tauri::command]
+pub fn pty_close(state: State<'_, AppState>, id: u32) {
+    state.close(id);
+}

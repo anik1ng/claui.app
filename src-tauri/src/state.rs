@@ -36,6 +36,13 @@ impl AppState {
         self.inner.lock().unwrap().terminals.insert(id, session);
     }
 
+    /// Remove a terminal from the registry. Dropping the `PtySession` kills
+    /// its child process (see `PtySession`'s `Drop` impl). A no-op if `id`
+    /// is unknown.
+    pub fn close(&self, id: u32) {
+        self.inner.lock().unwrap().terminals.remove(&id);
+    }
+
     /// Write input bytes to a terminal's PTY, if it exists.
     pub fn write_input(&self, id: u32, data: &[u8]) {
         let mut inner = self.inner.lock().unwrap();
@@ -63,5 +70,17 @@ mod tests {
         assert_eq!(state.alloc_id(), 1);
         assert_eq!(state.alloc_id(), 2);
         assert_eq!(state.alloc_id(), 3);
+    }
+
+    #[test]
+    fn close_removes_a_terminal() {
+        let state = AppState::new();
+        let session =
+            PtySession::spawn("/bin/echo", &["x"], None, 80, 24, |_| {}, |_| {}).unwrap();
+        let id = state.alloc_id();
+        state.insert(id, session);
+        assert!(state.inner.lock().unwrap().terminals.contains_key(&id));
+        state.close(id);
+        assert!(!state.inner.lock().unwrap().terminals.contains_key(&id));
     }
 }

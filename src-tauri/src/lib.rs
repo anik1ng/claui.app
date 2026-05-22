@@ -19,6 +19,7 @@ pub fn run() {
             ipc::open_command_terminal,
             ipc::pty_input,
             ipc::pty_resize,
+            ipc::pty_close,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
