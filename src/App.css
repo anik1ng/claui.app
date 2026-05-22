@@ -1,0 +1,25 @@
+:root {
+  color-scheme: dark;
+}
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: var(--claui-bg);
+}
+.claui-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  padding: 8px 12px;
+  font-size: 13px;
+  background: var(--claui-divider);
+  color: var(--claui-fg);
+  font-family: var(--claui-font-family);
+}
+.claui-banner a {
+  color: var(--claui-accent);
+}
