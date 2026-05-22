@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
+import { listen } from '@tauri-apps/api/event';
 import { TerminalView } from '../terminal/TerminalView';
-import { type Channel, openCommandTerminal, openProject } from '../ipc/commands';
+import { StatusBar } from '../status/StatusBar';
+import { Sidebar } from '../sessions/Sidebar';
+import {
+  type Channel,
+  openCommandTerminal,
+  openProject,
+  type StatusPayload,
+} from '../ipc/commands';
 import type { Theme } from '../theme/themeStore';
 import './Layout.css';
 
@@ -9,18 +17,55 @@ interface Props {
   projectPath: string;
 }
 
+/**
+ * Which session the claude terminal should run: a resume id (or null for a
+ * fresh session), plus a nonce so picking the same session — or "+ New"
+ * twice — still changes the `open` callback identity and re-runs the terminal.
+ */
+interface SessionTarget {
+  resumeId: string | null;
+  nonce: number;
+}
+
 export function Layout({ theme, projectPath }: Props) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerEverOpened, setDrawerEverOpened] = useState(false);
   const [drawerHeight, setDrawerHeight] = useState(220);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [status, setStatus] = useState<StatusPayload | null>(null);
+  const [sessionTarget, setSessionTarget] = useState<SessionTarget>({
+    resumeId: null,
+    nonce: 0,
+  });
 
-  // Ctrl+` toggles the command drawer; Esc closes it.
+  // React's "adjust state when a prop changes" pattern: switching projects
+  // must drop a resume id that belongs to the old project. Resetting here —
+  // during render — lands in the same render as the projectPath change, so
+  // the claude terminal re-runs exactly once.
+  const [prevProject, setPrevProject] = useState(projectPath);
+  if (projectPath !== prevProject) {
+    setPrevProject(projectPath);
+    setSessionTarget({ resumeId: null, nonce: 0 });
+  }
+
+  // Live Claude Code state, pushed by the statusline watcher.
+  useEffect(() => {
+    const unlisten = listen<StatusPayload>('status:update', (e) => setStatus(e.payload));
+    return () => {
+      void unlisten.then((fn) => fn());
+    };
+  }, []);
+
+  // Ctrl+` toggles the command drawer; Ctrl+B the sidebar; Esc closes the drawer.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key === '`') {
         e.preventDefault();
         setDrawerEverOpened(true);
         setDrawerOpen((v) => !v);
+      } else if (e.ctrlKey && e.key === 'b') {
+        e.preventDefault();
+        setSidebarOpen((v) => !v);
       } else if (e.key === 'Escape' && drawerOpen) {
         setDrawerOpen(false);
       }
@@ -31,14 +76,24 @@ export function Layout({ theme, projectPath }: Props) {
 
   const openClaude = useCallback(
     (ch: Channel<ArrayBuffer>, cols: number, rows: number) =>
-      openProject(projectPath, ch, cols, rows),
-    [projectPath],
+      openProject(projectPath, ch, cols, rows, sessionTarget.resumeId ?? undefined),
+    [projectPath, sessionTarget],
   );
   const openShell = useCallback(
     (ch: Channel<ArrayBuffer>, cols: number, rows: number) =>
       openCommandTerminal(projectPath, ch, cols, rows),
     [projectPath],
   );
+
+  // Picking the already-active session would needlessly restart it.
+  const pickSession = (id: string) => {
+    if (id !== status?.sessionId) {
+      setSessionTarget((t) => ({ resumeId: id, nonce: t.nonce + 1 }));
+    }
+  };
+  const newSession = () => {
+    setSessionTarget((t) => ({ resumeId: null, nonce: t.nonce + 1 }));
+  };
 
   // Divider drag to resize the drawer.
   const startDrag = (e: React.MouseEvent) => {
@@ -58,15 +113,31 @@ export function Layout({ theme, projectPath }: Props) {
 
   return (
     <div className="layout">
-      <div className="layout-main">
-        <TerminalView theme={theme} open={openClaude} autoFocus />
-      </div>
-      {drawerOpen && <div className="layout-divider" onMouseDown={startDrag} />}
-      {drawerEverOpened && (
-        <div className="layout-drawer" style={{ height: drawerOpen ? drawerHeight : 0 }}>
-          <TerminalView theme={theme} open={openShell} autoFocus={drawerOpen} />
+      <StatusBar status={status} />
+      <div className="layout-body">
+        <div className="layout-left">
+          <div className="layout-main">
+            <TerminalView theme={theme} open={openClaude} autoFocus />
+          </div>
+          {drawerOpen && <div className="layout-divider" onMouseDown={startDrag} />}
+          {drawerEverOpened && (
+            <div
+              className="layout-drawer"
+              style={{ height: drawerOpen ? drawerHeight : 0 }}
+            >
+              <TerminalView theme={theme} open={openShell} autoFocus={drawerOpen} />
+            </div>
+          )}
         </div>
-      )}
+        {sidebarOpen && (
+          <Sidebar
+            projectPath={projectPath}
+            activeSessionId={status?.sessionId ?? null}
+            onPickSession={pickSession}
+            onNewSession={newSession}
+          />
+        )}
+      </div>
     </div>
   );
 }

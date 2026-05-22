@@ -4,6 +4,17 @@
   height: 100vh;
   background: var(--claui-bg);
 }
+.layout-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.layout-left {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
 .layout-main {
   flex: 1;
   min-height: 0;
