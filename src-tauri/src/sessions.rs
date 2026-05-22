@@ -26,6 +26,11 @@ pub fn project_dir_name(project_path: &str) -> String {
 
 /// Extract a session's display title from its JSONL contents: the most recent
 /// `ai-title` line, else the first user message's text (truncated), else None.
+///
+/// NOTE: `ai-title` lines can appear multiple times (claude regenerates the
+/// title over the life of a session); the last one wins, so we must scan to
+/// EOF rather than early-exit on the first match. The `first_user` branch is
+/// already guarded by `is_none()` so it does early-skip once filled.
 fn extract_title(contents: &str) -> Option<String> {
     let mut ai_title: Option<String> = None;
     let mut first_user: Option<String> = None;
@@ -40,11 +45,7 @@ fn extract_title(contents: &str) -> Option<String> {
                 }
             }
             Some("user") if first_user.is_none() => {
-                if let Some(text) = value
-                    .get("message")
-                    .and_then(|m| m.get("content"))
-                    .and_then(serde_json::Value::as_str)
-                {
+                if let Some(text) = user_message_text(&value) {
                     first_user = Some(text.chars().take(60).collect());
                 }
             }
@@ -52,6 +53,23 @@ fn extract_title(contents: &str) -> Option<String> {
         }
     }
     ai_title.or(first_user)
+}
+
+/// Pull a display string out of a `user`-typed message's `content`. `content`
+/// can be either a plain string OR an array of content blocks (tool-heavy
+/// sessions produce the latter); for an array, the first `{"type":"text"}`
+/// block wins.
+fn user_message_text(value: &serde_json::Value) -> Option<&str> {
+    let content = value.get("message").and_then(|m| m.get("content"))?;
+    if let Some(text) = content.as_str() {
+        return Some(text);
+    }
+    content
+        .as_array()?
+        .iter()
+        .find(|block| block.get("type").and_then(serde_json::Value::as_str) == Some("text"))?
+        .get("text")?
+        .as_str()
 }
 
 /// Read one session file into a `SessionInfo`; `None` if its name or metadata
@@ -105,6 +123,8 @@ mod tests {
     fn project_dir_name_replaces_non_alphanumerics() {
         assert_eq!(project_dir_name("/Users/a/p"), "-Users-a-p");
         assert_eq!(project_dir_name("/U/my.app dir"), "-U-my-app-dir");
+        // Digits are alphanumeric and must be preserved verbatim.
+        assert_eq!(project_dir_name("/proj/v2-final"), "-proj-v2-final");
     }
 
     #[test]
@@ -124,6 +144,14 @@ mod tests {
     fn extract_title_falls_back_to_the_first_user_message() {
         let jsonl = r#"{"type":"user","message":{"role":"user","content":"do the thing"}}"#;
         assert_eq!(extract_title(jsonl), Some("do the thing".to_string()));
+    }
+
+    #[test]
+    fn extract_title_handles_array_shaped_user_content() {
+        // Real claude sessions emit `content` as an array of content blocks
+        // for tool-heavy turns; we must still find the first text block.
+        let jsonl = r#"{"type":"user","message":{"role":"user","content":[{"type":"tool_result","content":"x"},{"type":"text","text":"the actual prompt"}]}}"#;
+        assert_eq!(extract_title(jsonl), Some("the actual prompt".to_string()));
     }
 
     #[test]
