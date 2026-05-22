@@ -54,13 +54,6 @@ impl Default for Theme {
     }
 }
 
-/// Parse a Ghostty config text into a `Theme`, starting from the default.
-pub fn parse(config_text: &str) -> Theme {
-    let mut theme = Theme::default();
-    apply_config(config_text, &mut theme);
-    theme
-}
-
 /// Apply `key = value` lines from a Ghostty config onto an existing theme.
 /// Pure and idempotent; used by both `parse` and `load` (for layering).
 pub(crate) fn apply_config(text: &str, theme: &mut Theme) {
@@ -201,6 +194,13 @@ pub fn load() -> Theme {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Parse config text onto a fresh default theme.
+    fn parse(text: &str) -> Theme {
+        let mut theme = Theme::default();
+        apply_config(text, &mut theme);
+        theme
+    }
 
     #[test]
     fn empty_config_yields_default() {
