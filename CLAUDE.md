@@ -59,10 +59,17 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
 - `pty.rs` — `PtySession`: one PTY + child process. Output goes to an injected
   sink closure; child exit to an `on_exit` closure. Killed on `Drop`.
 - `state.rs` — `AppState`: a `Mutex`-guarded registry of live `PtySession`s
-  keyed by id, plus the current project path and an id counter.
-- `ipc.rs` — the five Tauri commands (`get_last_project`, `open_project`,
-  `open_command_terminal`, `pty_input`, `pty_resize`) and the
-  `claude:not-found` / `terminal:exit` events.
+  keyed by id, plus an id counter.
+- `ipc.rs` — the Tauri commands (`get_last_project`, `open_project`,
+  `open_command_terminal`, `pty_input`, `pty_resize`, `pty_close`,
+  `list_sessions`) and the `claude:not-found` / `terminal:exit` /
+  `status:update` events.
+- `menu.rs` — builds the native macOS menu; `File → Open Project` emits
+  `menu:open-project`.
+- `statusline.rs` — installs the wrapper script that captures `claude`'s
+  statusline JSON, watches its output file, and emits `status:update`.
+- `sessions.rs` — reads a project's `claude` session files from
+  `~/.claude/projects/<encoded>/` for the sessions sidebar.
 - `claude.rs` — locates the `claude` binary on `$PATH` and common install dirs.
 
 ### Frontend (`src/`)
@@ -73,7 +80,12 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
 - `terminal/xtermTheme.ts` — pure: claui `Theme` → `xterm.js` options.
 - `theme/themeStore.ts` — the `Theme` TypeScript types, the built-in
   `defaultTheme`, and applying the theme to the app chrome via CSS variables.
-- `layout/Layout.tsx` — main pane plus the slide-out command-terminal drawer.
+- `layout/Layout.tsx` — status bar, main pane, the slide-out command-terminal
+  drawer, and the sessions sidebar.
+- `status/StatusBar.tsx` — the top status bar (model, context, cost, limits),
+  fed by the `status:update` event.
+- `sessions/Sidebar.tsx` — the sessions list; clicking a row resumes that
+  `claude` session.
 - `ipc/commands.ts` — typed `invoke` wrappers and the output-`Channel` helper.
 
 ## Conventions and non-obvious points
