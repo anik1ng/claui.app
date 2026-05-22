@@ -3,6 +3,7 @@ mod ipc;
 mod menu;
 mod pty;
 mod state;
+mod statusline;
 
 use state::AppState;
 
@@ -16,6 +17,12 @@ pub fn run() {
         .manage(AppState::new())
         .setup(|app| {
             menu::init(app)?;
+            if let Err(e) = statusline::install_wrapper(app.handle()) {
+                eprintln!("claui: failed to install the statusline wrapper: {e}");
+            }
+            if let Err(e) = statusline::start_watcher(app.handle().clone()) {
+                eprintln!("claui: statusline watcher failed to start: {e}");
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

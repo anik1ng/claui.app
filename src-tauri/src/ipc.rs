@@ -41,18 +41,31 @@ pub fn open_project(
     on_output: Channel<Vec<u8>>,
     cols: u16,
     rows: u16,
+    resume_session_id: Option<String>,
 ) -> Result<u32, String> {
     let Some(claude) = crate::claude::locate() else {
         let _ = app.emit("claude:not-found", ());
         return Err("claude binary not found".into());
     };
 
+    // Override only `claude`'s statusLine so claui can capture the live
+    // session metrics; `--settings` merges, leaving the user's config intact.
+    let settings = crate::statusline::settings_arg(&app);
+    let mut args: Vec<&str> = Vec::new();
+    if let Some(ref sid) = resume_session_id {
+        args.push("--resume");
+        args.push(sid.as_str());
+    }
+    args.push("--settings");
+    args.push(settings.as_str());
+
     // Spawn first; persist the project only once the terminal actually started.
+    let claude = claude.to_string_lossy();
     let id = spawn_terminal(
         &app,
         &state,
-        claude.to_string_lossy().as_ref(),
-        &[],
+        claude.as_ref(),
+        &args,
         Some(&path),
         cols,
         rows,
