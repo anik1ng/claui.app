@@ -70,7 +70,8 @@ pub(crate) fn apply_config(text: &str, theme: &mut Theme) {
             continue;
         }
         let Some((key, value)) = line.split_once('=') else { continue };
-        let (key, value) = (key.trim(), value.trim());
+        let key = key.trim();
+        let value = unquote(value.trim());
         if value.is_empty() {
             continue;
         }
@@ -115,6 +116,14 @@ fn set(slot: &mut Color, parsed: Option<Color>) {
     }
 }
 
+/// Strip one matching pair of surrounding double or single quotes, if present.
+/// Ghostty config values may be quoted to preserve spaces, e.g.
+/// `font-family = "MonaspiceKr Nerd Font"`.
+fn unquote(value: &str) -> &str {
+    let pair = |q: char| value.strip_prefix(q).and_then(|v| v.strip_suffix(q));
+    pair('"').or_else(|| pair('\'')).unwrap_or(value)
+}
+
 /// Parse `#rrggbb`, `rrggbb`, `#rgb`, or `rgb` into a `Color`.
 fn parse_color(s: &str) -> Option<Color> {
     let hex = s.strip_prefix('#').unwrap_or(s);
@@ -147,7 +156,7 @@ pub(crate) fn find_theme_key(text: &str) -> Option<String> {
         }
         if let Some((key, value)) = line.split_once('=') {
             if key.trim() == "theme" {
-                let v = value.trim();
+                let v = unquote(value.trim());
                 if !v.is_empty() {
                     return Some(v.to_string());
                 }
@@ -260,5 +269,13 @@ mod tests {
         apply_config("foreground = #222222\n", &mut theme); // main config wins
         assert_eq!(theme.background, Color { r: 0xaa, g: 0xbb, b: 0xcc });
         assert_eq!(theme.foreground, Color { r: 0x22, g: 0x22, b: 0x22 });
+    }
+
+    #[test]
+    fn strips_surrounding_quotes_from_values() {
+        // Ghostty config values are often quoted to preserve spaces.
+        let t = parse("font-family = \"MonaspiceKr Nerd Font\"\n");
+        assert_eq!(t.font_family, "MonaspiceKr Nerd Font");
+        assert_eq!(find_theme_key("theme = \"Ayu\"\n"), Some("Ayu".to_string()));
     }
 }
