@@ -1,0 +1,44 @@
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: none;
+  height: 30px;
+  padding: 0 12px;
+  background: var(--claui-bg);
+  border-bottom: 1px solid var(--claui-divider);
+  color: var(--claui-fg);
+  font-family: var(--claui-font-family);
+  font-size: 12px;
+}
+.statusbar-left,
+.statusbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.statusbar-right {
+  margin-left: auto;
+}
+.statusbar-label {
+  opacity: 0.55;
+}
+.statusbar-ctxbar {
+  width: 90px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--claui-divider);
+  overflow: hidden;
+}
+.statusbar-ctxfill {
+  display: block;
+  height: 100%;
+  background: var(--claui-accent);
+}
+.statusbar-cost {
+  opacity: 0.7;
+}
+/* Limit colours mirror claude's own statusline thresholds. */
+.statusbar-limit.level-ok { color: #6a9955; }
+.statusbar-limit.level-warn { color: #d7ba7d; }
+.statusbar-limit.level-high { color: #f48771; }
