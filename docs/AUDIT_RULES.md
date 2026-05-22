@@ -32,11 +32,28 @@ Why: high-complexity functions are the spots where the next refactor is most lik
 
 ## 2. Architecture invariants
 
-_Reserved. claui-specific invariants (PTY ownership, the xterm.js VT boundary, the raw-bytes-only IPC contract) will be added here as they are identified._
+**R2.1** `xterm.js`, running in the webview, owns all terminal emulation — VT parsing, rendering, input encoding, selection, and scrollback. The Rust core must not parse VT sequences, maintain a screen or grid model, or carry a renderer. Only raw bytes cross the IPC boundary: child output travels as a `Channel<Vec<u8>>` to `term.write()`, and keyboard input travels as the string payload of the `pty_input` command to `PtySession::write`. [review]
+Why: one VT implementation is the load-bearing decision of the whole project. The predecessor built a from-scratch VT engine plus a hand-written renderer and was abandoned for exactly this reason. Any VT logic on the Rust side creates a second, divergent emulator; the failure is silent — subtly wrong rendering — and expensive to trace.
+
+**R2.2** Every PTY and its child process is owned by exactly one `PtySession`, constructed only through `PtySession::spawn`. A live session is reachable only through `AppState`'s `Mutex`-guarded registry, keyed by id. `PtySession` kills its child on `Drop`; removing a session from the registry, or dropping `AppState`, must remain sufficient to terminate the process. [review]
+Why: the `Drop`-kills-child contract is the only thing preventing orphaned `claude` / shell processes. A path that spawns a PTY outside `PtySession`, or holds a `PtySession` outside the registry, escapes that guarantee and leaks processes the user cannot see or stop.
+
+**R2.3** The `libghostty-vt` VT engine and the hand-written canvas renderer it fed must not be reintroduced. Terminal emulation is `xterm.js`'s responsibility (R2.1). [review]
+Why: that stack was built, abandoned, and removed — the repository was re-initialized to drop it. Reintroducing it relitigates a settled decision and reopens the dual-emulator failure mode R2.1 exists to prevent.
 
 ## 3. Frontend conventions
 
-_Reserved._
+**R3.1** Frontend code talks to the Rust backend only through `src/ipc/commands.ts`. Direct `invoke()` calls and imports from `@tauri-apps/api/core` anywhere else are forbidden; `commands.ts` re-exports the `Channel` type so components never need that import either. [lint]
+Why: `commands.ts` is the one place each command's argument and return types are declared. Bypassing it scatters untyped `invoke()` calls — and the `any`-typed IPC boundary — across the UI. Enforced by `no-restricted-imports` in `eslint.config.js`, with `commands.ts` itself exempted.
+
+**R3.2** `src/main.tsx` must not wrap the application in `React.StrictMode`. [review]
+Why: claui's effects spawn real OS processes — PTYs running `claude` or a shell. StrictMode deliberately double-invokes effects in development, which would spawn a duplicate child process for every terminal. The omission is load-bearing and is documented by a comment in `main.tsx`.
+
+**R3.3** `xtermTheme.ts` must always append a `Menlo, monospace` fallback to the configured terminal `font-family`. Returning the bare configured family is forbidden. [review]
+Why: the webview resolves fonts differently from a native terminal, and the configured family may not exist there. Without a monospace fallback the terminal would render in a proportional font, breaking column alignment. Guarded by `xtermTheme.test.ts`.
+
+**R3.4** The `open` callback passed to `<TerminalView>` must be a stable reference — wrapped in `useCallback` with an honest dependency list. Constructing a fresh function on every render is forbidden. [review]
+Why: `TerminalView`'s terminal-setup effect depends on `open`; a new identity tears down and recreates the `xterm.js` terminal, which respawns the backend PTY. The failure is silent — a flickering terminal, a lost shell session. `Layout.tsx`'s `openClaude` / `openShell` already follow this.
 
 ## 4. Backend conventions
 
