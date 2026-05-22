@@ -94,6 +94,14 @@ impl PtySession {
     }
 }
 
+/// Killing the child on drop ensures a `PtySession` removed from the terminal
+/// registry (or dropped at shutdown) does not leak its process.
+impl Drop for PtySession {
+    fn drop(&mut self) {
+        self.kill();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
