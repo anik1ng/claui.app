@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Channel } from '@tauri-apps/api/core';
 import { TerminalView } from '../terminal/TerminalView';
-import { openCommandTerminal, openProject } from '../ipc/commands';
+import { type Channel, openCommandTerminal, openProject } from '../ipc/commands';
 import type { Theme } from '../theme/themeStore';
 import './Layout.css';
 

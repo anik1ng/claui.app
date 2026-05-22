@@ -27,7 +27,7 @@ where
 pub fn locate() -> Option<PathBuf> {
     let path_var = std::env::var("PATH").unwrap_or_default();
     let home = std::env::var_os("HOME").map(PathBuf::from)?;
-    find_claude(&path_var, &home, |p| p.is_file())
+    find_claude(&path_var, &home, Path::is_file)
 }
 
 #[cfg(test)]

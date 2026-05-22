@@ -18,7 +18,7 @@ export function ProjectPicker({ onPick }: Props) {
     <div className="project-picker">
       <h1>claui</h1>
       <p>Choose a project folder to start Claude Code in.</p>
-      <button onClick={pick}>Open folder…</button>
+      <button onClick={() => void pick()}>Open folder…</button>
     </div>
   );
 }

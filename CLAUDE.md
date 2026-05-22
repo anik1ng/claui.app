@@ -16,11 +16,28 @@ Run from the repository root:
 - `npm run tauri dev` — run the app (builds the Rust core + serves the webview).
 - `npm run tauri build` — production build.
 - `npm run build` — build the frontend only (`tsc` typecheck + `vite build`).
+- `npm run lint` — ESLint over `src/` (flat config in `eslint.config.js`).
+- `npm run typecheck` — `tsc --noEmit`; reports type errors with no build output.
 - `npm test` — frontend unit tests (Vitest). Single file: `npx vitest run src/terminal/xtermTheme.test.ts`; by name: `npx vitest run -t "appends a monospace fallback"`.
 - `cargo test --manifest-path src-tauri/Cargo.toml` — Rust tests. One module: append `state::`; one test: `state::tests::alloc_id_is_monotonic`.
 - `cargo build --manifest-path src-tauri/Cargo.toml` — build the Rust core only.
 
 Build toolchain is plain `cargo` + `npm` — Rust (stable) and Node.js 20+, nothing else.
+
+## Linting and discipline
+
+- `docs/AUDIT_RULES.md` — the rules governing AI-assisted edits: file-size and
+  complexity limits (Section 1), documentation discipline (Section 8), and the
+  exceptions list (Section 9). Sections 2–7 are reserved for claui-specific
+  invariants. `[lint]`-tagged rules are enforced mechanically by
+  `eslint.config.js` and `src-tauri/Cargo.toml`'s `[lints.*]` sections;
+  `[review]` rules are checked during audits.
+- `docs/DECISIONS.md` — append-only log of decisions that change an invariant
+  or relax/tighten an audit rule. Per AUDIT_RULES R8.3, update the docs in the
+  same commit as the code change they describe.
+- `.githooks/pre-commit` runs typecheck + ESLint + Vitest on staged TS and
+  clippy + tests on staged Rust. Activate it once per clone:
+  `git config core.hooksPath .githooks`.
 
 ## Architecture
 

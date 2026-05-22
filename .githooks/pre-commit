@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Pre-commit hook for claui. Runs fast checks scoped to what's staged.
+#
+# What runs:
+#   - TypeScript typecheck + ESLint + Vitest when *.ts / *.tsx files are
+#     staged.
+#   - cargo clippy (-D warnings) + cargo test --lib when *.rs / Cargo.toml
+#     files are staged. Clippy includes the compile check, so cargo check
+#     is not invoked separately.
+#
+# This hook is not active until enabled once per clone with:
+#   git config core.hooksPath .githooks
+#
+# Skip the hook for a single commit: git commit --no-verify
+# Disable entirely: git config --unset core.hooksPath
+
+set -euo pipefail
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR)
+TS_CHANGED=$(printf '%s\n' "$STAGED" | grep -E '\.(ts|tsx)$' || true)
+# Match *.rs and any Cargo.toml (single one today at src-tauri/Cargo.toml,
+# but anchored on `/Cargo.toml$` so a future workspace member is caught).
+RUST_CHANGED=$(printf '%s\n' "$STAGED" | grep -E '\.rs$|/Cargo\.toml$' || true)
+
+if [ -n "$TS_CHANGED" ]; then
+  echo "→ TypeScript typecheck"
+  npm run typecheck
+
+  echo "→ ESLint"
+  npm run lint
+
+  echo "→ Vitest"
+  npm test
+fi
+
+if [ -n "$RUST_CHANGED" ]; then
+  echo "→ Rust clippy (denies warnings)"
+  cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
+
+  echo "→ Rust unit tests"
+  cargo test --manifest-path src-tauri/Cargo.toml --lib
+fi
+
+if [ -z "$TS_CHANGED" ] && [ -z "$RUST_CHANGED" ]; then
+  echo "→ No TS/Rust source changes staged; nothing to check"
+fi
+
+echo "✓ pre-commit checks passed"

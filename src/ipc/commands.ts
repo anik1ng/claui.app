@@ -1,5 +1,10 @@
 import { invoke, Channel } from '@tauri-apps/api/core';
 
+// Re-export the Channel type so terminal components can annotate their
+// output callbacks without importing @tauri-apps/api/core directly —
+// eslint.config.js restricts that import to this file, the single IPC funnel.
+export type { Channel } from '@tauri-apps/api/core';
+
 export const getLastProject = () => invoke<string | null>('get_last_project');
 
 export const openProject = (

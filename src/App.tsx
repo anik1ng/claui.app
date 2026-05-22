@@ -13,7 +13,7 @@ export default function App() {
 
   useEffect(() => {
     setTheme(defaultTheme);
-    (async () => {
+    void (async () => {
       setProject(await getLastProject());
       setReady(true);
     })();

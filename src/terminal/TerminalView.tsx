@@ -3,11 +3,10 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { WebLinksAddon } from '@xterm/addon-web-links';
-import { Channel } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import '@xterm/xterm/css/xterm.css';
 import { themeToXterm } from './xtermTheme';
-import { makeOutputChannel, ptyInput, ptyResize } from '../ipc/commands';
+import { type Channel, makeOutputChannel, ptyInput, ptyResize } from '../ipc/commands';
 import type { Theme } from '../theme/themeStore';
 import './TerminalView.css';
 

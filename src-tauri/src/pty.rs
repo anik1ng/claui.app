@@ -61,7 +61,8 @@ impl PtySession {
             }
             let code = child
                 .wait()
-                .map(|status| status.exit_code() as i32)
+                .ok()
+                .and_then(|status| i32::try_from(status.exit_code()).ok())
                 .unwrap_or(-1);
             on_exit(code);
         });
@@ -125,7 +126,7 @@ mod tests {
             move |bytes| out_sink.lock().unwrap().extend_from_slice(bytes),
             move |_code| exit_flag.store(true, Ordering::SeqCst),
         )
-        .expect("spawn echo");
+        .unwrap();
 
         // `echo` writes "hello" then exits; wait for the reader thread.
         for _ in 0..100 {

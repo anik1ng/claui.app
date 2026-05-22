@@ -69,8 +69,7 @@ pub fn open_project(
     if let Some(window) = app.get_webview_window("main") {
         let name = PathBuf::from(&path)
             .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_else(|| path.clone());
+            .map_or_else(|| path.clone(), |n| n.to_string_lossy().into_owned());
         let _ = window.set_title(&format!("claui — {name}"));
     }
     Ok(id)
@@ -90,6 +89,11 @@ pub fn open_command_terminal(
 
 /// Spawn a PTY, wire its output to `on_output`, register it, and emit
 /// `terminal:exit` when the child terminates.
+// Eight parameters: a thin spawn-and-register wrapper that forwards six of
+// them straight to `PtySession::spawn` and adds `app`/`state` for the exit
+// event and registry insertion. Bundling them into a struct would only
+// relocate the same surface, not reduce it.
+#[allow(clippy::too_many_arguments)]
 fn spawn_terminal(
     app: &AppHandle,
     state: &AppState,

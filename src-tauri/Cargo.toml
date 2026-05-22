@@ -23,3 +23,43 @@ portable-pty = "0.9"
 tauri-plugin-dialog = "2"
 anyhow = "1"
 
+[lints.rust]
+# claui's own code never needs `unsafe` — portable-pty owns every raw FFI
+# call behind a safe API. `forbid` makes any future `unsafe` block a hard
+# error rather than a warning, so the boundary can't erode silently.
+unsafe_code = "forbid"
+unused = { level = "warn", priority = -1 }
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+
+# Pragmatic pedantic allows — pure noise on idiomatic Rust we keep.
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+
+# R1.5 — function-body length. The threshold is set to 50 in clippy.toml;
+# load-bearing functions that must exceed it opt out per-function with
+# `#[allow(clippy::too_many_lines)]` and a Section 9 entry in AUDIT_RULES.md.
+too_many_lines = "warn"
+
+# R1.3 — Rust unit tests live in one `#[cfg(test)] mod tests` block.
+# `tests_outside_test_module` is a clippy::restriction lint and must be
+# enabled explicitly.
+tests_outside_test_module = "warn"
+
+# `.unwrap()` is allowed: at `warn` it floods on idiomatic `.unwrap()` in
+# test code and on `Mutex::lock().unwrap()` (a poisoned lock is genuinely
+# unrecoverable) with no incremental safety. `.expect()` and `panic!` stay
+# flagged — both are rare enough in production code to be worth a look.
+unwrap_used = "allow"
+expect_used = "warn"
+panic = "warn"
+
+# `needless_pass_by_value` fires on Tauri's required by-value
+# `State<'_, AppState>` command signatures; allowing it globally keeps the
+# lint useful elsewhere if it ever fires on non-Tauri code.
+needless_pass_by_value = "allow"
+

@@ -5,7 +5,10 @@ mod ipc;
 
 use state::AppState;
 
+// `.expect()` on the Tauri builder is deliberate: a failure to build or run
+// the app is fatal and unrecoverable — there is no UI left to report it to.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+#[allow(clippy::expect_used)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
