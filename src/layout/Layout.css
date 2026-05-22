@@ -1,0 +1,18 @@
+.layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--claui-bg);
+}
+.layout-main {
+  flex: 1;
+  min-height: 0;
+}
+.layout-divider {
+  height: 4px;
+  cursor: row-resize;
+  background: var(--claui-divider);
+}
+.layout-drawer {
+  overflow: hidden;
+}
