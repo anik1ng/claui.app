@@ -1,4 +1,4 @@
-use std::io::{Read, Write};
+use std::io::{ErrorKind, Read, Write};
 use std::thread;
 
 use portable_pty::{native_pty_system, ChildKiller, CommandBuilder, PtySize};
@@ -55,8 +55,13 @@ impl PtySession {
             let mut buf = [0u8; 8192];
             loop {
                 match reader.read(&mut buf) {
-                    Ok(0) | Err(_) => break, // EOF or error
+                    Ok(0) => break, // EOF — the child closed the PTY
                     Ok(n) => on_output(&buf[..n]),
+                    // A signal can interrupt a blocking read; that is not an
+                    // exit. Fall through so the loop retries instead of
+                    // tearing down a live terminal.
+                    Err(e) if e.kind() == ErrorKind::Interrupted => {}
+                    Err(_) => break, // a genuine read error
                 }
             }
             let code = child

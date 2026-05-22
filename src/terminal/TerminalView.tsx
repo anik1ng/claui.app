@@ -24,9 +24,12 @@ interface Props {
 export function TerminalView({ theme, open, autoFocus }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [exited, setExited] = useState(false);
-  // Bumped by the restart affordance to force the effect to re-run — a fresh
-  // terminal and a freshly spawned process.
+  // Bumped to force the effect to re-run — a fresh terminal and a freshly
+  // spawned process. Driven by both the auto-restart and the manual button.
   const [restartKey, setRestartKey] = useState(0);
+  // When the current process was spawned — used to tell a normal exit (which
+  // auto-restarts) from a crash loop (a process that dies right after spawn).
+  const startedAtRef = useRef(0);
 
   useEffect(() => {
     // Re-runs on a project switch or a restart — clear the exited overlay.
@@ -61,8 +64,12 @@ export function TerminalView({ theme, open, autoFocus }: Props) {
       .then((tid) => {
         // If teardown already ran, the PTY still spawned on the backend —
         // close it now, since the cleanup below never saw its id.
-        if (cancelled) void ptyClose(tid);
-        else id = tid;
+        if (cancelled) {
+          void ptyClose(tid);
+        } else {
+          id = tid;
+          startedAtRef.current = Date.now();
+        }
       })
       .catch(() => {
         if (!cancelled) setExited(true);
@@ -85,7 +92,15 @@ export function TerminalView({ theme, open, autoFocus }: Props) {
     const exitUnlisten = listen<{ id: number; code: number }>(
       'terminal:exit',
       (event) => {
-        if (event.payload.id === id) setExited(true);
+        if (event.payload.id !== id) return;
+        // Self-heal: a process that ran for a while and then exited is
+        // respawned silently. One that dies within seconds of spawning is
+        // crash-looping — show the overlay instead of restarting forever.
+        if (Date.now() - startedAtRef.current > 3000) {
+          setRestartKey((k) => k + 1);
+        } else {
+          setExited(true);
+        }
       },
     );
 
@@ -111,13 +126,16 @@ export function TerminalView({ theme, open, autoFocus }: Props) {
     <div className="terminal-view">
       <div ref={hostRef} className="terminal-host" />
       {exited && (
-        <button
-          type="button"
-          className="terminal-exited"
-          onClick={() => setRestartKey((k) => k + 1)}
-        >
-          process exited · restart
-        </button>
+        <div className="terminal-exited">
+          <button
+            type="button"
+            className="terminal-exited-btn"
+            autoFocus
+            onClick={() => setRestartKey((k) => k + 1)}
+          >
+            process exited — restart
+          </button>
+        </div>
       )}
     </div>
   );

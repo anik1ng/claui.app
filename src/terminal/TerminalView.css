@@ -10,17 +10,23 @@
 }
 .terminal-exited {
   position: absolute;
-  top: 8px;
-  right: 12px;
-  padding: 2px 8px;
-  font-size: 12px;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+}
+.terminal-exited-btn {
+  padding: 8px 18px;
+  font-size: 14px;
   font-family: var(--claui-font-family);
   background: var(--claui-divider);
   color: var(--claui-fg);
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
 }
-.terminal-exited:hover {
+.terminal-exited-btn:hover {
   filter: brightness(1.3);
 }
