@@ -108,11 +108,12 @@ export default tseslint.config(
 
       // --- React / hooks ---
       "react-hooks/rules-of-hooks": "error",
-      // exhaustive-deps stays at the plugin default "warn": a missing dep
-      // is sometimes deliberate (TerminalView omits `autoFocus` from its
-      // effect so toggling the command drawer doesn't respawn the shell
-      // PTY). Warn keeps the omission visible without breaking the build.
-      "react-hooks/exhaustive-deps": "warn",
+      // exhaustive-deps is "error", not "warn": claui's effects spawn real
+      // OS processes, so a wrong dependency array silently respawns or
+      // leaks a PTY. A genuinely deliberate omission takes an inline
+      // eslint-disable with a WHY comment (see TerminalView.tsx) — that
+      // way every *un*-annotated violation is a real bug that fails lint.
+      "react-hooks/exhaustive-deps": "error",
       "react/react-in-jsx-scope": "off",
       "react/prop-types": "off",
 

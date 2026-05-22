@@ -89,6 +89,11 @@ export function TerminalView({ theme, open, autoFocus }: Props) {
       void exitUnlisten.then((fn) => fn());
       term.dispose();
     };
+    // INVARIANT: `autoFocus` is deliberately omitted from this dependency
+    // list. Layout passes `autoFocus={drawerOpen}`, so it flips on every
+    // command-drawer toggle; including it would re-run this effect and
+    // respawn the shell PTY — losing its `claude`/shell session — each time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [theme, open]);
 
   return (
