@@ -12,7 +12,8 @@ export const openProject = (
   onOutput: Channel<ArrayBuffer>,
   cols: number,
   rows: number,
-) => invoke<number>('open_project', { path, onOutput, cols, rows });
+  resumeSessionId?: string,
+) => invoke<number>('open_project', { path, onOutput, cols, rows, resumeSessionId });
 
 export const openCommandTerminal = (
   path: string,
@@ -28,6 +29,30 @@ export const ptyResize = (id: number, cols: number, rows: number) =>
   invoke('pty_resize', { id, cols, rows });
 
 export const ptyClose = (id: number) => invoke('pty_close', { id });
+
+/**
+ * Live Claude Code state, captured from `claude`'s statusline JSON. Every
+ * field is null when absent — the status bar degrades field by field.
+ */
+export interface StatusPayload {
+  sessionId: string | null;
+  model: string | null;
+  contextPct: number | null;
+  costUsd: number | null;
+  fiveHourPct: number | null;
+  sevenDayPct: number | null;
+}
+
+/** One `claude` session of a project, for the sessions sidebar. */
+export interface SessionInfo {
+  id: string;
+  title: string;
+  /** Last-activity time — the session file's mtime, in Unix milliseconds. */
+  lastActivity: number;
+}
+
+export const listSessions = (path: string) =>
+  invoke<SessionInfo[]>('list_sessions', { path });
 
 /**
  * Create a Channel that normalizes the backend's binary payload to a
