@@ -1,0 +1,21 @@
+.terminal-view {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: var(--claui-bg);
+}
+.terminal-host {
+  width: 100%;
+  height: 100%;
+}
+.terminal-exited {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-family: var(--claui-font-family);
+  background: var(--claui-divider);
+  color: var(--claui-fg);
+  border-radius: 4px;
+}
