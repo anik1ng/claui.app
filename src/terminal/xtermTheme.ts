@@ -8,6 +8,18 @@ export interface XtermConfig {
   cursorStyle: CursorStyle;
 }
 
+/**
+ * Build the xterm.js `fontFamily` string. The webview resolves fonts
+ * differently from a native terminal — the family from the Ghostty config
+ * may not exist here. Strip any quotes the config carried, quote the family
+ * cleanly, and append a monospace fallback chain so the terminal never
+ * renders a proportional font when the configured family is unavailable.
+ */
+function fontFamilyChain(configured: string): string {
+  const bare = configured.replace(/^["']+|["']+$/g, '').trim();
+  return bare ? `"${bare}", Menlo, monospace` : 'Menlo, monospace';
+}
+
 /** Pure: map a claui Theme to xterm.js Terminal options. */
 export function themeToXterm(theme: Theme): XtermConfig {
   const p = theme.palette;
@@ -35,7 +47,7 @@ export function themeToXterm(theme: Theme): XtermConfig {
       brightCyan: hex(p[14]),
       brightWhite: hex(p[15]),
     },
-    fontFamily: theme.fontFamily,
+    fontFamily: fontFamilyChain(theme.fontFamily),
     fontSize: theme.fontSize,
     cursorStyle: theme.cursorStyle,
   };

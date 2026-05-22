@@ -22,8 +22,13 @@ describe('themeToXterm', () => {
     expect(cfg.theme.cursor).toBe('#0a141e');
     expect(cfg.theme.black).toBe('#000000');
     expect(cfg.theme.brightWhite).toBe('#0f0000');
-    expect(cfg.fontFamily).toBe('Menlo');
+    expect(cfg.fontFamily).toBe('"Menlo", Menlo, monospace');
     expect(cfg.fontSize).toBe(14);
     expect(cfg.cursorStyle).toBe('bar');
+  });
+
+  it('strips quotes and appends a monospace fallback chain', () => {
+    const cfg = themeToXterm({ ...sample, fontFamily: '"MonaspiceKr Nerd Font"' });
+    expect(cfg.fontFamily).toBe('"MonaspiceKr Nerd Font", Menlo, monospace');
   });
 });
