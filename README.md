@@ -1,32 +1,38 @@
 # claui
 
-An open-source Tauri 2 desktop GUI shell for Claude Code.
+A desktop GUI shell for Claude Code — it hosts the real `claude` CLI inside a
+fast terminal and wraps it in a native shell, in the spirit of Caudex and cmux.
 
-Built with Tauri 2, React, TypeScript, and the Ghostty VT engine (`libghostty-vt`).
+claui does not call the Anthropic API and never handles your credentials: you log
+into `claude` itself, exactly as you would in any terminal.
 
-## Build requirements
+## Status
 
-| Tool | Version |
-|------|---------|
-| Rust (stable) | 1.80+ |
-| Node.js | 20+ |
-| Zig | **0.15.x** |
+**v1 — the terminal core:** a window running `claude` in a chosen project folder,
+a slide-out command terminal (toggle with `` Ctrl+` ``), theming from your
+Ghostty config, and a first-run project picker. Split panes, project tabs, and a
+dashboard sidebar are planned.
 
-Zig is required by `libghostty-vt`'s build script, which compiles the Ghostty terminal emulation engine from source. Install via Homebrew:
+## Requirements
 
-```
-brew install zig
-```
+- Rust (stable)
+- Node.js 20+
 
-## Development
+## Develop
 
-```
+```sh
 npm install
 npm run tauri dev
 ```
 
 ## Build
 
-```
+```sh
 npm run tauri build
 ```
+
+## Stack
+
+Tauri 2 · React + TypeScript · [xterm.js](https://xtermjs.org) · Rust (`portable-pty`).
+The terminal lives entirely in the webview (xterm.js); the Rust core only spawns
+and owns the PTYs.
