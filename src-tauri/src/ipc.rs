@@ -6,7 +6,6 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::pty::PtySession;
 use crate::state::AppState;
-use crate::theme::Theme;
 
 #[derive(Clone, Serialize)]
 struct ExitPayload {
@@ -20,11 +19,6 @@ fn config_file(app: &AppHandle) -> Option<PathBuf> {
         .app_config_dir()
         .ok()
         .map(|dir| dir.join("last_project.txt"))
-}
-
-#[tauri::command]
-pub fn get_theme(state: State<'_, AppState>) -> Theme {
-    state.theme.clone()
 }
 
 #[tauri::command]

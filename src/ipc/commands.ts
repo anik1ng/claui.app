@@ -1,7 +1,5 @@
 import { invoke, Channel } from '@tauri-apps/api/core';
-import type { Theme } from '../theme/themeStore';
 
-export const getTheme = () => invoke<Theme>('get_theme');
 export const getLastProject = () => invoke<string | null>('get_last_project');
 
 export const openProject = (

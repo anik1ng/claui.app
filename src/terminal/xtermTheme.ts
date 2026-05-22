@@ -10,13 +10,12 @@ export interface XtermConfig {
 
 /**
  * Build the xterm.js `fontFamily` string. The webview resolves fonts
- * differently from a native terminal — the family from the Ghostty config
- * may not exist here. Strip any quotes the config carried, quote the family
- * cleanly, and append a monospace fallback chain so the terminal never
- * renders a proportional font when the configured family is unavailable.
+ * differently from a native terminal — the configured family may not exist
+ * here. Quote the family and append a monospace fallback chain so the
+ * terminal never renders a proportional font when that family is unavailable.
  */
 function fontFamilyChain(configured: string): string {
-  const bare = configured.replace(/^["']+|["']+$/g, '').trim();
+  const bare = configured.trim();
   return bare ? `"${bare}", Menlo, monospace` : 'Menlo, monospace';
 }
 

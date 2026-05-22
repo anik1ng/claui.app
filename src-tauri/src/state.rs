@@ -3,12 +3,10 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use crate::pty::PtySession;
-use crate::theme::Theme;
 
-/// Process-wide state: the loaded theme, the live terminal registry, the
-/// current project path, and a monotonic id counter.
+/// Process-wide state: the live terminal registry, the current project path,
+/// and a monotonic id counter.
 pub struct AppState {
-    pub theme: Theme,
     inner: Mutex<Inner>,
 }
 
@@ -19,9 +17,8 @@ struct Inner {
 }
 
 impl AppState {
-    pub fn new(theme: Theme) -> Self {
+    pub fn new() -> Self {
         AppState {
-            theme,
             inner: Mutex::new(Inner {
                 terminals: HashMap::new(),
                 next_id: 1,
@@ -69,7 +66,7 @@ mod tests {
 
     #[test]
     fn alloc_id_is_monotonic() {
-        let state = AppState::new(Theme::default());
+        let state = AppState::new();
         assert_eq!(state.alloc_id(), 1);
         assert_eq!(state.alloc_id(), 2);
         assert_eq!(state.alloc_id(), 3);

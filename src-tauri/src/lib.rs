@@ -1,4 +1,3 @@
-mod theme;
 mod claude;
 mod pty;
 mod state;
@@ -8,12 +7,10 @@ use state::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let theme = theme::load();
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .manage(AppState::new(theme))
+        .manage(AppState::new())
         .invoke_handler(tauri::generate_handler![
-            ipc::get_theme,
             ipc::get_last_project,
             ipc::open_project,
             ipc::open_command_terminal,

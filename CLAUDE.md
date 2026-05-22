@@ -17,7 +17,7 @@ Run from the repository root:
 - `npm run tauri build` — production build.
 - `npm run build` — build the frontend only (`tsc` typecheck + `vite build`).
 - `npm test` — frontend unit tests (Vitest). Single file: `npx vitest run src/terminal/xtermTheme.test.ts`; by name: `npx vitest run -t "appends a monospace fallback"`.
-- `cargo test --manifest-path src-tauri/Cargo.toml` — Rust tests. One module: append `theme::`; one test: `theme::tests::strips_surrounding_quotes_from_values`.
+- `cargo test --manifest-path src-tauri/Cargo.toml` — Rust tests. One module: append `state::`; one test: `state::tests::alloc_id_is_monotonic`.
 - `cargo build --manifest-path src-tauri/Cargo.toml` — build the Rust core only.
 
 Build toolchain is plain `cargo` + `npm` — Rust (stable) and Node.js 20+, nothing else.
@@ -41,13 +41,11 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
 
 - `pty.rs` — `PtySession`: one PTY + child process. Output goes to an injected
   sink closure; child exit to an `on_exit` closure. Killed on `Drop`.
-- `state.rs` — `AppState`: the loaded theme plus a `Mutex`-guarded registry of
-  live `PtySession`s keyed by id.
-- `ipc.rs` — the six Tauri commands (`get_theme`, `get_last_project`,
-  `open_project`, `open_command_terminal`, `pty_input`, `pty_resize`) and the
+- `state.rs` — `AppState`: a `Mutex`-guarded registry of live `PtySession`s
+  keyed by id, plus the current project path and an id counter.
+- `ipc.rs` — the five Tauri commands (`get_last_project`, `open_project`,
+  `open_command_terminal`, `pty_input`, `pty_resize`) and the
   `claude:not-found` / `terminal:exit` events.
-- `theme.rs` — parses `~/.config/ghostty/config` into a `Theme` (colors, 16-color
-  palette, cursor, font).
 - `claude.rs` — locates the `claude` binary on `$PATH` and common install dirs.
 
 ### Frontend (`src/`)
@@ -56,8 +54,8 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   Fit / WebGL / WebLinks addons, wired to IPC. Serves both the `claude` pane and
   the command terminal via an injected `open` callback.
 - `terminal/xtermTheme.ts` — pure: claui `Theme` → `xterm.js` options.
-- `theme/themeStore.ts` — the `Theme` TypeScript types; applies the theme to the
-  app chrome via CSS variables.
+- `theme/themeStore.ts` — the `Theme` TypeScript types, the built-in
+  `defaultTheme`, and applying the theme to the app chrome via CSS variables.
 - `layout/Layout.tsx` — main pane plus the slide-out command-terminal drawer.
 - `ipc/commands.ts` — typed `invoke` wrappers and the output-`Channel` helper.
 
@@ -73,9 +71,9 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
 - `src/main.tsx` deliberately omits `React.StrictMode`: effects spawn real OS
   processes, and StrictMode's double-invoke would spawn duplicates.
 - The webview resolves fonts differently from a native terminal. `xtermTheme.ts`
-  strips quotes from the Ghostty `font-family` and always appends a
-  `Menlo, monospace` fallback, so the terminal can never render a proportional
-  font when the configured family is unavailable.
+  always appends a `Menlo, monospace` fallback to the configured `font-family`,
+  so the terminal can never render a proportional font when that family is
+  unavailable.
 - v1 is the terminal core only. Splits, tabs, and the dashboard are later phases.
 - TDD: pure logic carries tests (`cargo test`, Vitest); the terminal and UI are
   verified by running the app — `cargo test` passing does not prove the UI works.

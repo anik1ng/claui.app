@@ -2,22 +2,18 @@ import { useEffect, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { ProjectPicker } from './project/ProjectPicker';
 import { Layout } from './layout/Layout';
-import { getLastProject, getTheme } from './ipc/commands';
-import { setTheme } from './theme/themeStore';
-import type { Theme } from './theme/themeStore';
+import { getLastProject } from './ipc/commands';
+import { defaultTheme, setTheme } from './theme/themeStore';
 import './App.css';
 
 export default function App() {
-  const [theme, setThemeState] = useState<Theme | null>(null);
   const [project, setProject] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [claudeMissing, setClaudeMissing] = useState(false);
 
   useEffect(() => {
+    setTheme(defaultTheme);
     (async () => {
-      const t = await getTheme();
-      setTheme(t);
-      setThemeState(t);
       setProject(await getLastProject());
       setReady(true);
     })();
@@ -27,7 +23,7 @@ export default function App() {
     };
   }, []);
 
-  if (!ready || !theme) return null;
+  if (!ready) return null;
 
   return (
     <>
@@ -40,7 +36,7 @@ export default function App() {
         </div>
       )}
       {project ? (
-        <Layout theme={theme} projectPath={project} />
+        <Layout theme={defaultTheme} projectPath={project} />
       ) : (
         <ProjectPicker onPick={setProject} />
       )}

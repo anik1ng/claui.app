@@ -27,8 +27,8 @@ describe('themeToXterm', () => {
     expect(cfg.cursorStyle).toBe('bar');
   });
 
-  it('strips quotes and appends a monospace fallback chain', () => {
-    const cfg = themeToXterm({ ...sample, fontFamily: '"MonaspiceKr Nerd Font"' });
+  it('quotes the family and appends a monospace fallback chain', () => {
+    const cfg = themeToXterm({ ...sample, fontFamily: 'MonaspiceKr Nerd Font' });
     expect(cfg.fontFamily).toBe('"MonaspiceKr Nerd Font", Menlo, monospace');
   });
 });
