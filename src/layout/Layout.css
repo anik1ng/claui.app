@@ -18,6 +18,14 @@
 .layout-main {
   flex: 1;
   min-height: 0;
+  /* Breathing room around the terminal so the first row doesn't abut the
+     status bar's border and the first column doesn't hug the window edge.
+     The terminal-host inside is width/height:100% of this padded box;
+     FitAddon reads host.clientWidth/Height (excluding padding) and computes
+     cols/rows from the inner box, so this padding shrinks the cell grid
+     rather than clipping it. Horizontal 12px sits between the status bar
+     (16px) and what feels right against the cell grid. */
+  padding: 10px 12px;
 }
 .layout-divider {
   height: 4px;

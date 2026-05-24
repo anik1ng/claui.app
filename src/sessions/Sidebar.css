@@ -1,5 +1,5 @@
 .sidebar {
-  width: 210px;
+  width: 232px;
   flex: none;
   display: flex;
   flex-direction: column;
@@ -12,10 +12,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 11px 6px;
+  padding: 14px 14px 8px;
   font-size: 10px;
-  letter-spacing: 0.08em;
-  opacity: 0.6;
+  letter-spacing: 0.1em;
+  opacity: 0.55;
 }
 .sidebar-new {
   padding: 0;
@@ -23,19 +23,24 @@
   border: none;
   color: var(--claui-accent);
   font-family: inherit;
-  font-size: 11px;
+  font-size: 12px;
+  letter-spacing: normal;
+  text-transform: none;
   cursor: pointer;
 }
 .sidebar-list {
   flex: 1;
   overflow-y: auto;
+  /* Mirror the terminal: native macOS rubber-band overscroll feels wrong in
+     a list-view-style panel. */
+  overscroll-behavior: contain;
 }
 .session-row {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   width: 100%;
-  padding: 7px 11px;
+  padding: 9px 14px;
   background: none;
   border: none;
   border-left: 2px solid transparent;
