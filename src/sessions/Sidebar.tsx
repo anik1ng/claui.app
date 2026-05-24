@@ -12,20 +12,29 @@ interface Props {
 
 /**
  * The right-hand sessions sidebar. Lists the current project's `claude`
- * sessions (newest first) and switches the terminal to one on click. Reloads
- * when the project or the active session changes, and on mount — so toggling
- * the sidebar back open refreshes the list.
+ * sessions (newest first) and switches the terminal to one on click.
+ *
+ * Refresh strategy: refetch immediately when the project or active session
+ * changes, then poll every 2 seconds. Polling is the simplest robust way to
+ * catch a new session's JSONL appearing on disk — `+ New` triggers an
+ * `activeSessionId` change, but `claude` writes its session file only after
+ * the first turn, so a single trigger-driven refetch can race the disk write.
  */
 export function Sidebar({ projectPath, activeSessionId, onPickSession, onNewSession }: Props) {
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
 
   useEffect(() => {
     let cancelled = false;
-    void listSessions(projectPath).then((list) => {
-      if (!cancelled) setSessions(list);
-    });
+    const refetch = () => {
+      void listSessions(projectPath).then((list) => {
+        if (!cancelled) setSessions(list);
+      });
+    };
+    refetch();
+    const interval = window.setInterval(refetch, 2000);
     return () => {
       cancelled = true;
+      window.clearInterval(interval);
     };
   }, [projectPath, activeSessionId]);
 
