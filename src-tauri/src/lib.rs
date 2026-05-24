@@ -18,7 +18,7 @@ pub fn run() {
         .manage(AppState::new())
         .setup(|app| {
             menu::init(app)?;
-            if let Err(e) = statusline::install_wrapper(app.handle()) {
+            if let Err(e) = statusline::install_wrapper() {
                 eprintln!("claui: failed to install the statusline wrapper: {e}");
             }
             if let Err(e) = statusline::start_watcher(app.handle().clone()) {

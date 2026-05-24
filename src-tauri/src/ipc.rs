@@ -48,16 +48,18 @@ pub fn open_project(
         return Err("claude binary not found".into());
     };
 
-    // Override only `claude`'s statusLine so claui can capture the live
-    // session metrics; `--settings` merges, leaving the user's config intact.
-    let settings = crate::statusline::settings_arg(&app);
+    // Override claude's statusLine via project-local `.claude/settings.local.json` —
+    // the only mechanism observed to win over the user-level setting. `--settings`
+    // (both inline-JSON and file forms) does not propagate the statusLine override
+    // to the spawned claude.
+    if let Err(e) = crate::statusline::install_project_settings(std::path::Path::new(&path)) {
+        eprintln!("claui: failed to write project-local statusline settings: {e}");
+    }
     let mut args: Vec<&str> = Vec::new();
     if let Some(ref sid) = resume_session_id {
         args.push("--resume");
         args.push(sid.as_str());
     }
-    args.push("--settings");
-    args.push(settings.as_str());
 
     // Spawn first; persist the project only once the terminal actually started.
     let claude = claude.to_string_lossy();

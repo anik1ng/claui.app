@@ -1,8 +1,8 @@
 use std::os::unix::fs::PermissionsExt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter};
 
 /// The slice of `claude`'s statusline JSON that claui's status bar renders.
 /// Every field is optional: the bar degrades field-by-field if `claude`'s
@@ -69,32 +69,36 @@ pub fn parse(json: &str) -> StatusPayload {
     }
 }
 
-/// claui's config directory, falling back to the temp directory so the status
-/// bar degrades rather than panicking if the platform path is unavailable.
-fn config_dir(app: &AppHandle) -> PathBuf {
-    app.path()
-        .app_config_dir()
-        .unwrap_or_else(|_| std::env::temp_dir())
+/// claui's own subdirectory inside the user's temp dir. Holds the wrapper
+/// script and the status JSON. INVARIANT: this path must contain no characters
+/// that need shell escaping — `claude` runs the statusline `command` string
+/// through a shell, and `std::env::temp_dir()` on macOS resolves to
+/// `/var/folders/.../T/` (no spaces, owned by the user).
+///
+/// Co-locating the wrapper and the status file in a small, dedicated directory
+/// also makes the file watcher's job trivial: `FSEvents` on macOS is noticeably
+/// flakier under `~/Library/Application Support/` than under `/var/folders/`.
+fn claui_temp_dir() -> PathBuf {
+    std::env::temp_dir().join("claui")
 }
 
 /// Absolute path of the wrapper script claui points `claude`'s statusline at.
-fn wrapper_path(app: &AppHandle) -> PathBuf {
-    config_dir(app).join("claui-statusline.sh")
+fn wrapper_path() -> PathBuf {
+    claui_temp_dir().join("claui-statusline.sh")
 }
 
 /// Absolute path of the file the wrapper writes `claude`'s statusline JSON to.
-fn status_file_path(app: &AppHandle) -> PathBuf {
-    config_dir(app).join("claui-statusline.json")
+fn status_file_path() -> PathBuf {
+    claui_temp_dir().join("claui-statusline.json")
 }
 
 /// Write the statusline wrapper script. The script captures `claude`'s
 /// statusline JSON (delivered on stdin) into the file claui watches and prints
 /// nothing — so there is no in-terminal statusline inside claui. The status
-/// path is baked in, so `claude` needs no extra environment.
-pub fn install_wrapper(app: &AppHandle) -> std::io::Result<()> {
-    let dir = config_dir(app);
-    std::fs::create_dir_all(&dir)?;
-    let status = status_file_path(app);
+/// path is baked into the script, so `claude` needs no extra environment.
+pub fn install_wrapper() -> std::io::Result<()> {
+    std::fs::create_dir_all(claui_temp_dir())?;
+    let status = status_file_path();
     let status = status.to_string_lossy();
     let script = format!(
         "#!/bin/sh\n\
@@ -102,60 +106,77 @@ pub fn install_wrapper(app: &AppHandle) -> std::io::Result<()> {
          tmp=\"{status}.tmp.$$\"\n\
          cat > \"$tmp\" && mv -f \"$tmp\" \"{status}\"\n",
     );
-    let path = wrapper_path(app);
+    let path = wrapper_path();
     std::fs::write(&path, script)?;
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))?;
     Ok(())
 }
 
-/// Build the `--settings` JSON that overrides only `claude`'s `statusLine`.
-/// `--settings` merges, so the user's own `~/.claude/settings.json` is left
-/// intact and still applies to `claude` runs outside claui.
-pub fn settings_arg(app: &AppHandle) -> String {
-    // Single-quote the wrapper path: `claude` runs the statusline command
-    // through a shell, and the macOS app-config path contains a space
-    // ("Application Support"). INVARIANT: the wrapper path must not contain
-    // a single quote — that would prematurely terminate the quoted token and
-    // break `claude`'s parsing of the statusline command. Tauri's
-    // `app_config_dir()` is derived from the bundle identifier, which is
-    // ASCII-letters-dots-only by convention, so this holds in practice.
-    let path = wrapper_path(app);
-    let path = path.to_string_lossy();
-    debug_assert!(
-        !path.contains('\''),
-        "wrapper path must not contain a single quote: {path}",
+/// Ensure the project's `.claude/settings.local.json` sets `statusLine` to
+/// claui's wrapper. INVARIANT: this is the mechanism that actually overrides
+/// the user-level `~/.claude/settings.json` `statusLine` — `--settings` (both
+/// inline-JSON and file-path forms) was empirically observed not to. Existing
+/// fields in the project settings file are preserved; we merge into them.
+pub fn install_project_settings(project_path: &Path) -> std::io::Result<()> {
+    let dot_claude = project_path.join(".claude");
+    std::fs::create_dir_all(&dot_claude)?;
+    let path = dot_claude.join("settings.local.json");
+    let existing = std::fs::read_to_string(&path).unwrap_or_default();
+    let mut root: serde_json::Map<String, serde_json::Value> =
+        serde_json::from_str(&existing).unwrap_or_default();
+    root.insert(
+        "statusLine".to_string(),
+        serde_json::json!({
+            "type": "command",
+            "command": wrapper_path().to_string_lossy(),
+        }),
     );
-    format!(r#"{{"statusLine":{{"type":"command","command":"'{path}'"}}}}"#)
+    let pretty = serde_json::to_string_pretty(&serde_json::Value::Object(root))?;
+    std::fs::write(&path, format!("{pretty}\n"))?;
+    Ok(())
 }
 
-/// Watch the config directory for the wrapper's status file and emit a parsed
-/// `status:update` to the webview on every change. The watcher is moved into
-/// its own thread so it lives for the process — dropping it stops all events.
+/// Watch the wrapper's directory and emit a parsed `status:update` to the
+/// webview on every change. The watcher is moved into its own thread so it
+/// lives for the process — dropping it stops all events.
 pub fn start_watcher(app: AppHandle) -> notify::Result<()> {
     use notify::{RecursiveMode, Watcher};
 
-    let dir = config_dir(&app);
-    let status_path = status_file_path(&app);
+    let dir = claui_temp_dir();
+    let status_path = status_file_path();
     let (tx, rx) = std::sync::mpsc::channel();
     let mut watcher = notify::recommended_watcher(tx)?;
     watcher.watch(&dir, RecursiveMode::NonRecursive)?;
 
+    // NOTE: on macOS, FSEvents canonicalises paths (e.g. inserts
+    // `/System/Volumes/Data/`), so the path in an `Event` rarely equals the
+    // `status_path` PathBuf we built. Rather than match paths, we attempt a
+    // read on every event in the watched dir — there are only a handful of
+    // files there, so the wasted reads are cheap and the logic is robust.
+
+    // Bootstrap: if the wrapper has already written the file in a prior run,
+    // surface its contents immediately so the bar isn't blank on startup.
+    read_and_emit(&status_path, &app);
+
     std::thread::spawn(move || {
         let _watcher = watcher;
         for result in rx {
-            let Ok(event) = result else { continue };
-            // INVARIANT: the wrapper does an atomic rename (cat > tmp && mv -f
-            // tmp final), so any read triggered by a path-match event always
-            // sees a complete file. Changing the wrapper to a non-atomic write
-            // would silently break this read-without-locking contract.
-            if event.paths.contains(&status_path) {
-                if let Ok(text) = std::fs::read_to_string(&status_path) {
-                    let _ = app.emit("status:update", parse(&text));
-                }
+            if result.is_err() {
+                continue;
             }
+            read_and_emit(&status_path, &app);
         }
     });
     Ok(())
+}
+
+/// Read the status file and forward its parsed contents to the webview as a
+/// `status:update` event. A missing file is expected before the wrapper's
+/// first write; any other read error is silently swallowed.
+fn read_and_emit(status_path: &Path, app: &AppHandle) {
+    if let Ok(text) = std::fs::read_to_string(status_path) {
+        let _ = app.emit("status:update", parse(&text));
+    }
 }
 
 #[cfg(test)]
