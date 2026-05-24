@@ -93,9 +93,11 @@ fn status_file_path() -> PathBuf {
 }
 
 /// Write the statusline wrapper script. The script captures `claude`'s
-/// statusline JSON (delivered on stdin) into the file claui watches and prints
-/// nothing — so there is no in-terminal statusline inside claui. The status
-/// path is baked into the script, so `claude` needs no extra environment.
+/// statusline JSON (delivered on stdin) into the file claui watches. Inside
+/// claui (`CLAUI_ACTIVE=1`) it prints nothing — claui renders the metrics in
+/// its native top bar. Outside claui, it chains to the user's real statusline
+/// command (read from `~/.claude/settings.json` via `jq`) and forwards its
+/// output, so plain `claude` in this project still renders the user's strip.
 pub fn install_wrapper() -> std::io::Result<()> {
     std::fs::create_dir_all(claui_temp_dir())?;
     let status = status_file_path();
@@ -103,8 +105,18 @@ pub fn install_wrapper() -> std::io::Result<()> {
     let script = format!(
         "#!/bin/sh\n\
          # claui — capture claude's statusline JSON. Written by claui; do not edit.\n\
+         input=$(cat)\n\
          tmp=\"{status}.tmp.$$\"\n\
-         cat > \"$tmp\" && mv -f \"$tmp\" \"{status}\"\n",
+         printf '%s' \"$input\" > \"$tmp\" && mv -f \"$tmp\" \"{status}\"\n\
+         if [ -z \"$CLAUI_ACTIVE\" ]; then\n\
+           user_settings=\"$HOME/.claude/settings.json\"\n\
+           if [ -f \"$user_settings\" ] && command -v jq >/dev/null 2>&1; then\n\
+             orig=$(jq -r '.statusLine.command // empty' \"$user_settings\" 2>/dev/null)\n\
+             if [ -n \"$orig\" ]; then\n\
+               printf '%s' \"$input\" | sh -c \"$orig\"\n\
+             fi\n\
+           fi\n\
+         fi\n",
     );
     let path = wrapper_path();
     std::fs::write(&path, script)?;

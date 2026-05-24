@@ -61,6 +61,11 @@ pub fn open_project(
         args.push(sid.as_str());
     }
 
+    // `CLAUI_ACTIVE` lets the statusline wrapper know it is running inside
+    // claui; when unset, the wrapper chains to the user's real statusline
+    // command so plain `claude` in this project still renders it as usual.
+    let env: &[(&str, &str)] = &[("CLAUI_ACTIVE", "1")];
+
     // Spawn first; persist the project only once the terminal actually started.
     let claude = claude.to_string_lossy();
     let id = spawn_terminal(
@@ -69,6 +74,7 @@ pub fn open_project(
         claude.as_ref(),
         &args,
         Some(&path),
+        env,
         cols,
         rows,
         on_output,
@@ -99,12 +105,22 @@ pub fn open_command_terminal(
     rows: u16,
 ) -> Result<u32, String> {
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".into());
-    spawn_terminal(&app, &state, &shell, &["-l"], Some(path.as_str()), cols, rows, on_output)
+    spawn_terminal(
+        &app,
+        &state,
+        &shell,
+        &["-l"],
+        Some(path.as_str()),
+        &[],
+        cols,
+        rows,
+        on_output,
+    )
 }
 
 /// Spawn a PTY, wire its output to `on_output`, register it, and emit
 /// `terminal:exit` when the child terminates.
-// Eight parameters: a thin spawn-and-register wrapper that forwards six of
+// Nine parameters: a thin spawn-and-register wrapper that forwards seven of
 // them straight to `PtySession::spawn` and adds `app`/`state` for the exit
 // event and registry insertion. Bundling them into a struct would only
 // relocate the same surface, not reduce it.
@@ -115,6 +131,7 @@ fn spawn_terminal(
     program: &str,
     args: &[&str],
     cwd: Option<&str>,
+    env: &[(&str, &str)],
     cols: u16,
     rows: u16,
     on_output: Channel<Vec<u8>>,
@@ -125,6 +142,7 @@ fn spawn_terminal(
         program,
         args,
         cwd,
+        env,
         cols,
         rows,
         move |bytes| {

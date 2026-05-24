@@ -76,7 +76,7 @@ mod tests {
     fn close_removes_a_terminal() {
         let state = AppState::new();
         let session =
-            PtySession::spawn("/bin/echo", &["x"], None, 80, 24, |_| {}, |_| {}).unwrap();
+            PtySession::spawn("/bin/echo", &["x"], None, &[], 80, 24, |_| {}, |_| {}).unwrap();
         let id = state.alloc_id();
         state.insert(id, session);
         assert!(state.inner.lock().unwrap().terminals.contains_key(&id));

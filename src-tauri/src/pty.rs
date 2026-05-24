@@ -14,11 +14,17 @@ pub struct PtySession {
 impl PtySession {
     /// Spawn `program` in a `cols`x`rows` PTY. `on_output` is called with each
     /// output chunk on a reader thread; `on_exit` is called once with the exit
-    /// code after the child terminates.
+    /// code after the child terminates. `env` is layered on top of the child's
+    /// inherited environment (after `TERM=xterm-256color`).
+    // Eight parameters: program / args / cwd / env / cols / rows / on_output /
+    // on_exit each carry a single, distinct concern; bundling them into a
+    // struct would only relocate the same surface, not reduce it.
+    #[allow(clippy::too_many_arguments)]
     pub fn spawn<O, E>(
         program: &str,
         args: &[&str],
         cwd: Option<&str>,
+        env: &[(&str, &str)],
         cols: u16,
         rows: u16,
         on_output: O,
@@ -42,6 +48,9 @@ impl PtySession {
             cmd.cwd(dir);
         }
         cmd.env("TERM", "xterm-256color");
+        for (k, v) in env {
+            cmd.env(k, v);
+        }
 
         let mut child = pair.slave.spawn_command(cmd)?;
         // Drop the slave so the reader sees EOF once the child exits.
@@ -126,6 +135,7 @@ mod tests {
             "/bin/echo",
             &["hello"],
             None,
+            &[],
             80,
             24,
             move |bytes| out_sink.lock().unwrap().extend_from_slice(bytes),
