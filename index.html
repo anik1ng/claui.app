@@ -6,7 +6,14 @@
     <title>claui</title>
   </head>
 
-  <body>
+  <!--
+    Inline background colour matches the theme so the first paint is dark.
+    Without it the WKWebView shows its default white background until the
+    bundled CSS loads and App.tsx calls setTheme() — visible as a flash on
+    cold start and on fast window resizes. The Tauri window itself uses the
+    same colour via tauri.conf.json's backgroundColor for NSWindow.
+  -->
+  <body style="background:#1d1f21">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

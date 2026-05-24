@@ -1,5 +1,14 @@
 :root {
   color-scheme: dark;
+  /* Defaults so chrome paints correctly before App.tsx mounts and setTheme()
+     populates the variables. The values must mirror defaultTheme in
+     themeStore.ts — if you change the theme, change these too. */
+  --claui-bg: #1d1f21;
+  --claui-fg: #c5c8c6;
+  --claui-accent: #5f819d;
+  --claui-divider: #373b41;
+  --claui-font-family: monospace;
+  --claui-font-size: 13px;
 }
 html,
 body,
@@ -7,6 +16,9 @@ body,
   margin: 0;
   height: 100%;
   background: var(--claui-bg);
+  /* Defence in depth against the WebView's native rubber-band: even if some
+     descendant scroller reaches its edge, the document itself must not bounce. */
+  overscroll-behavior: none;
 }
 .claui-banner {
   position: fixed;
