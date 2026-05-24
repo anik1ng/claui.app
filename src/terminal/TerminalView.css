@@ -8,6 +8,12 @@
   width: 100%;
   height: 100%;
 }
+/* Kill macOS rubber-band overscroll inside the terminal viewport: native
+   terminals don't bounce when you scroll past the top of the buffer. The
+   xterm-viewport is the actual scroll container (see @xterm/xterm/css). */
+.terminal-view .xterm-viewport {
+  overscroll-behavior: contain;
+}
 .terminal-exited {
   position: absolute;
   inset: 0;

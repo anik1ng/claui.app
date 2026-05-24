@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { WebglAddon } from '@xterm/addon-webgl';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { listen } from '@tauri-apps/api/event';
 import '@xterm/xterm/css/xterm.css';
@@ -48,11 +47,15 @@ export function TerminalView({ theme, open, autoFocus }: Props) {
     term.loadAddon(fit);
     term.loadAddon(new WebLinksAddon());
     term.open(host);
-    try {
-      term.loadAddon(new WebglAddon());
-    } catch {
-      // WebGL unavailable — xterm.js falls back to its default renderer.
-    }
+    // Deliberately NOT loading the WebGL addon: in WKWebView its texture
+    // re-allocation on resize takes long enough that fast window drags
+    // leave the canvas blank for ~500ms. xterm.js's default DOM renderer
+    // has no canvas at all (each cell is a styled DOM node), so a resize
+    // is a plain DOM reflow — invisible to the user. The trade-off is
+    // scroll perf for very large outputs, which doesn't matter for an
+    // interactive Claude Code session. If we ever need to render huge
+    // logs, the recommended path is the Canvas addon (better resize
+    // behaviour than WebGL while still GPU-friendly), not WebGL.
     fit.fit();
     if (autoFocus) term.focus();
 
@@ -79,11 +82,35 @@ export function TerminalView({ theme, open, autoFocus }: Props) {
       if (id != null) void ptyInput(id, data);
     });
 
+    // Why not `fit.fit()`? FitAddon.fit() unconditionally calls
+    // `_renderService.clear()` before `term.resize()` whenever cols/rows
+    // change (see node_modules/@xterm/addon-fit/src/FitAddon.ts) — that
+    // wipes the canvas to background for one frame, producing the visible
+    // "content disappears" blink during a window drag (cols change every
+    // few pixels of motion). `term.resize()` on its own triggers a fresh
+    // render with the new geometry, no pre-clear needed.
+    //
+    // Also split visual reflow from PTY notification: ptyResize is
+    // expensive (IPC + SIGWINCH; claude re-renders at the new size). The
+    // 80ms debounce keeps drags from hammering the PTY while the
+    // resize() side stays free to track the window per frame.
+    const applyFit = () => {
+      const dims = fit.proposeDimensions();
+      if (!dims || isNaN(dims.cols) || isNaN(dims.rows)) return;
+      if (dims.cols === term.cols && dims.rows === term.rows) return;
+      term.resize(dims.cols, dims.rows);
+    };
+    let pendingFit = 0;
     let resizeTimer = 0;
     const observer = new ResizeObserver(() => {
+      if (!pendingFit) {
+        pendingFit = requestAnimationFrame(() => {
+          pendingFit = 0;
+          applyFit();
+        });
+      }
       window.clearTimeout(resizeTimer);
       resizeTimer = window.setTimeout(() => {
-        fit.fit();
         if (id != null) void ptyResize(id, term.cols, term.rows);
       }, 80);
     });
@@ -108,6 +135,7 @@ export function TerminalView({ theme, open, autoFocus }: Props) {
       cancelled = true;
       observer.disconnect();
       window.clearTimeout(resizeTimer);
+      if (pendingFit) cancelAnimationFrame(pendingFit);
       dataSub.dispose();
       void exitUnlisten.then((fn) => fn());
       term.dispose();

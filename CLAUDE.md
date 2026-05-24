@@ -75,8 +75,11 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
 ### Frontend (`src/`)
 
 - `terminal/TerminalView.tsx` — one terminal: an `xterm.js` `Terminal` with the
-  Fit / WebGL / WebLinks addons, wired to IPC. Serves both the `claude` pane and
-  the command terminal via an injected `open` callback.
+  Fit / WebLinks addons, wired to IPC. Serves both the `claude` pane and the
+  command terminal via an injected `open` callback. The WebGL addon is
+  deliberately NOT loaded — its texture re-allocation on resize leaves the
+  canvas blank for ~500ms in WKWebView. xterm's default DOM renderer reflows
+  as plain DOM nodes and is invisible on resize.
 - `terminal/xtermTheme.ts` — pure: claui `Theme` → `xterm.js` options.
 - `theme/themeStore.ts` — the `Theme` TypeScript types, the built-in
   `defaultTheme`, and applying the theme to the app chrome via CSS variables.
@@ -100,6 +103,15 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   and the repository was re-initialized. Do not re-introduce libghostty.
 - `src/main.tsx` deliberately omits `React.StrictMode`: effects spawn real OS
   processes, and StrictMode's double-invoke would spawn duplicates.
+- The main window is built programmatically in `lib.rs::run`'s setup callback
+  (NOT auto-created from `tauri.conf.json`, whose `windows` array is empty).
+  `WebviewWindowBuilder` is the only Tauri 2 mechanism that lets us pass
+  `.theme(Some(Theme::Dark))` + `.initialization_script(...)`, which together
+  kill the cold-start white flash: the theme sets NSAppearance so WKWebView
+  paints a matching surface before HTML loads, and the init script forces
+  `documentElement.style.colorScheme = 'dark'` so canvas/scrollbar/form-control
+  defaults stay dark too. Tauri's `backgroundColor` config field is documented
+  as "Not implemented for the webview layer" on macOS / iOS and does NOT help.
 - The webview resolves fonts differently from a native terminal. `xtermTheme.ts`
   always appends a `Menlo, monospace` fallback to the configured `font-family`,
   so the terminal can never render a proportional font when that family is
