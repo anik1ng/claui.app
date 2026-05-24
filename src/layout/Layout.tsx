@@ -57,21 +57,27 @@ export function Layout({ theme, projectPath }: Props) {
   }, []);
 
   // Ctrl+` toggles the command drawer; Ctrl+B the sidebar; Esc closes the drawer.
+  // NOTE: the listener runs in the CAPTURE phase and stops propagation, so the
+  // event never reaches xterm.js — otherwise xterm would consume Ctrl+B (it's
+  // ASCII STX, a useful VT control char) before our handler ran and the
+  // shortcut would silently do nothing.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key === '`') {
         e.preventDefault();
+        e.stopPropagation();
         setDrawerEverOpened(true);
         setDrawerOpen((v) => !v);
       } else if (e.ctrlKey && e.key === 'b') {
         e.preventDefault();
+        e.stopPropagation();
         setSidebarOpen((v) => !v);
       } else if (e.key === 'Escape' && drawerOpen) {
         setDrawerOpen(false);
       }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, [drawerOpen]);
 
   const openClaude = useCallback(
