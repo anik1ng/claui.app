@@ -90,10 +90,11 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
 
 ## Conventions and non-obvious points
 
-- **`docs/superpowers/` is gitignored** — the design spec and implementation
-  plans live there, local-only; never commit them. The current spec,
-  `docs/superpowers/specs/2026-05-21-claui-v1-xterm-design.md`, holds the
-  phase-2+ roadmap (split panes, tabs, dashboard sidebar, git panel).
+- **`docs/superpowers/` is gitignored** — design specs and implementation plans
+  live there, local-only; never commit them. The v1 spec
+  `docs/superpowers/specs/2026-05-21-claui-v1-xterm-design.md` holds the
+  forward roadmap (tabs, split panes, dashboard sidebar, git panel); subsequent
+  per-phase specs sit alongside it.
 - An earlier version built the terminal from scratch on `libghostty-vt` (a Rust
   VT engine + a hand-written canvas renderer). It was abandoned for `xterm.js`
   and the repository was re-initialized. Do not re-introduce libghostty.
@@ -103,7 +104,11 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   always appends a `Menlo, monospace` fallback to the configured `font-family`,
   so the terminal can never render a proportional font when that family is
   unavailable.
-- v1 is the terminal core only. Splits, tabs, and the dashboard are later phases.
+- Shipped today: the terminal core, the macOS menu / project switching, the
+  top status bar (model / context / cost / 5h+7d limits, captured via a
+  `statusLine` wrapper claui writes into project-local
+  `.claude/settings.local.json`), and the sessions sidebar. Tabs, split panes,
+  the dashboard, and a git panel are later phases.
 - TDD: pure logic carries tests (`cargo test`, Vitest); the terminal and UI are
   verified by running the app — `cargo test` passing does not prove the UI works.
 - All code, comments, commit messages, and documentation are written in English.

@@ -8,10 +8,21 @@ into `claude` itself, exactly as you would in any terminal.
 
 ## Status
 
-**v1 — the terminal core:** a window running `claude` in a chosen project folder,
-a slide-out command terminal (toggle with `` Ctrl+` ``), theming from your
-Ghostty config, and a first-run project picker. Split panes, project tabs, and a
-dashboard sidebar are planned.
+claui is functional. What it does today:
+
+- A `claude` terminal in a chosen project folder (xterm.js).
+- A native macOS menu — **File → Open Project** (`Cmd+O`) to switch projects.
+- A **top status bar** with the live model, context usage, cost, and 5-hour /
+  7-day rate-limit usage — read from `claude`'s own statusline command output,
+  no API calls.
+- A **sessions sidebar** on the right (`Ctrl+B` to toggle) listing the current
+  project's `claude` sessions, newest first. Click a row to switch via
+  `claude --resume`; `+ New` starts a fresh session.
+- A slide-out command terminal at the bottom (`` Ctrl+` `` to toggle).
+
+Planned: project tabs (multiple `claude` sessions open at once), split panes,
+a dashboard sidebar (skills / MCP / agents / hooks / permissions), and a git
+panel.
 
 ## Requirements
 
