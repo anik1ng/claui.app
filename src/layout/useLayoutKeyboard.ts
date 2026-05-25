@@ -60,20 +60,20 @@ function handleTabKey(
 ): boolean {
   const intent = keyboardEventToAction(e, tabs);
   if (!intent) return false;
-  // closeActive on the primary (or no active tab) is a no-op — don't even
-  // consume the event so the user's native Cmd+W still feels predictable
-  // when there's nothing to close.
+  // Always preventDefault on a tab shortcut — including closeActive on
+  // primary, where we deliberately do nothing. Reason: the macOS Window
+  // menu binds Cmd+W to .close_window() (see src-tauri/src/menu.rs); if
+  // we don't swallow the event, "no-op on primary" would actually close
+  // the whole claui window, the opposite of the spec invariant.
+  e.preventDefault();
+  e.stopPropagation();
   if (intent.type === 'closeActive') {
-    if (!activeUid) return false;
+    if (!activeUid) return true;
     const active = tabs.find((t) => t.uid === activeUid);
-    if (!active || active.isPrimary) return false;
-    e.preventDefault();
-    e.stopPropagation();
+    if (!active || active.isPrimary) return true;
     actions.closeTab(activeUid);
     return true;
   }
-  e.preventDefault();
-  e.stopPropagation();
   if (intent.type === 'newClaudeTab') actions.openClaudeTab();
   else if (intent.type === 'newShellTab') actions.openShellTab();
   else if (intent.type === 'setActive') actions.setActive(intent.uid);
