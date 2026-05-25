@@ -103,6 +103,13 @@ export function TerminalView({ theme, open, autoFocus }: Props) {
     let pendingFit = 0;
     let resizeTimer = 0;
     const observer = new ResizeObserver(() => {
+      // Skip when host is zero-sized — happens when the drawer collapses
+      // (.layout-drawer height transitions to 0 with the inner TerminalView
+      // still mounted). FitAddon's proposeDimensions would clamp to a
+      // minimum 2x1 cell grid and we'd ship SIGWINCH(2, 1) to the shell,
+      // which many shells handle by erasing the prompt or hanging until
+      // the next resize.
+      if (host.clientHeight === 0 || host.clientWidth === 0) return;
       if (!pendingFit) {
         pendingFit = requestAnimationFrame(() => {
           pendingFit = 0;
@@ -115,6 +122,41 @@ export function TerminalView({ theme, open, autoFocus }: Props) {
       }, 80);
     });
     observer.observe(host);
+
+    // Bundled @font-face fonts (Monaspace Neon, NF, Geist) load asynchronously,
+    // and the terminal we just constructed measured cell width against whatever
+    // face was available at that moment — likely the system fallback (Menlo).
+    // Once the real fonts arrive, force xterm to re-measure: setting `fontFamily`
+    // to its current value triggers the renderer's font-change handler, which
+    // recomputes cell dimensions. Then refit so cols/rows match the new metrics.
+    // Without this, Nerd Font glyphs render against a Menlo-sized cell grid and
+    // the line wraps wrong; in the worst case PUA codepoints render as tofu
+    // because the font-family chain was resolved before NF finished loading.
+    void document.fonts.ready.then(() => {
+      if (cancelled) return;
+      // Bundled @font-face fonts (Monaspace Neon, NF, Geist) load
+      // asynchronously, and the terminal we constructed earlier measured
+      // cell width against whatever face was available at that moment —
+      // likely the Menlo fallback. Once the real fonts arrive, xterm
+      // must re-measure. Two subtleties:
+      //
+      // 1. xterm.js's OptionsService.setOption short-circuits when the
+      //    new value equals the old (see node_modules/@xterm/xterm/src/
+      //    common/services/OptionsService.ts:134), so a self-assign is a
+      //    no-op. Toggle through a sentinel value (trailing space) and
+      //    back to force two fire('fontFamily') events — both pass the
+      //    equality check and reach the renderer's font-change handler.
+      // 2. After applyFit may have changed term.cols/rows, the
+      //    ResizeObserver does NOT fire (only font metrics changed, the
+      //    host element didn't), so the debounced ptyResize never runs.
+      //    Push it explicitly so the backend PTY isn't left at the old
+      //    geometry.
+      const ff = term.options.fontFamily;
+      term.options.fontFamily = `${ff} `;
+      term.options.fontFamily = ff;
+      applyFit();
+      if (id != null) void ptyResize(id, term.cols, term.rows);
+    });
 
     const exitUnlisten = listen<{ id: number; code: number }>(
       'terminal:exit',

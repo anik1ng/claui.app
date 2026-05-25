@@ -1,13 +1,103 @@
+/*
+ * Web fonts bundled under src/fonts/. Geist is a variable font (one file
+ * spans 100..900); Monaspace Neon has no variable WOFF2 published, so we
+ * load Regular + Bold + Italic + BoldItalic as separate static faces.
+ *
+ * `font-display: swap` for Geist: chrome can reflow without breaking
+ * anything when the bundled face arrives mid-paint.
+ * `font-display: block` for Monaspace: the terminal cell grid is
+ * measured from the actual font, and swap-style faces would cause a
+ * mid-session reflow + ResizeObserver storm. Short FOIT (~3s) is the
+ * lesser evil — and in practice the bundled file is local so it loads
+ * well before the timeout.
+ *
+ * Note on Nerd Font icons: the NF variant is registered as a SEPARATE
+ * family (`Monaspace Neon NF`) rather than as additional @font-face
+ * declarations on the same `Monaspace Neon` family with `unicode-range`.
+ * The latter is the textbook trick but breaks in WKWebView: the browser
+ * matches by `unicode-range` for the "should I fetch?" decision but
+ * routes glyph fallback through the font-family chain, and the two
+ * disagree just often enough that PUA codepoints end up rendering as
+ * the lean Neon file's `.notdef` glyph (which looks like "?" or a small
+ * tofu box). With separate families, `xtermTheme.ts` lists
+ * `"Monaspace Neon", "Monaspace Neon NF", Menlo, monospace` and the
+ * browser's per-glyph fallback finds icons in NF automatically — the
+ * mechanism that has worked reliably since CSS 2.1.
+ */
+@font-face {
+  font-family: 'Geist';
+  src: url('./fonts/Geist-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist';
+  src: url('./fonts/Geist-Italic-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Monaspace Neon';
+  src: url('./fonts/MonaspaceNeon-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Monaspace Neon';
+  src: url('./fonts/MonaspaceNeon-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Monaspace Neon';
+  src: url('./fonts/MonaspaceNeon-Italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Monaspace Neon';
+  src: url('./fonts/MonaspaceNeon-BoldItalic.woff2') format('woff2');
+  font-weight: 700;
+  font-style: italic;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Monaspace Neon NF';
+  src: url('./fonts/MonaspaceNeonNF-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
 :root {
   color-scheme: dark;
-  /* Defaults so chrome paints correctly before App.tsx mounts and setTheme()
-     populates the variables. The values must mirror defaultTheme in
-     themeStore.ts — if you change the theme, change these too. */
-  --claui-bg: #1d1f21;
-  --claui-fg: #c5c8c6;
-  --claui-accent: #5f819d;
-  --claui-divider: #373b41;
-  --claui-font-family: monospace;
+  /*
+   * Defaults so chrome paints correctly before App.tsx mounts and
+   * setTheme() populates the variables. The values must mirror
+   * defaultTheme in themeStore.ts — if you change the theme, change
+   * these too. (themeStore.test.ts pins the exact strings.)
+   *
+   * Font variables carry the FULL fallback chain because setTheme()
+   * overwrites these via inline style on documentElement, which beats
+   * `:root` on specificity — losing the chain in defaultTheme would
+   * lose it everywhere once the effect runs.
+   */
+  --claui-bg: #0a0a0a;
+  --claui-bg-elevated: #0f0f0f;
+  --claui-fg: #ededed;
+  --claui-fg-dim: #888888;
+  --claui-divider: #ffffff14;
+  --claui-hover: #ffffff0c;
+  --claui-active: #ffffff1a;
+  --claui-accent: #0070f3;
+  --claui-accent-fg: #ffffff;
+  --claui-font-ui: Geist, -apple-system, 'SF Pro Text', 'Inter', system-ui, sans-serif;
+  --claui-font-mono: 'Monaspace Neon', Menlo, monospace;
   --claui-font-size: 13px;
 }
 html,
@@ -16,9 +106,33 @@ body,
   margin: 0;
   height: 100%;
   background: var(--claui-bg);
-  /* Defence in depth against the WebView's native rubber-band: even if some
-     descendant scroller reaches its edge, the document itself must not bounce. */
+  /*
+   * Defence in depth against the WebView's native rubber-band: even if
+   * some descendant scroller reaches its edge, the document itself must
+   * not bounce.
+   */
   overscroll-behavior: none;
+}
+body {
+  /* The UI text default lives on body so every chrome surface inherits
+     it; individual components can still opt into the mono face.
+     Font-smoothing is deliberately NOT set here — antialiased cascades
+     into the xterm terminal viewport and makes Monaspace glyphs look
+     anaemic against the default subpixel rendering. Chrome elements
+     that want crisper text opt in themselves. */
+  font-family: var(--claui-font-ui);
+  color: var(--claui-fg);
+}
+.statusbar,
+.sidebar,
+.project-picker,
+.claui-banner,
+.terminal-exited-btn {
+  /* Chrome surfaces look better with antialiased smoothing on dark bg.
+     The terminal-host is intentionally excluded so xterm renders with
+     the WebView's default subpixel rendering. */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 .claui-banner {
   position: fixed;
@@ -26,11 +140,12 @@ body,
   left: 0;
   right: 0;
   z-index: 10;
-  padding: 8px 12px;
+  padding: 10px 14px;
   font-size: 13px;
-  background: var(--claui-divider);
+  background: var(--claui-bg-elevated);
+  border-bottom: 1px solid var(--claui-divider);
   color: var(--claui-fg);
-  font-family: var(--claui-font-family);
+  font-family: var(--claui-font-ui);
 }
 .claui-banner a {
   color: var(--claui-accent);

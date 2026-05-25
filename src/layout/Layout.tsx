@@ -92,10 +92,17 @@ export function Layout({ theme, projectPath }: Props) {
   );
 
   // Picking the already-active session would needlessly restart it.
+  // The double-check protects the launch window: status only flips to
+  // the new sessionId once `claude` has written its first statusline
+  // JSON line, which can take several seconds; until then a second
+  // click on the same row would otherwise bump the nonce, tear down
+  // the in-flight terminal, and respawn claude from scratch. The
+  // resumeId guard catches that gap by matching against the target
+  // we already sent.
   const pickSession = (id: string) => {
-    if (id !== status?.sessionId) {
-      setSessionTarget((t) => ({ resumeId: id, nonce: t.nonce + 1 }));
-    }
+    if (id === status?.sessionId) return;
+    if (id === sessionTarget.resumeId) return;
+    setSessionTarget((t) => ({ resumeId: id, nonce: t.nonce + 1 }));
   };
   const newSession = () => {
     setSessionTarget((t) => ({ resumeId: null, nonce: t.nonce + 1 }));
@@ -131,7 +138,9 @@ export function Layout({ theme, projectPath }: Props) {
               className="layout-drawer"
               style={{ height: drawerOpen ? drawerHeight : 0 }}
             >
-              <TerminalView theme={theme} open={openShell} autoFocus={drawerOpen} />
+              <div className="layout-drawer-inner">
+                <TerminalView theme={theme} open={openShell} autoFocus={drawerOpen} />
+              </div>
             </div>
           )}
         </div>

@@ -27,11 +27,36 @@
      (16px) and what feels right against the cell grid. */
   padding: 10px 12px;
 }
+/*
+ * The drawer divider is a 6px row-resize hit-target with a centred 1px
+ * hairline. The previous 4px solid bar of 8% white read as a half-formed
+ * divider on the near-black chrome; this gives a clean visual line while
+ * keeping a comfortable drag target.
+ */
 .layout-divider {
-  height: 4px;
+  flex: none;
+  height: 6px;
+  position: relative;
   cursor: row-resize;
+  background: transparent;
+}
+.layout-divider::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
   background: var(--claui-divider);
 }
 .layout-drawer {
   overflow: hidden;
+  /* Padding lives on .layout-drawer-inner (not here) so the inline
+     `height: 0` collapse stays exact — box-sizing tricks on this
+     element would leak the padding into the closed state. */
+}
+.layout-drawer-inner {
+  height: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
 }

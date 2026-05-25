@@ -10,10 +10,12 @@
     Inline background colour matches the theme so the first paint is dark.
     Without it the WKWebView shows its default white background until the
     bundled CSS loads and App.tsx calls setTheme() — visible as a flash on
-    cold start and on fast window resizes. The Tauri window itself uses the
-    same colour via tauri.conf.json's backgroundColor for NSWindow.
+    cold start and on fast window resizes. The NSWindow is painted dark
+    by `WebviewWindowBuilder::theme(Some(Theme::Dark))` in src-tauri/src/
+    lib.rs (Tauri 2's `backgroundColor` config field is documented as not
+    implemented for the WebView layer on macOS — this is the workaround).
   -->
-  <body style="background:#1d1f21">
+  <body style="background:#0a0a0a">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -3,10 +3,10 @@
   flex: none;
   display: flex;
   flex-direction: column;
-  background: var(--claui-bg);
+  background: var(--claui-bg-elevated);
   border-left: 1px solid var(--claui-divider);
   color: var(--claui-fg);
-  font-family: var(--claui-font-family);
+  font-family: var(--claui-font-ui);
 }
 .sidebar-header {
   display: flex;
@@ -15,24 +15,34 @@
   padding: 14px 14px 8px;
   font-size: 10px;
   letter-spacing: 0.1em;
-  opacity: 0.55;
+  text-transform: uppercase;
+  color: var(--claui-fg-dim);
 }
+/* "+ New" sits to the right of the section title as a pill — small but
+   tactile, with a soft hover so it feels alive without competing with
+   the list rows below. */
 .sidebar-new {
-  padding: 0;
-  background: none;
-  border: none;
-  color: var(--claui-accent);
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid var(--claui-divider);
+  border-radius: 999px;
+  color: var(--claui-fg);
   font-family: inherit;
-  font-size: 12px;
+  font-size: 11px;
   letter-spacing: normal;
   text-transform: none;
   cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.sidebar-new:hover {
+  background: var(--claui-hover);
+  border-color: var(--claui-fg-dim);
 }
 .sidebar-list {
   flex: 1;
   overflow-y: auto;
-  /* Mirror the terminal: native macOS rubber-band overscroll feels wrong in
-     a list-view-style panel. */
+  /* Mirror the terminal: native macOS rubber-band overscroll feels wrong
+     in a list-view-style panel. */
   overscroll-behavior: contain;
 }
 .session-row {
@@ -41,7 +51,7 @@
   gap: 3px;
   width: 100%;
   padding: 9px 14px;
-  background: none;
+  background: transparent;
   border: none;
   border-left: 2px solid transparent;
   color: inherit;
@@ -49,12 +59,18 @@
   font-size: 12px;
   text-align: left;
   cursor: pointer;
+  transition: background 120ms ease;
 }
 .session-row:hover {
-  background: var(--claui-divider);
+  background: var(--claui-hover);
 }
 .session-row.active {
-  background: var(--claui-divider);
+  /* `--claui-active` is a stronger surface than `--claui-hover` so the
+     live session reads as distinct even when an inactive row is also
+     being hovered. Listed after `:hover` to win the cascade at equal
+     specificity — an active row that's being hovered stays on the
+     stronger surface. */
+  background: var(--claui-active);
   border-left-color: var(--claui-accent);
 }
 .session-title {
@@ -65,18 +81,16 @@
 .session-meta {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   font-size: 10px;
-  opacity: 0.55;
+  color: var(--claui-fg-dim);
 }
 .session-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--claui-fg);
-  opacity: 0.3;
+  background: var(--claui-fg-dim);
 }
 .session-dot.active {
   background: var(--claui-accent);
-  opacity: 1;
 }

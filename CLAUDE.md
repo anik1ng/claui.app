@@ -112,10 +112,13 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   `documentElement.style.colorScheme = 'dark'` so canvas/scrollbar/form-control
   defaults stay dark too. Tauri's `backgroundColor` config field is documented
   as "Not implemented for the webview layer" on macOS / iOS and does NOT help.
-- The webview resolves fonts differently from a native terminal. `xtermTheme.ts`
-  always appends a `Menlo, monospace` fallback to the configured `font-family`,
-  so the terminal can never render a proportional font when that family is
-  unavailable.
+- The webview resolves fonts differently from a native terminal.
+  `xtermTheme.ts` builds a font-family chain shaped
+  `<configured>, "<iconFontFamily>", Menlo, monospace`. The configured
+  family covers Latin / Cyrillic / box-drawing, the icon family (default
+  `Monaspace Neon NF`) supplies Nerd Font glyphs in the PUA via per-glyph
+  fallback, and `Menlo, monospace` is the final safety net so the
+  terminal can never render a proportional font.
 - Shipped today: the terminal core, the macOS menu / project switching, the
   top status bar (model / context / cost / 5h+7d limits, captured via a
   `statusLine` wrapper claui writes into project-local

@@ -4,17 +4,27 @@
   align-items: center;
   justify-content: center;
   height: 100vh;
-  gap: 12px;
+  gap: 14px;
   background: var(--claui-bg);
   color: var(--claui-fg);
-  font-family: var(--claui-font-family);
+  font-family: var(--claui-font-ui);
 }
 .project-picker button {
-  padding: 8px 18px;
+  padding: 9px 22px;
   cursor: pointer;
   background: var(--claui-accent);
-  color: var(--claui-fg);
+  /* `--claui-accent-fg` is the theme's "readable colour on accent"
+     companion to `--claui-accent` — so themes that swap blue for a
+     light pastel can ship a dark accent-fg without breaking this
+     button's contrast. */
+  color: var(--claui-accent-fg);
   border: none;
-  border-radius: 6px;
-  font-size: 14px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  transition: filter 120ms ease;
+}
+.project-picker button:hover {
+  filter: brightness(1.1);
 }
