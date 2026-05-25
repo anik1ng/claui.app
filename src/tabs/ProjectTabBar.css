@@ -1,0 +1,64 @@
+/* src/tabs/ProjectTabBar.css */
+.proj-tab-bar {
+  display: flex;
+  align-items: stretch;
+  height: 38px;
+  flex: none;
+  background: var(--claui-bg-elevated);
+  border-bottom: 1px solid var(--claui-divider);
+  font-family: var(--claui-font-ui);
+  font-size: 12px;
+}
+.proj-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  padding: 0 18px;
+  background: var(--claui-bg-elevated);
+  border-right: 1px solid var(--claui-divider);
+  color: var(--claui-fg-dim);
+  cursor: pointer;
+  white-space: nowrap;
+  position: relative;
+}
+.proj-tab.active {
+  background: var(--claui-bg);
+  color: var(--claui-fg);
+}
+.proj-tab.active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--claui-accent);
+}
+.proj-tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--claui-fg-dim);
+  flex: none;
+}
+.proj-tab.active .proj-tab-dot {
+  background: var(--claui-accent);
+}
+.proj-tab-add {
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--claui-divider);
+  color: var(--claui-fg-dim);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease;
+}
+.proj-tab-add:hover {
+  color: var(--claui-fg);
+  background: var(--claui-hover);
+}
