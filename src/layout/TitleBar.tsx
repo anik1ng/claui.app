@@ -1,7 +1,7 @@
 import {
+  IconAnthropic,
   IconFolderOpen,
   IconGlobe,
-  IconSparkles,
   IconSplit,
   IconTerminal,
 } from './Icons';
@@ -40,17 +40,27 @@ function basename(p: string): string {
  */
 export function TitleBar({ projectPath, onOpenClaude, onOpenShell, onOpenProject }: Props) {
   return (
-    <div className="titlebar">
-      <div className="titlebar-traffic-lights" aria-hidden />
-      <div className="titlebar-project">{basename(projectPath)}</div>
+    <div className="titlebar" data-tauri-drag-region>
+      <div className="titlebar-traffic-lights" aria-hidden data-tauri-drag-region />
+      <div className="titlebar-project" data-tauri-drag-region>
+        {basename(projectPath)}
+      </div>
       <div className="titlebar-toolbar" role="toolbar" aria-label="Tab actions">
         <button
           type="button"
           className="tb-icon"
+          title="Open project — replaces current (⌘O)"
+          onClick={onOpenProject}
+        >
+          <IconFolderOpen />
+        </button>
+        <button
+          type="button"
+          className="tb-icon tb-claude"
           title="New Claude tab (⌘T)"
           onClick={onOpenClaude}
         >
-          <IconSparkles />
+          <IconAnthropic />
         </button>
         <button
           type="button"
@@ -59,14 +69,6 @@ export function TitleBar({ projectPath, onOpenClaude, onOpenShell, onOpenProject
           onClick={onOpenShell}
         >
           <IconTerminal />
-        </button>
-        <button
-          type="button"
-          className="tb-icon"
-          title="Open project — replaces current (⌘O)"
-          onClick={onOpenProject}
-        >
-          <IconFolderOpen />
         </button>
         <span className="tb-icon tb-disabled" title="Browser (coming later)" aria-disabled>
           <IconGlobe />

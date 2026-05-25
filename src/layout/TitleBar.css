@@ -1,7 +1,9 @@
 /* src/layout/TitleBar.css */
 
 .titlebar {
-  -webkit-app-region: drag;
+  /* Drag is enabled by `data-tauri-drag-region` attribute on this element
+     (see TitleBar.tsx). The older `-webkit-app-region: drag` CSS is not
+     reliable across Tauri 2's webview backends — the attribute is. */
   display: flex;
   align-items: center;
   height: 32px;
@@ -38,7 +40,6 @@
 }
 
 .titlebar-toolbar {
-  -webkit-app-region: no-drag;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -55,7 +56,6 @@
 }
 
 .tb-icon {
-  -webkit-app-region: no-drag;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -67,6 +67,14 @@
   cursor: pointer;
   border-radius: 4px;
   transition: color 120ms ease, background 120ms ease;
+}
+/* The Anthropic mark carries its own brand colour and shouldn't inherit
+   the dim → bright hover transition the other (stroke-based) icons do. */
+.tb-icon.tb-claude {
+  color: inherit;
+}
+.tb-icon.tb-claude:hover {
+  background: var(--claui-hover);
 }
 
 .tb-icon:hover {

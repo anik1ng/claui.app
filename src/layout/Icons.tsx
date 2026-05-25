@@ -28,15 +28,25 @@ function IconShell({ children, ...props }: IconShellProps) {
   );
 }
 
-export function IconSparkles() {
+/**
+ * Anthropic monomark — the official brand mark for Claude. Six elongated
+ * petals radiating from a central point in 60° rotational symmetry. Drawn
+ * as filled paths (not stroke) at brand orange (`#D97757`) so the icon
+ * reads as a logo rather than a generic glyph. We bypass `currentColor`
+ * here on purpose — this is the one icon that carries fixed brand colour.
+ */
+export function IconAnthropic() {
   return (
-    <IconShell>
-      <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
-      <path d="M5 3v4" />
-      <path d="M19 17v4" />
-      <path d="M3 5h4" />
-      <path d="M17 19h4" />
-    </IconShell>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="#D97757" aria-hidden>
+      <g transform="translate(12 12)">
+        <ellipse cx="0" cy="-7" rx="1.6" ry="4.4" />
+        <ellipse cx="0" cy="-7" rx="1.6" ry="4.4" transform="rotate(60)" />
+        <ellipse cx="0" cy="-7" rx="1.6" ry="4.4" transform="rotate(120)" />
+        <ellipse cx="0" cy="-7" rx="1.6" ry="4.4" transform="rotate(180)" />
+        <ellipse cx="0" cy="-7" rx="1.6" ry="4.4" transform="rotate(240)" />
+        <ellipse cx="0" cy="-7" rx="1.6" ry="4.4" transform="rotate(300)" />
+      </g>
+    </svg>
   );
 }
 
