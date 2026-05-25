@@ -1,9 +1,13 @@
 /* src/layout/TitleBar.css */
 
 .titlebar {
-  /* Drag is enabled by `data-tauri-drag-region` attribute on this element
-     (see TitleBar.tsx). The older `-webkit-app-region: drag` CSS is not
-     reliable across Tauri 2's webview backends — the attribute is. */
+  /* Drag region: both the React-side `data-tauri-drag-region` attribute
+     (see TitleBar.tsx) AND the macOS-native `-webkit-app-region: drag`
+     CSS are needed. The attribute is Tauri 2's portable mechanism; the
+     CSS is what WKWebView's own drag handler reads. Either alone has
+     been observed to flake on macOS — both together is the working
+     setup (copied from Diary). */
+  -webkit-app-region: drag;
   display: flex;
   align-items: center;
   height: 32px;
@@ -15,6 +19,14 @@
   font-size: 12px;
   color: var(--claui-fg-dim);
   user-select: none;
+}
+/* Buttons inside the title bar must opt out — otherwise WKWebView's
+   native drag handler swallows the click. Tauri's drag-region detection
+   auto-excludes buttons, but `-webkit-app-region` does not, so we have
+   to spell it out for the CSS side. */
+.titlebar button,
+.titlebar .tb-icon {
+  -webkit-app-region: no-drag;
 }
 
 /* Reserve room for the macOS traffic lights — they sit overlaid on top
