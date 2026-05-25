@@ -33,6 +33,22 @@ pub fn get_last_project(app: AppHandle) -> Option<String> {
     }
 }
 
+/// Build the env tuple passed to the spawned claude.
+///
+/// `CLAUI_ACTIVE=1` tells the statusline wrapper it's running inside claui
+/// (suppresses the chain to the user's real statusline command).
+/// `CLAUI_PRIMARY=1` is set only on the primary claude of an open project —
+/// the statusline wrapper writes the global status file for that PTY only,
+/// so claui's status bar tracks a single source of truth even with multiple
+/// claude tabs alive.
+pub(crate) fn build_spawn_env(is_primary: bool) -> Vec<(&'static str, &'static str)> {
+    let mut env = vec![("CLAUI_ACTIVE", "1")];
+    if is_primary {
+        env.push(("CLAUI_PRIMARY", "1"));
+    }
+    env
+}
+
 #[tauri::command]
 pub fn open_project(
     app: AppHandle,
@@ -42,29 +58,24 @@ pub fn open_project(
     cols: u16,
     rows: u16,
     resume_session_id: Option<String>,
+    is_primary: bool,
 ) -> Result<u32, String> {
     let Some(claude) = crate::claude::locate() else {
         let _ = app.emit("claude:not-found", ());
         return Err("claude binary not found".into());
     };
 
-    // Override claude's statusLine via project-local `.claude/settings.local.json` —
-    // the only mechanism observed to win over the user-level setting. `--settings`
-    // (both inline-JSON and file forms) does not propagate the statusLine override
-    // to the spawned claude.
     if let Err(e) = crate::statusline::install_project_settings(std::path::Path::new(&path)) {
         eprintln!("claui: failed to write project-local statusline settings: {e}");
     }
+
     let mut args: Vec<&str> = Vec::new();
     if let Some(ref sid) = resume_session_id {
         args.push("--resume");
         args.push(sid.as_str());
     }
 
-    // `CLAUI_ACTIVE` lets the statusline wrapper know it is running inside
-    // claui; when unset, the wrapper chains to the user's real statusline
-    // command so plain `claude` in this project still renders it as usual.
-    let env: &[(&str, &str)] = &[("CLAUI_ACTIVE", "1")];
+    let env = build_spawn_env(is_primary);
 
     // Spawn first; persist the project only once the terminal actually started.
     let claude = claude.to_string_lossy();
@@ -74,7 +85,7 @@ pub fn open_project(
         claude.as_ref(),
         &args,
         Some(&path),
-        env,
+        &env,
         cols,
         rows,
         on_output,
@@ -175,4 +186,25 @@ pub fn pty_close(state: State<'_, AppState>, id: u32) {
 #[tauri::command]
 pub fn list_sessions(path: String) -> Vec<crate::sessions::SessionInfo> {
     crate::sessions::list_sessions(&path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_spawn_env;
+
+    #[test]
+    fn build_spawn_env_marks_primary() {
+        let env = build_spawn_env(true);
+        assert!(env.contains(&("CLAUI_ACTIVE", "1")));
+        assert!(env.contains(&("CLAUI_PRIMARY", "1")));
+        assert_eq!(env.len(), 2);
+    }
+
+    #[test]
+    fn build_spawn_env_skips_primary_marker_for_non_primary() {
+        let env = build_spawn_env(false);
+        assert!(env.contains(&("CLAUI_ACTIVE", "1")));
+        assert!(!env.iter().any(|(k, _)| *k == "CLAUI_PRIMARY"));
+        assert_eq!(env.len(), 1);
+    }
 }

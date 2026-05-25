@@ -12,8 +12,9 @@ export const openProject = (
   onOutput: Channel<ArrayBuffer>,
   cols: number,
   rows: number,
-  resumeSessionId?: string,
-) => invoke<number>('open_project', { path, onOutput, cols, rows, resumeSessionId });
+  resumeSessionId: string | undefined,
+  isPrimary: boolean,
+) => invoke<number>('open_project', { path, onOutput, cols, rows, resumeSessionId, isPrimary });
 
 export const openCommandTerminal = (
   path: string,

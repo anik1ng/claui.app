@@ -93,11 +93,14 @@ fn status_file_path() -> PathBuf {
 }
 
 /// Write the statusline wrapper script. The script captures `claude`'s
-/// statusline JSON (delivered on stdin) into the file claui watches. Inside
-/// claui (`CLAUI_ACTIVE=1`) it prints nothing — claui renders the metrics in
-/// its native top bar. Outside claui, it chains to the user's real statusline
-/// command (read from `~/.claude/settings.json` via `jq`) and forwards its
-/// output, so plain `claude` in this project still renders the user's strip.
+/// statusline JSON (delivered on stdin) into the file claui watches when
+/// the spawned claude is the primary one (`CLAUI_PRIMARY=1`) — that gate
+/// keeps the global status file single-sourced even when multiple claude
+/// tabs are alive. Inside claui (`CLAUI_ACTIVE=1`) it prints nothing —
+/// claui renders the metrics in its native bar. Outside claui (neither
+/// env set), it chains to the user's real statusline command (read from
+/// `~/.claude/settings.json` via `jq`) and forwards its output, so plain
+/// `claude` in this project still renders the user's strip.
 pub fn install_wrapper() -> std::io::Result<()> {
     std::fs::create_dir_all(claui_temp_dir())?;
     let status = status_file_path();
@@ -106,8 +109,10 @@ pub fn install_wrapper() -> std::io::Result<()> {
         "#!/bin/sh\n\
          # claui — capture claude's statusline JSON. Written by claui; do not edit.\n\
          input=$(cat)\n\
-         tmp=\"{status}.tmp.$$\"\n\
-         printf '%s' \"$input\" > \"$tmp\" && mv -f \"$tmp\" \"{status}\"\n\
+         if [ -n \"$CLAUI_PRIMARY\" ]; then\n\
+           tmp=\"{status}.tmp.$$\"\n\
+           printf '%s' \"$input\" > \"$tmp\" && mv -f \"$tmp\" \"{status}\"\n\
+         fi\n\
          if [ -z \"$CLAUI_ACTIVE\" ]; then\n\
            user_settings=\"$HOME/.claude/settings.json\"\n\
            if [ -f \"$user_settings\" ] && command -v jq >/dev/null 2>&1; then\n\
