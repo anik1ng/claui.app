@@ -20,7 +20,7 @@ const sub = (uid: string, overrides: Partial<Tab> = {}): Tab => ({
   ...overrides,
 });
 
-describe('tabsReducer', () => {
+describe('tabsReducer / add', () => {
   it('adds a tab to an empty state and activates it', () => {
     const s = tabsReducer(initialState, { type: 'add', tab: primary() });
     expect(s.tabs).toEqual([primary()]);
@@ -33,7 +33,9 @@ describe('tabsReducer', () => {
     expect(s.tabs.map((t) => t.uid)).toEqual(['tab-1', 'tab-2']);
     expect(s.activeUid).toBe('tab-2');
   });
+});
 
+describe('tabsReducer / setActive', () => {
   it('setActive to an unknown uid is a no-op', () => {
     const s0: TabsState = { tabs: [primary()], activeUid: 'tab-1' };
     const s = tabsReducer(s0, { type: 'setActive', uid: 'nope' });
@@ -48,7 +50,9 @@ describe('tabsReducer', () => {
     const s = tabsReducer(s0, { type: 'setActive', uid: 'tab-3' });
     expect(s.activeUid).toBe('tab-3');
   });
+});
 
+describe('tabsReducer / closeTab', () => {
   it('closeTab on a non-primary inactive tab removes it; activeUid unchanged', () => {
     const s0: TabsState = {
       tabs: [primary(), sub('tab-2'), sub('tab-3')],
@@ -84,7 +88,9 @@ describe('tabsReducer', () => {
     const s = tabsReducer(s0, { type: 'closeTab', uid: 'tab-1' });
     expect(s).toEqual(s0);
   });
+});
 
+describe('tabsReducer / updatePrimarySessionId', () => {
   it('updatePrimarySessionId sets sessionId only on the primary tab', () => {
     const s0: TabsState = {
       tabs: [primary(), sub('tab-2')],
@@ -100,7 +106,9 @@ describe('tabsReducer', () => {
     const s = tabsReducer(s0, { type: 'updatePrimarySessionId', sessionId: 'abc' });
     expect(s).toEqual(s0);
   });
+});
 
+describe('tabsReducer / resetForProject', () => {
   it('resetForProject empties tabs and clears activeUid', () => {
     const s0: TabsState = {
       tabs: [primary(), sub('tab-2')],
