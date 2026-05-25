@@ -82,7 +82,7 @@ export function Layout({ theme, projectPath }: Props) {
 
   const openClaude = useCallback(
     (ch: Channel<ArrayBuffer>, cols: number, rows: number) =>
-      openProject(projectPath, ch, cols, rows, sessionTarget.resumeId ?? undefined, /*isPrimary*/ true),
+      openProject(projectPath, ch, cols, rows, sessionTarget.resumeId ?? undefined, true),
     [projectPath, sessionTarget],
   );
   const openShell = useCallback(

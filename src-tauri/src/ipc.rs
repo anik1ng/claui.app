@@ -65,6 +65,10 @@ pub fn open_project(
         return Err("claude binary not found".into());
     };
 
+    // Override claude's statusLine via project-local `.claude/settings.local.json` —
+    // the only mechanism observed to win over the user-level setting. `--settings`
+    // (both inline-JSON and file forms) does not propagate the statusLine override
+    // to the spawned claude.
     if let Err(e) = crate::statusline::install_project_settings(std::path::Path::new(&path)) {
         eprintln!("claui: failed to write project-local statusline settings: {e}");
     }
