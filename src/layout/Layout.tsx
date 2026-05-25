@@ -20,9 +20,10 @@ import './Layout.css';
 interface Props {
   theme: Theme;
   projectPath: string;
+  onRequestProjectSwitch: () => void;
 }
 
-export function Layout({ theme, projectPath }: Props) {
+export function Layout({ theme, projectPath, onRequestProjectSwitch }: Props) {
   const {
     tabs,
     activeUid,
@@ -120,6 +121,7 @@ export function Layout({ theme, projectPath }: Props) {
         onCloseTab={closeTab}
         onOpenClaude={() => openClaudeTab()}
         onOpenShell={openShellTab}
+        onOpenProject={onRequestProjectSwitch}
       />
       <div className="layout-body">
         <div className="layout-left">

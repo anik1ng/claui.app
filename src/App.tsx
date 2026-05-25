@@ -46,7 +46,11 @@ export default function App() {
         </div>
       )}
       {project ? (
-        <Layout theme={defaultTheme} projectPath={project} />
+        <Layout
+          theme={defaultTheme}
+          projectPath={project}
+          onRequestProjectSwitch={requestProjectSwitch}
+        />
       ) : (
         <ProjectPicker onPick={setProject} />
       )}

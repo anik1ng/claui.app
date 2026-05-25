@@ -4,11 +4,8 @@
   align-items: center;
   gap: 2px;
   padding: 0 8px;
-  opacity: 0;
-  /* opacity transition is owned by the parent's :hover rule
-     (WorkspaceTabBar.css). This component just defines layout. */
-  pointer-events: none;
-  transition: opacity 140ms ease;
+  /* Baseline-visible — see HoverToolbar.tsx header comment for why
+     the historical hover-gating was removed. */
 }
 .ht-icon {
   display: inline-flex;

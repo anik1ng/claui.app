@@ -78,9 +78,8 @@
   background: var(--claui-active);
   color: var(--claui-fg);
 }
-/* HoverToolbar's `.hover-toolbar` becomes interactive when the tab bar is
-   hovered. Owned here because the trigger is the bar, not the toolbar. */
-.ws-tab-bar:hover .hover-toolbar {
-  opacity: 1;
-  pointer-events: auto;
+/* Spacer occupies the left side when there's no tab strip; lets the
+   toolbar settle at the right end without needing margin-left:auto on it. */
+.ws-tab-spacer {
+  flex: 1;
 }
