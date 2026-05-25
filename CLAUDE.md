@@ -91,8 +91,8 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   `claude` session.
 - `ipc/commands.ts` — typed `invoke` wrappers and the output-`Channel` helper.
 - `tabs/useTabs.ts`, `tabs/tabsReducer.ts`, `tabs/types.ts`, `tabs/openSessionIds.ts`, `tabs/tabTitle.ts`, `tabs/keyboard.ts` — the workspace tab list and its pure helpers. Each Tab descriptor is a kind (`claude` / `shell`), an `isPrimary` flag, and resume/session ids. `TerminalView` retains PTY ownership; `useTabs` only manages tab descriptors. The first claude tab of each open project is pinned — `closeTab` on it returns the state unchanged.
-- `tabs/WorkspaceTabBar.tsx`, `tabs/ProjectTabBar.tsx`, `tabs/HoverToolbar.tsx` — the two-strip tab UI. The hover toolbar appears via a CSS `:hover` rule on the workspace tab bar; no React hover state.
-- `layout/useLayoutKeyboard.ts` — extracted keydown effect; reuses `tabs/keyboard.ts`'s pure `keyboardEventToAction` so the same mapping drives both the unit tests and the live handler.
+- `tabs/WorkspaceTabBar.tsx`, `tabs/HoverToolbar.tsx` — the workspace tab strip and its hover-revealed type-picker toolbar. The bar renders `null` when only the primary tab exists, so a single-claude session has no visible tab chrome at all. A project tab strip (for multi-project mode) is deferred to Phase 3b — Phase 3a always has exactly one project, so showing a project bar would be pure noise.
+- `layout/useLayoutKeyboard.ts` — extracted keydown effect for the drawer / sidebar / sessions sidebar toggles and the numeric tab switcher (`Cmd+1..9`). `Cmd+T` / `Cmd+Shift+T` / `Cmd+W` are NOT here — they're owned by the macOS File menu (see `src-tauri/src/menu.rs`); `Layout` subscribes to the `menu:new-claude-tab` / `menu:new-shell-tab` / `menu:close-tab` events the Rust side emits on click.
 - `sessions/useSessionsPolling.ts` — extracted from `Sidebar.tsx`; `Layout` calls it once and feeds the result into both the sidebar and the workspace tab bar (for titles).
 
 ## Conventions and non-obvious points
@@ -139,12 +139,17 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   claudes are alive. Non-primary claudes still run the wrapper (claude requires
   a statusline command) but their wrapper invocations short-circuit out of the
   file-write branch.
-- The macOS Window submenu binds `Cmd+W` to `.close_window()`. The tab keydown
-  handler (`src/layout/useLayoutKeyboard.ts`) calls
-  `preventDefault + stopPropagation` for every recognized tab shortcut including
-  Cmd+W on the primary tab — without that swallowing, Cmd+W on primary would
-  close the whole claui window via the system menu binding, contradicting the
-  "pinned primary" invariant.
+- The macOS File menu (`src-tauri/src/menu.rs`) owns the `Cmd+T` /
+  `Cmd+Shift+T` / `Cmd+W` accelerators. macOS intercepts menu shortcuts
+  before the webview, so the webview doesn't (and must not) bind these
+  in JS — it subscribes to the `menu:new-claude-tab` / `menu:new-shell-tab`
+  / `menu:close-tab` events emitted from `on_menu_event`. The "primary
+  tab is unclosable" invariant lives in `tabsReducer`: a `closeTab`
+  action on the primary returns the state unchanged, so the menu's
+  Cmd+W fires harmlessly when the primary is active. We removed the
+  predefined `.close_window()` item from the Window submenu because its
+  default `Cmd+W` would otherwise fight File → Close Tab; the red
+  traffic-light button remains the way to close the window.
 - TDD: pure logic carries tests (`cargo test`, Vitest); the terminal and UI are
   verified by running the app — `cargo test` passing does not prove the UI works.
 - All code, comments, commit messages, and documentation are written in English.

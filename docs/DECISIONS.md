@@ -42,6 +42,18 @@ Entries are append-only. Each entry has a date, a short title, context, the deci
 
 ---
 
+### 2026-05-25 — Tab chrome collapses when there is no choice; ⌘ shortcuts move into the File menu
+
+**Context.** Right after Phase 3a shipped, the default state (one project, one claude) showed two stacked tab strips — a 38px project bar with a single `claui` tab and a 28px workspace bar with a single `claude` tab — totalling ~66px of vertical chrome that didn't inform anything. Polished-app convention is that chrome appears only when it represents a choice; with one item there's nothing to choose. Hiding the bars surfaced a discoverability question: with no visible `＋` affordance, how does a new user learn to open another tab?
+
+**Decision.** Two coupled changes. (1) The `<ProjectTabBar>` component is deleted (Phase 3a is always single-project; the component will be reconstructed in Phase 3b when multi-project lands). `<WorkspaceTabBar>` returns `null` when `tabs.length <= 1`, so the bar appears the moment a second tab is created and disappears when it's closed. (2) `Cmd+T` / `Cmd+Shift+T` / `Cmd+W` are removed from the webview's keydown handler and re-bound as macOS File menu items (New Claude Tab / New Terminal Tab / Close Tab) in `src-tauri/src/menu.rs`. The menu accelerators are intercepted by macOS before the webview, and the Rust side emits `menu:new-claude-tab` / `menu:new-shell-tab` / `menu:close-tab` events that `Layout` subscribes to. The Window submenu's predefined `.close_window()` is dropped to avoid a `Cmd+W` accelerator collision; the red traffic-light remains the way to close the window.
+
+**Consequences.** The default state of claui is now chrome-free for the single-task case — only the bottom status bar and the right sessions sidebar remain (and the sidebar is already user-toggleable via `Ctrl+B`). Discoverability lives in the macOS menu bar: any Mac user looking for the keyboard shortcut will find `File → New Claude Tab ⌘T` exactly where they expect. The JS keyboard handler (`src/layout/useLayoutKeyboard.ts`) shrinks to drawer/sidebar toggles plus the numeric tab switcher (`Cmd+1..9`) — `keyboardEventToAction` in `src/tabs/keyboard.ts` correspondingly drops its `newClaudeTab` / `newShellTab` / `closeActive` variants and the test file loses three tests. The "primary tab is unclosable" invariant now lives entirely in `tabsReducer` (its `closeTab` action on a primary returns the state unchanged) — the manual `preventDefault` swallow in `useLayoutKeyboard` was no longer needed once `Cmd+W` left the JS keydown handler. `<ProjectTabBar>`, its CSS, and `src/tabs/basename.ts` are deleted; Phase 3b will reconstruct them from the spec.
+
+**References.** `src-tauri/src/menu.rs` (the four File items and their `on_menu_event` arm), `src/tabs/WorkspaceTabBar.tsx` (the null-render guard), `src/tabs/keyboard.ts`, `src/layout/useLayoutKeyboard.ts`, `src/layout/Layout.tsx` (the three new event listeners). The earlier 2026-05-25 tabs entry above is unchanged.
+
+---
+
 ## Template (do not delete)
 
 ### YYYY-MM-DD — Short title

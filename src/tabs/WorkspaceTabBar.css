@@ -16,7 +16,6 @@
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  padding: 0 6px;
   gap: 0;
 }
 .ws-tab {

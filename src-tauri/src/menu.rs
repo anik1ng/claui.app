@@ -3,10 +3,16 @@ use tauri::{App, Emitter};
 
 /// Build the application menu and wire its events.
 ///
-/// The menu keeps the standard macOS submenus — App (About, Quit), Edit
-/// (copy/paste are needed for a terminal), Window — and adds File → Open
-/// Project…, whose click emits `menu:open-project` to the webview, where
-/// `App.tsx` opens the folder picker.
+/// The File submenu owns the tab-related shortcuts: Open Project (⌘O),
+/// New Claude Tab (⌘T), New Terminal Tab (⌘⇧T), Close Tab (⌘W). The
+/// macOS menu intercepts these accelerators before the webview, so the
+/// webview's keydown handler is NOT responsible for them — it just
+/// subscribes to the `menu:*` events emitted from `on_menu_event` below.
+///
+/// The Window submenu's default `.close_window()` predefined item is
+/// dropped because it bound ⌘W to "close the whole window", which would
+/// fight File → Close Tab. Closing the window is still possible via the
+/// red traffic-light button.
 pub fn init(app: &App) -> tauri::Result<()> {
     let app_menu = SubmenuBuilder::new(app, "claui")
         .about(None)
@@ -17,8 +23,21 @@ pub fn init(app: &App) -> tauri::Result<()> {
     let open_project = MenuItemBuilder::with_id("open-project", "Open Project…")
         .accelerator("CmdOrCtrl+O")
         .build(app)?;
+    let new_claude_tab = MenuItemBuilder::with_id("new-claude-tab", "New Claude Tab")
+        .accelerator("CmdOrCtrl+T")
+        .build(app)?;
+    let new_shell_tab = MenuItemBuilder::with_id("new-shell-tab", "New Terminal Tab")
+        .accelerator("CmdOrCtrl+Shift+T")
+        .build(app)?;
+    let close_tab = MenuItemBuilder::with_id("close-tab", "Close Tab")
+        .accelerator("CmdOrCtrl+W")
+        .build(app)?;
     let file_menu = SubmenuBuilder::new(app, "File")
         .item(&open_project)
+        .separator()
+        .item(&new_claude_tab)
+        .item(&new_shell_tab)
+        .item(&close_tab)
         .build()?;
 
     let edit_menu = SubmenuBuilder::new(app, "Edit")
@@ -34,8 +53,6 @@ pub fn init(app: &App) -> tauri::Result<()> {
     let window_menu = SubmenuBuilder::new(app, "Window")
         .minimize()
         .maximize()
-        .separator()
-        .close_window()
         .build()?;
 
     let menu = MenuBuilder::new(app)
@@ -43,10 +60,20 @@ pub fn init(app: &App) -> tauri::Result<()> {
         .build()?;
     app.set_menu(menu)?;
 
-    app.on_menu_event(|app, event| {
-        if event.id() == "open-project" {
+    app.on_menu_event(|app, event| match event.id().0.as_str() {
+        "open-project" => {
             let _ = app.emit("menu:open-project", ());
         }
+        "new-claude-tab" => {
+            let _ = app.emit("menu:new-claude-tab", ());
+        }
+        "new-shell-tab" => {
+            let _ = app.emit("menu:new-shell-tab", ());
+        }
+        "close-tab" => {
+            let _ = app.emit("menu:close-tab", ());
+        }
+        _ => {}
     });
 
     Ok(())

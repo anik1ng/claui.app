@@ -26,8 +26,13 @@ interface Props {
  *
  * The `×` close button on non-primary tabs is rendered only on hover of
  * that specific tab (CSS rule on `.ws-tab:hover .ws-tab-close`). The
- * primary tab does NOT render a `×` and `Cmd+W` is a no-op on it — both
- * enforced by `isPrimary`.
+ * primary tab does NOT render a `×` and ⌘W (via the File menu) is a
+ * no-op on it — both enforced by `isPrimary`.
+ *
+ * Single-tab collapse: when only the primary exists, the bar is hidden
+ * entirely (returns null). New tabs come in via the macOS File menu
+ * (New Claude Tab / New Terminal Tab) until a second tab makes the bar
+ * worth showing.
  */
 export function WorkspaceTabBar({
   tabs,
@@ -38,6 +43,7 @@ export function WorkspaceTabBar({
   onOpenClaude,
   onOpenShell,
 }: Props) {
+  if (tabs.length <= 1) return null;
   return (
     <div className="ws-tab-bar">
       <div className="ws-tab-list">

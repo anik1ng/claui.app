@@ -1,32 +1,31 @@
 import type { Tab } from './types';
 
-export type KeyboardIntent =
-  | { type: 'newClaudeTab' }
-  | { type: 'newShellTab' }
-  | { type: 'setActive'; uid: string }
-  | { type: 'closeActive' };
+/**
+ * The single keyboard-only tab intent: switching to a tab by index. New /
+ * close shortcuts (⌘T, ⌘⇧T, ⌘W) are owned by the macOS File menu (see
+ * `src-tauri/src/menu.rs`) so they don't need a JS mapping — macOS
+ * intercepts them before the webview.
+ */
+export type KeyboardIntent = { type: 'setActive'; uid: string };
 
 /**
- * Translate a KeyboardEvent into a tab-related intent.
+ * Translate a KeyboardEvent into a tab-switching intent.
  * Returns null for events we don't handle.
  *
  * Bindings (Cmd on macOS):
- *  - Cmd+T            → newClaudeTab
- *  - Cmd+Shift+T      → newShellTab
- *  - Cmd+1..8         → setActive(tabs[N-1].uid); null if fewer tabs
- *  - Cmd+9            → setActive(tabs[last].uid); null if only primary
- *  - Cmd+W            → closeActive
+ *  - Cmd+1..8 → setActive(tabs[N-1].uid); null if fewer tabs.
+ *  - Cmd+9    → setActive(tabs[last].uid); null if only primary.
+ *
+ * Modifier guard: any extra modifier (Shift, Alt, Ctrl) returns null so
+ * combos like ⌘⇧1 (which macOS sends as Shift+!) don't accidentally match.
  */
 export function keyboardEventToAction(
   event: KeyboardEvent,
   tabs: Tab[],
 ): KeyboardIntent | null {
   if (!event.metaKey) return null;
-  const key = event.key.toLowerCase();
-
-  if (key === 't' && event.shiftKey) return { type: 'newShellTab' };
-  if (key === 't') return { type: 'newClaudeTab' };
-  if (key === 'w') return { type: 'closeActive' };
+  if (event.shiftKey || event.altKey || event.ctrlKey) return null;
+  const key = event.key;
 
   if (key === '9') {
     if (tabs.length <= 1) return null;

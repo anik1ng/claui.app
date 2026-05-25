@@ -3,7 +3,6 @@ import { TerminalView } from '../terminal/TerminalView';
 import { StatusBar } from '../status/StatusBar';
 import { Sidebar } from '../sessions/Sidebar';
 import { useSessionsPolling } from '../sessions/useSessionsPolling';
-import { ProjectTabBar } from '../tabs/ProjectTabBar';
 import { WorkspaceTabBar } from '../tabs/WorkspaceTabBar';
 import { useTabs } from '../tabs/useTabs';
 import { openSessionIds } from '../tabs/openSessionIds';
@@ -21,10 +20,9 @@ import './Layout.css';
 interface Props {
   theme: Theme;
   projectPath: string;
-  onRequestProjectSwitch: () => void;
 }
 
-export function Layout({ theme, projectPath, onRequestProjectSwitch }: Props) {
+export function Layout({ theme, projectPath }: Props) {
   const {
     tabs,
     activeUid,
@@ -52,12 +50,24 @@ export function Layout({ theme, projectPath, onRequestProjectSwitch }: Props) {
     };
   }, []);
 
+  // macOS File menu owns ⌘T / ⌘⇧T / ⌘W (see src-tauri/src/menu.rs). The
+  // menu accelerators fire before the webview ever sees the keystroke; we
+  // just subscribe to the events the Rust side emits on click.
+  useEffect(() => {
+    const unlistenNew = listen('menu:new-claude-tab', () => openClaudeTab());
+    const unlistenShell = listen('menu:new-shell-tab', () => openShellTab());
+    const unlistenClose = listen('menu:close-tab', () => {
+      if (activeUid) closeTab(activeUid);
+    });
+    return () => {
+      void unlistenNew.then((fn) => fn());
+      void unlistenShell.then((fn) => fn());
+      void unlistenClose.then((fn) => fn());
+    };
+  }, [activeUid, openClaudeTab, openShellTab, closeTab]);
+
   useLayoutKeyboard({
     tabs,
-    activeUid,
-    openClaudeTab,
-    openShellTab,
-    closeTab,
     setActive,
     drawerOpen,
     setDrawerOpen,
@@ -102,10 +112,6 @@ export function Layout({ theme, projectPath, onRequestProjectSwitch }: Props) {
 
   return (
     <div className="layout">
-      <ProjectTabBar
-        projectPath={projectPath}
-        onRequestProjectSwitch={onRequestProjectSwitch}
-      />
       <WorkspaceTabBar
         tabs={tabs}
         activeUid={activeUid}

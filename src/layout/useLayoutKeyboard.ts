@@ -5,22 +5,11 @@ import { keyboardEventToAction } from '../tabs/keyboard';
 
 interface Params {
   tabs: Tab[];
-  activeUid: string | null;
-  openClaudeTab: (resumeId?: string) => void;
-  openShellTab: () => void;
-  closeTab: (uid: string) => void;
   setActive: (uid: string) => void;
   drawerOpen: boolean;
   setDrawerOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setDrawerEverOpened: React.Dispatch<React.SetStateAction<boolean>>;
   setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
-}
-
-interface TabActions {
-  openClaudeTab: (resumeId?: string) => void;
-  openShellTab: () => void;
-  closeTab: (uid: string) => void;
-  setActive: (uid: string) => void;
 }
 
 /** Drawer / sidebar shortcuts that predate tabs. Returns true if handled. */
@@ -51,54 +40,29 @@ function handleChromeKey(
   return false;
 }
 
-/** Tab shortcuts via the pure keyboard mapping. Returns true if handled. */
-function handleTabKey(
-  e: KeyboardEvent,
-  tabs: Tab[],
-  activeUid: string | null,
-  actions: TabActions,
-): boolean {
-  const intent = keyboardEventToAction(e, tabs);
-  if (!intent) return false;
-  // Always preventDefault on a tab shortcut — including closeActive on
-  // primary, where we deliberately do nothing. Reason: the macOS Window
-  // menu binds Cmd+W to .close_window() (see src-tauri/src/menu.rs); if
-  // we don't swallow the event, "no-op on primary" would actually close
-  // the whole claui window, the opposite of the spec invariant.
-  e.preventDefault();
-  e.stopPropagation();
-  if (intent.type === 'closeActive') {
-    if (!activeUid) return true;
-    const active = tabs.find((t) => t.uid === activeUid);
-    if (!active || active.isPrimary) return true;
-    actions.closeTab(activeUid);
-    return true;
-  }
-  if (intent.type === 'newClaudeTab') actions.openClaudeTab();
-  else if (intent.type === 'newShellTab') actions.openShellTab();
-  else if (intent.type === 'setActive') actions.setActive(intent.uid);
-  return true;
-}
-
 /**
- * Global keyboard shortcuts for the Layout: drawer / sidebar toggles plus
- * tab shortcuts.
+ * Global keyboard shortcuts for the Layout.
+ *
+ * Two shortcut families live here:
+ *  - Drawer / sidebar toggles (Ctrl+\`, Ctrl+B, Escape) — claui-custom,
+ *    not Mac-standard; managed in JS.
+ *  - Numeric tab switching (Cmd+1..9) via `src/tabs/keyboard.ts` — pure
+ *    mapping, tested independently.
+ *
+ * What is NOT here: ⌘T / ⌘⇧T / ⌘W. Those are owned by the macOS File
+ * menu (see `src-tauri/src/menu.rs`). macOS intercepts menu accelerators
+ * before they reach the webview, so the webview only needs to subscribe
+ * to the `menu:new-claude-tab` / `menu:new-shell-tab` / `menu:close-tab`
+ * events.
  *
  * Why a capture-phase window listener: xterm.js installs its own keydown
- * handler on the terminal element that swallows Ctrl+B (ASCII STX, a useful
- * VT control char) and reports a few modifier combos directly to the PTY.
- * Listening at the window in capture phase lets us intercept before xterm
- * sees the event, and `stopPropagation` keeps xterm out of it entirely.
- *
- * Tab bindings come from `src/tabs/keyboard.ts` — the single source of
- * truth for key→intent mapping, exercised by its own unit tests.
+ * handler on the terminal element that swallows Ctrl+B (ASCII STX, a
+ * useful VT control char). Listening at the window in capture phase lets
+ * us intercept before xterm sees the event, and `stopPropagation` keeps
+ * xterm out of it entirely.
  */
 export function useLayoutKeyboard({
   tabs,
-  activeUid,
-  openClaudeTab,
-  openShellTab,
-  closeTab,
   setActive,
   drawerOpen,
   setDrawerOpen,
@@ -106,23 +70,15 @@ export function useLayoutKeyboard({
   setSidebarOpen,
 }: Params): void {
   useEffect(() => {
-    const actions: TabActions = { openClaudeTab, openShellTab, closeTab, setActive };
     const onKey = (e: KeyboardEvent) => {
       if (handleChromeKey(e, drawerOpen, setDrawerOpen, setDrawerEverOpened, setSidebarOpen)) return;
-      handleTabKey(e, tabs, activeUid, actions);
+      const intent = keyboardEventToAction(e, tabs);
+      if (!intent) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setActive(intent.uid);
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [
-    drawerOpen,
-    tabs,
-    activeUid,
-    openClaudeTab,
-    openShellTab,
-    closeTab,
-    setActive,
-    setDrawerOpen,
-    setDrawerEverOpened,
-    setSidebarOpen,
-  ]);
+  }, [drawerOpen, tabs, setActive, setDrawerOpen, setDrawerEverOpened, setSidebarOpen]);
 }

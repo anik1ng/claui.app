@@ -14,20 +14,6 @@ function ev(init: Partial<KeyboardEvent>): KeyboardEvent {
   return new KeyboardEvent('keydown', { metaKey: true, ...init });
 }
 
-describe('keyboardEventToAction / new tab', () => {
-  const tabs = [tab('p', true), tab('a'), tab('b'), tab('c')];
-
-  it('Cmd+T → newClaudeTab', () => {
-    expect(keyboardEventToAction(ev({ key: 't' }), tabs)).toEqual({ type: 'newClaudeTab' });
-  });
-
-  it('Cmd+Shift+T → newShellTab', () => {
-    expect(keyboardEventToAction(ev({ key: 'T', shiftKey: true }), tabs)).toEqual({
-      type: 'newShellTab',
-    });
-  });
-});
-
 describe('keyboardEventToAction / switching', () => {
   const tabs = [tab('p', true), tab('a'), tab('b'), tab('c')];
 
@@ -53,12 +39,8 @@ describe('keyboardEventToAction / switching', () => {
   });
 });
 
-describe('keyboardEventToAction / closeActive and edge cases', () => {
+describe('keyboardEventToAction / edge cases', () => {
   const tabs = [tab('p', true), tab('a'), tab('b'), tab('c')];
-
-  it('Cmd+W → closeActive', () => {
-    expect(keyboardEventToAction(ev({ key: 'w' }), tabs)).toEqual({ type: 'closeActive' });
-  });
 
   it('Cmd+5 with 4 tabs → null', () => {
     expect(keyboardEventToAction(ev({ key: '5' }), tabs)).toBeNull();
@@ -69,11 +51,15 @@ describe('keyboardEventToAction / closeActive and edge cases', () => {
   });
 
   it('non-meta keys → null', () => {
-    const evt = new KeyboardEvent('keydown', { key: 't', metaKey: false });
+    const evt = new KeyboardEvent('keydown', { key: '1', metaKey: false });
     expect(keyboardEventToAction(evt, tabs)).toBeNull();
   });
 
-  it('unrecognized meta keys → null', () => {
+  it('Cmd+Shift+1 → null (no accidental match on shifted digits)', () => {
+    expect(keyboardEventToAction(ev({ key: '1', shiftKey: true }), tabs)).toBeNull();
+  });
+
+  it('Cmd with a non-digit → null', () => {
     expect(keyboardEventToAction(ev({ key: 'p' }), tabs)).toBeNull();
   });
 });
