@@ -15,24 +15,26 @@
   flex: 1;
   min-width: 0;
 }
-.layout-main {
+/* All tabs' TerminalView instances are mounted simultaneously; the active
+   one is visible, inactive ones are visibility:hidden so xterm keeps its
+   geometry and PTY output keeps streaming. Stacking them with
+   position:absolute means inactive tabs don't take grid space. */
+.layout-workspace {
+  position: relative;
   flex: 1;
   min-height: 0;
-  /* Breathing room around the terminal so the first row doesn't abut the
-     status bar's border and the first column doesn't hug the window edge.
-     The terminal-host inside is width/height:100% of this padded box;
-     FitAddon reads host.clientWidth/Height (excluding padding) and computes
-     cols/rows from the inner box, so this padding shrinks the cell grid
-     rather than clipping it. Horizontal 12px sits between the status bar
-     (16px) and what feels right against the cell grid. */
-  padding: 10px 12px;
 }
-/*
- * The drawer divider is a 6px row-resize hit-target with a centred 1px
- * hairline. The previous 4px solid bar of 8% white read as a half-formed
- * divider on the near-black chrome; this gives a clean visual line while
- * keeping a comfortable drag target.
- */
+.layout-tab-pane {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+  /* Breathing room around the terminal, as in the old single-pane layout. */
+  padding: 10px 12px;
+  box-sizing: border-box;
+}
+.layout-tab-pane.active {
+  visibility: visible;
+}
 .layout-divider {
   flex: none;
   height: 6px;
@@ -51,9 +53,6 @@
 }
 .layout-drawer {
   overflow: hidden;
-  /* Padding lives on .layout-drawer-inner (not here) so the inline
-     `height: 0` collapse stays exact — box-sizing tricks on this
-     element would leak the padding into the closed state. */
 }
 .layout-drawer-inner {
   height: 100%;
