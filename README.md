@@ -19,10 +19,13 @@ claui is functional. What it does today:
   project's `claude` sessions, newest first. Click a row to switch via
   `claude --resume`; `+ New` starts a fresh session.
 - A slide-out command terminal at the bottom (`` Ctrl+` `` to toggle).
+- **Workspace tabs.** Multiple `claude` and shell sessions in one window.
+  `Cmd+T` opens a new claude, `Cmd+Shift+T` opens a shell, `Cmd+1..9`
+  switches, `Cmd+W` closes. The first claude tab of each project is pinned
+  and can't be closed.
 
-Planned: project tabs (multiple `claude` sessions open at once), split panes,
-a dashboard sidebar (skills / MCP / agents / hooks / permissions), and a git
-panel.
+Planned: split panes, a dashboard sidebar (skills / MCP / agents / hooks /
+permissions), and a git panel.
 
 ## Requirements
 

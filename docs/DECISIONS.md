@@ -30,6 +30,18 @@ Entries are append-only. Each entry has a date, a short title, context, the deci
 
 ---
 
+### 2026-05-25 — Workspace tabs (phase 3a)
+
+**Context.** The single-claude window couldn't host multiple parallel sessions or quick context switches. Tabs were the first named item in the "Planned" list in README.md and the forward roadmap in the v1 spec.
+
+**Decision.** The Layout switches to a tab-driven scaffold. The top of the window now carries a 38px project tab strip + a 28px workspace tab strip; the workspace area renders every open tab's `<TerminalView>` simultaneously with the active one `visibility: visible` and inactives hidden; the status bar moves to the bottom of the window. The first claude tab of each open project is pinned ("primary") — it has no close affordance and `Cmd+W` on it is a no-op (the `useLayoutKeyboard` hook swallows the event so the macOS Window menu's Cmd+W → close_window binding doesn't reach it). The status bar is locked to the primary claude's session — only the primary claude's wrapper script writes the global status file, gated on a new `CLAUI_PRIMARY=1` env marker.
+
+**Consequences.** The two-strip layout (project on top, workspace below) cleanly nests the two axes and matches macOS app conventions (Safari, Terminal.app, iTerm). Pinning the primary tab gives the project a guaranteed-alive `claude` whose status the bar can always reflect — that single source of truth avoids the per-tab statusline routing complexity that a fully decoupled design would require, deferring it to a later phase. New module `src/tabs/` follows the established `src/<domain>/` layout. The keydown handler was extracted into `src/layout/useLayoutKeyboard.ts` to keep `Layout.tsx`'s function body under R1.5's 150-line `.tsx` cap. Scope cut for 3a: multiple projects alive simultaneously, split panes inside a tab, browser-type tabs, drag-to-reorder, persistence across launches, per-tab status bar, automatic sessionId discovery for fresh non-primary tabs.
+
+**References.** `src/tabs/`, `src/layout/useLayoutKeyboard.ts`, `src/sessions/useSessionsPolling.ts`, `src-tauri/src/ipc.rs` (`build_spawn_env`, `CLAUI_PRIMARY`). Spec: `docs/superpowers/specs/2026-05-25-project-tabs-design.md` (gitignored; local-only).
+
+---
+
 ## Template (do not delete)
 
 ### YYYY-MM-DD — Short title

@@ -90,6 +90,10 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
 - `sessions/Sidebar.tsx` — the sessions list; clicking a row resumes that
   `claude` session.
 - `ipc/commands.ts` — typed `invoke` wrappers and the output-`Channel` helper.
+- `tabs/useTabs.ts`, `tabs/tabsReducer.ts`, `tabs/types.ts`, `tabs/openSessionIds.ts`, `tabs/tabTitle.ts`, `tabs/keyboard.ts` — the workspace tab list and its pure helpers. Each Tab descriptor is a kind (`claude` / `shell`), an `isPrimary` flag, and resume/session ids. `TerminalView` retains PTY ownership; `useTabs` only manages tab descriptors. The first claude tab of each open project is pinned — `closeTab` on it returns the state unchanged.
+- `tabs/WorkspaceTabBar.tsx`, `tabs/ProjectTabBar.tsx`, `tabs/HoverToolbar.tsx` — the two-strip tab UI. The hover toolbar appears via a CSS `:hover` rule on the workspace tab bar; no React hover state.
+- `layout/useLayoutKeyboard.ts` — extracted keydown effect; reuses `tabs/keyboard.ts`'s pure `keyboardEventToAction` so the same mapping drives both the unit tests and the live handler.
+- `sessions/useSessionsPolling.ts` — extracted from `Sidebar.tsx`; `Layout` calls it once and feeds the result into both the sidebar and the workspace tab bar (for titles).
 
 ## Conventions and non-obvious points
 
@@ -122,8 +126,25 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
 - Shipped today: the terminal core, the macOS menu / project switching, the
   top status bar (model / context / cost / 5h+7d limits, captured via a
   `statusLine` wrapper claui writes into project-local
-  `.claude/settings.local.json`), and the sessions sidebar. Tabs, split panes,
-  the dashboard, and a git panel are later phases.
+  `.claude/settings.local.json`), the sessions sidebar, plus workspace tabs
+  (Cmd+T / Cmd+Shift+T / Cmd+1..9 / Cmd+W), a pinned primary claude per
+  project, the hover toolbar for opening claude/terminal in a new tab, and the
+  status bar now anchored at the bottom of the window. The sessions sidebar
+  marks rows whose session is currently open in some tab. Split panes, the
+  dashboard, and a git panel are later phases.
+- The primary claude of each open project gets `CLAUI_PRIMARY=1` in its env
+  in addition to `CLAUI_ACTIVE=1` (see `src-tauri/src/ipc.rs::build_spawn_env`).
+  The statusline wrapper writes the global status file only when `CLAUI_PRIMARY`
+  is set, so the status bar always reflects the primary tab even when multiple
+  claudes are alive. Non-primary claudes still run the wrapper (claude requires
+  a statusline command) but their wrapper invocations short-circuit out of the
+  file-write branch.
+- The macOS Window submenu binds `Cmd+W` to `.close_window()`. The tab keydown
+  handler (`src/layout/useLayoutKeyboard.ts`) calls
+  `preventDefault + stopPropagation` for every recognized tab shortcut including
+  Cmd+W on the primary tab — without that swallowing, Cmd+W on primary would
+  close the whole claui window via the system menu binding, contradicting the
+  "pinned primary" invariant.
 - TDD: pure logic carries tests (`cargo test`, Vitest); the terminal and UI are
   verified by running the app — `cargo test` passing does not prove the UI works.
 - All code, comments, commit messages, and documentation are written in English.
