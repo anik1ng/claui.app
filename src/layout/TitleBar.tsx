@@ -1,5 +1,5 @@
 import {
-  IconAnthropic,
+  IconClaudeMascot,
   IconFolderOpen,
   IconGlobe,
   IconSplit,
@@ -56,11 +56,11 @@ export function TitleBar({ projectPath, onOpenClaude, onOpenShell, onOpenProject
         </button>
         <button
           type="button"
-          className="tb-icon tb-claude"
+          className="tb-icon"
           title="New Claude tab (⌘T)"
           onClick={onOpenClaude}
         >
-          <IconAnthropic />
+          <IconClaudeMascot />
         </button>
         <button
           type="button"

@@ -58,6 +58,12 @@ pub fn run() {
             .initialization_script(INIT_SCRIPT)
             .title_bar_style(tauri::TitleBarStyle::Overlay)
             .hidden_title(true)
+            // `disable_drag_drop_handler` is REQUIRED for `data-tauri-drag-region`
+            // to actually move the window. Tauri's default drag-drop handler
+            // intercepts pointer events for file-drop detection before the
+            // drag-region check can fire; turning it off frees the drag.
+            // (Discovered the hard way; copying the working setup from Diary.)
+            .disable_drag_drop_handler()
             .build()?;
 
             menu::init(app)?;

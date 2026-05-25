@@ -68,14 +68,6 @@
   border-radius: 4px;
   transition: color 120ms ease, background 120ms ease;
 }
-/* The Anthropic mark carries its own brand colour and shouldn't inherit
-   the dim → bright hover transition the other (stroke-based) icons do. */
-.tb-icon.tb-claude {
-  color: inherit;
-}
-.tb-icon.tb-claude:hover {
-  background: var(--claui-hover);
-}
 
 .tb-icon:hover {
   color: var(--claui-fg);

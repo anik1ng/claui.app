@@ -29,23 +29,31 @@ function IconShell({ children, ...props }: IconShellProps) {
 }
 
 /**
- * Anthropic monomark — the official brand mark for Claude. Six elongated
- * petals radiating from a central point in 60° rotational symmetry. Drawn
- * as filled paths (not stroke) at brand orange (`#D97757`) so the icon
- * reads as a logo rather than a generic glyph. We bypass `currentColor`
- * here on purpose — this is the one icon that carries fixed brand colour.
+ * The Claude Code pixel-art mascot — the same wide-bodied creature with
+ * two eyes and four feet that the `claude` CLI prints in its splash.
+ * Drawn from `<rect>`s on a 24×24 viewBox so the chunky pixel feel
+ * survives at any size. Filled with `currentColor` so it tracks the
+ * icon-row colour (dim baseline → bright on hover), matching the other
+ * stroke-based icons rather than carrying a fixed brand colour.
  */
-export function IconAnthropic() {
+export function IconClaudeMascot() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="#D97757" aria-hidden>
-      <g transform="translate(12 12)">
-        <ellipse cx="0" cy="-7" rx="1.6" ry="4.4" />
-        <ellipse cx="0" cy="-7" rx="1.6" ry="4.4" transform="rotate(60)" />
-        <ellipse cx="0" cy="-7" rx="1.6" ry="4.4" transform="rotate(120)" />
-        <ellipse cx="0" cy="-7" rx="1.6" ry="4.4" transform="rotate(180)" />
-        <ellipse cx="0" cy="-7" rx="1.6" ry="4.4" transform="rotate(240)" />
-        <ellipse cx="0" cy="-7" rx="1.6" ry="4.4" transform="rotate(300)" />
-      </g>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      {/* Head: top row */}
+      <rect x="4" y="4" width="16" height="2" />
+      {/* Eye row — solid except two gaps for the eyes */}
+      <rect x="4" y="6" width="2" height="2" />
+      <rect x="8" y="6" width="8" height="2" />
+      <rect x="18" y="6" width="2" height="2" />
+      {/* Head: row below eyes */}
+      <rect x="4" y="8" width="16" height="2" />
+      {/* Body: wider, two rows tall */}
+      <rect x="2" y="10" width="20" height="4" />
+      {/* Four legs */}
+      <rect x="2" y="14" width="2" height="4" />
+      <rect x="6" y="14" width="2" height="4" />
+      <rect x="16" y="14" width="2" height="4" />
+      <rect x="20" y="14" width="2" height="4" />
     </svg>
   );
 }
