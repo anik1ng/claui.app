@@ -16,6 +16,7 @@ import './Layout.css';
 interface Props {
   theme: Theme;
   projectPath: string;
+  onRequestProjectSwitch: () => void;
 }
 
 /**
