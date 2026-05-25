@@ -2,7 +2,6 @@
 import type { Tab } from './types';
 import type { SessionInfo } from '../ipc/commands';
 import { tabTitle } from './tabTitle';
-import { HoverToolbar } from './HoverToolbar';
 import './WorkspaceTabBar.css';
 
 interface Props {
@@ -11,19 +10,12 @@ interface Props {
   sessions: SessionInfo[];
   onPickTab: (uid: string) => void;
   onCloseTab: (uid: string) => void;
-  onOpenClaude: () => void;
-  onOpenShell: () => void;
-  onOpenProject: () => void;
 }
 
 /**
- * 28px-tall workspace ribbon at the top of the window. Always rendered —
- * the toolbar at the right end is the only mouse affordance for creating
- * new tabs and switching projects, so it must stay visible.
- *
- * The tab strip on the left is conditional: it renders only when at least
- * two tabs exist (a single primary needs no switcher). The toolbar fills
- * the right end in both modes.
+ * 28px-tall workspace tab strip. Renders only when at least two tabs
+ * exist — a single primary needs no switcher. The "new tab" toolbar
+ * lives in `TitleBar` (always present), not here.
  *
  * Active tab styling: a 2px `--claui-accent` bottom border — same visual
  * language as the sessions sidebar's left-edge accent for active rows.
@@ -38,54 +30,42 @@ export function WorkspaceTabBar({
   sessions,
   onPickTab,
   onCloseTab,
-  onOpenClaude,
-  onOpenShell,
-  onOpenProject,
 }: Props) {
-  const showStrip = tabs.length >= 2;
+  if (tabs.length < 2) return null;
   return (
     <div className="ws-tab-bar">
-      {showStrip ? (
-        <div className="ws-tab-list">
-          {tabs.map((tab) => {
-            const active = tab.uid === activeUid;
-            const glyph = tab.kind === 'claude' ? '✦' : '$';
-            return (
-              <div
-                key={tab.uid}
-                className={active ? 'ws-tab active' : 'ws-tab'}
-                onClick={() => onPickTab(tab.uid)}
-              >
-                <span className="ws-tab-glyph" aria-hidden>
-                  {glyph}
-                </span>
-                <span className="ws-tab-title">{tabTitle(tab, sessions)}</span>
-                {!tab.isPrimary && (
-                  <button
-                    type="button"
-                    className="ws-tab-close"
-                    aria-label="Close tab"
-                    title="Close (⌘W)"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onCloseTab(tab.uid);
-                    }}
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="ws-tab-spacer" />
-      )}
-      <HoverToolbar
-        onClaude={onOpenClaude}
-        onTerminal={onOpenShell}
-        onOpenProject={onOpenProject}
-      />
+      <div className="ws-tab-list">
+        {tabs.map((tab) => {
+          const active = tab.uid === activeUid;
+          const glyph = tab.kind === 'claude' ? '✦' : '$';
+          return (
+            <div
+              key={tab.uid}
+              className={active ? 'ws-tab active' : 'ws-tab'}
+              onClick={() => onPickTab(tab.uid)}
+            >
+              <span className="ws-tab-glyph" aria-hidden>
+                {glyph}
+              </span>
+              <span className="ws-tab-title">{tabTitle(tab, sessions)}</span>
+              {!tab.isPrimary && (
+                <button
+                  type="button"
+                  className="ws-tab-close"
+                  aria-label="Close tab"
+                  title="Close (⌘W)"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCloseTab(tab.uid);
+                  }}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -1,0 +1,85 @@
+/* src/layout/TitleBar.css */
+
+.titlebar {
+  -webkit-app-region: drag;
+  display: flex;
+  align-items: center;
+  height: 32px;
+  flex: none;
+  padding-right: 6px;
+  background: var(--claui-bg-elevated);
+  border-bottom: 1px solid var(--claui-divider);
+  font-family: var(--claui-font-ui);
+  font-size: 12px;
+  color: var(--claui-fg-dim);
+  user-select: none;
+}
+
+/* Reserve room for the macOS traffic lights — they sit overlaid on top
+   of this strip via `TitleBarStyle::Overlay`. Three buttons at ~14px each
+   plus the standard ~12px gap to the right of the rightmost one ≈ 78px. */
+.titlebar-traffic-lights {
+  flex: none;
+  width: 78px;
+  height: 100%;
+}
+
+.titlebar-project {
+  flex: 1;
+  color: var(--claui-fg);
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* The whole strip is a drag region; the project label rides on top of
+     it (not in an interactive element) so dragging from this area still
+     moves the window. */
+}
+
+.titlebar-toolbar {
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease;
+}
+
+/* Reveal the toolbar on hover of the whole strip — same gesture the
+   user already learned for the workspace tab bar. */
+.titlebar:hover .titlebar-toolbar {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.tb-icon {
+  -webkit-app-region: no-drag;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: none;
+  color: var(--claui-fg-dim);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: color 120ms ease, background 120ms ease;
+}
+
+.tb-icon:hover {
+  color: var(--claui-fg);
+  background: var(--claui-hover);
+}
+
+.tb-disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.tb-disabled:hover {
+  color: var(--claui-fg-dim);
+  background: transparent;
+}

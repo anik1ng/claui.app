@@ -8,6 +8,7 @@ import { useTabs } from '../tabs/useTabs';
 import { openSessionIds } from '../tabs/openSessionIds';
 import { useLayoutKeyboard } from './useLayoutKeyboard';
 import { TabPane } from './TabPane';
+import { TitleBar } from './TitleBar';
 import { listen } from '@tauri-apps/api/event';
 import {
   type Channel,
@@ -113,15 +114,18 @@ export function Layout({ theme, projectPath, onRequestProjectSwitch }: Props) {
 
   return (
     <div className="layout">
+      <TitleBar
+        projectPath={projectPath}
+        onOpenClaude={() => openClaudeTab()}
+        onOpenShell={openShellTab}
+        onOpenProject={onRequestProjectSwitch}
+      />
       <WorkspaceTabBar
         tabs={tabs}
         activeUid={activeUid}
         sessions={sessions}
         onPickTab={setActive}
         onCloseTab={closeTab}
-        onOpenClaude={() => openClaudeTab()}
-        onOpenShell={openShellTab}
-        onOpenProject={onRequestProjectSwitch}
       />
       <div className="layout-body">
         <div className="layout-left">

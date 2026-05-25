@@ -78,8 +78,3 @@
   background: var(--claui-active);
   color: var(--claui-fg);
 }
-/* Spacer occupies the left side when there's no tab strip; lets the
-   toolbar settle at the right end without needing margin-left:auto on it. */
-.ws-tab-spacer {
-  flex: 1;
-}

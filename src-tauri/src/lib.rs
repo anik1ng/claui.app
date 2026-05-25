@@ -40,6 +40,13 @@ pub fn run() {
             // cold-start white flash. The conf-level `backgroundColor`
             // field is documented as not implemented for the WebView
             // layer on macOS / iOS, so it does not help here.
+            // `title_bar_style(Overlay)` hides the native macOS title bar
+            // chrome (background + title text) but keeps the traffic lights
+            // visible in their standard top-left position, overlaid on top
+            // of the webview content. claui draws its own thin top strip
+            // (`TitleBar.tsx`) underneath, with a left padding reserved for
+            // the traffic lights and `-webkit-app-region: drag` on the
+            // center so the user can still drag the window.
             tauri::WebviewWindowBuilder::new(
                 app.handle(),
                 MAIN_WINDOW_LABEL,
@@ -49,6 +56,8 @@ pub fn run() {
             .inner_size(800.0, 600.0)
             .theme(Some(tauri::Theme::Dark))
             .initialization_script(INIT_SCRIPT)
+            .title_bar_style(tauri::TitleBarStyle::Overlay)
+            .hidden_title(true)
             .build()?;
 
             menu::init(app)?;
