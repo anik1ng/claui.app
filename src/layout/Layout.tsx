@@ -8,11 +8,11 @@ import { WorkspaceTabBar } from '../tabs/WorkspaceTabBar';
 import { useTabs } from '../tabs/useTabs';
 import { openSessionIds } from '../tabs/openSessionIds';
 import { useLayoutKeyboard } from './useLayoutKeyboard';
+import { TabPane } from './TabPane';
 import { listen } from '@tauri-apps/api/event';
 import {
   type Channel,
   openCommandTerminal,
-  openProject,
   type StatusPayload,
 } from '../ipc/commands';
 import type { Theme } from '../theme/themeStore';
@@ -118,29 +118,15 @@ export function Layout({ theme, projectPath, onRequestProjectSwitch }: Props) {
       <div className="layout-body">
         <div className="layout-left">
           <div className="layout-workspace">
-            {tabs.map((tab) => {
-              const open =
-                tab.kind === 'claude'
-                  ? (ch: Channel<ArrayBuffer>, cols: number, rows: number) =>
-                      openProject(
-                        projectPath,
-                        ch,
-                        cols,
-                        rows,
-                        tab.resumeId ?? undefined,
-                        tab.isPrimary,
-                      )
-                  : openShell;
-              const active = tab.uid === activeUid;
-              return (
-                <div
-                  key={tab.uid}
-                  className={active ? 'layout-tab-pane active' : 'layout-tab-pane'}
-                >
-                  <TerminalView theme={theme} open={open} autoFocus={active} />
-                </div>
-              );
-            })}
+            {tabs.map((tab) => (
+              <TabPane
+                key={tab.uid}
+                tab={tab}
+                projectPath={projectPath}
+                theme={theme}
+                isActive={tab.uid === activeUid}
+              />
+            ))}
           </div>
           {drawerOpen && <div className="layout-divider" onMouseDown={startDrag} />}
           {drawerEverOpened && (

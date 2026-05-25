@@ -85,7 +85,7 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   `defaultTheme`, and applying the theme to the app chrome via CSS variables.
 - `layout/Layout.tsx` — status bar, main pane, the slide-out command-terminal
   drawer, and the sessions sidebar.
-- `status/StatusBar.tsx` — the top status bar (model, context, cost, limits),
+- `status/StatusBar.tsx` — the bottom status bar (model, context, cost, limits),
   fed by the `status:update` event.
 - `sessions/Sidebar.tsx` — the sessions list; clicking a row resumes that
   `claude` session.
@@ -124,13 +124,13 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   fallback, and `Menlo, monospace` is the final safety net so the
   terminal can never render a proportional font.
 - Shipped today: the terminal core, the macOS menu / project switching, the
-  top status bar (model / context / cost / 5h+7d limits, captured via a
-  `statusLine` wrapper claui writes into project-local
-  `.claude/settings.local.json`), the sessions sidebar, plus workspace tabs
-  (Cmd+T / Cmd+Shift+T / Cmd+1..9 / Cmd+W), a pinned primary claude per
-  project, the hover toolbar for opening claude/terminal in a new tab, and the
-  status bar now anchored at the bottom of the window. The sessions sidebar
-  marks rows whose session is currently open in some tab. Split panes, the
+  status bar at the bottom of the window (model / context / cost / 5h+7d
+  limits, captured via a `statusLine` wrapper claui writes into project-local
+  `.claude/settings.local.json`; locked to the primary claude tab), the
+  sessions sidebar, plus workspace tabs (Cmd+T / Cmd+Shift+T / Cmd+1..9 /
+  Cmd+W), a pinned primary claude per project, and the hover toolbar for
+  opening claude/terminal in a new tab. The sessions sidebar marks rows whose
+  session is currently open in some tab. Split panes, the
   dashboard, and a git panel are later phases.
 - The primary claude of each open project gets `CLAUI_PRIMARY=1` in its env
   in addition to `CLAUI_ACTIVE=1` (see `src-tauri/src/ipc.rs::build_spawn_env`).
