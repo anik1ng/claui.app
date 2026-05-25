@@ -94,3 +94,9 @@
 .session-dot.active {
   background: var(--claui-accent);
 }
+.session-row-open {
+  margin-left: auto;
+  color: var(--claui-fg-dim);
+  font-size: 11px;
+  opacity: 0.8;
+}

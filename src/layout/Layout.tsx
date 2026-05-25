@@ -3,6 +3,7 @@ import { listen } from '@tauri-apps/api/event';
 import { TerminalView } from '../terminal/TerminalView';
 import { StatusBar } from '../status/StatusBar';
 import { Sidebar } from '../sessions/Sidebar';
+import { useSessionsPolling } from '../sessions/useSessionsPolling';
 import {
   type Channel,
   openCommandTerminal,
@@ -37,6 +38,7 @@ export function Layout({ theme, projectPath }: Props) {
     resumeId: null,
     nonce: 0,
   });
+  const sessions = useSessionsPolling(projectPath);
 
   // React's "adjust state when a prop changes" pattern: switching projects
   // must drop a resume id that belongs to the old project. Resetting here —
@@ -146,8 +148,9 @@ export function Layout({ theme, projectPath }: Props) {
         </div>
         {sidebarOpen && (
           <Sidebar
-            projectPath={projectPath}
+            sessions={sessions}
             activeSessionId={status?.sessionId ?? null}
+            openSessionIds={new Set()}
             onPickSession={pickSession}
             onNewSession={newSession}
           />
