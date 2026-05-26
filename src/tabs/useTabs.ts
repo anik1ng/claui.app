@@ -1,5 +1,5 @@
 // src/tabs/useTabs.ts
-import { useCallback, useEffect, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useReducer, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import type { StatusPayload } from '../ipc/commands';
 import { initialState, tabsReducer } from './tabsReducer';
@@ -8,10 +8,13 @@ import type { Tab, TabsState } from './types';
 
 type Dispatch = React.Dispatch<TabsAction>;
 
-let counter = 0;
+/**
+ * Stable, collision-free uids without module-level state. `crypto.randomUUID`
+ * is available in WKWebView and all modern browsers. The `tab-` prefix is
+ * a debugging convenience — readable in React keys + devtools.
+ */
 function nextUid(): string {
-  counter += 1;
-  return `tab-${counter}`;
+  return `tab-${crypto.randomUUID()}`;
 }
 
 export interface UseTabs {
@@ -78,14 +81,18 @@ function useStatusListener(dispatch: Dispatch): void {
  */
 export function useTabs(projectPath: string): UseTabs {
   const [state, dispatch] = useReducer(tabsReducer, initialState);
-  const prevProjectRef = useRef<string>(projectPath);
-
-  // Reset on project change.
-  if (prevProjectRef.current !== projectPath) {
-    prevProjectRef.current = projectPath;
-    // INVARIANT: dispatching during render is safe — React schedules it,
-    // applies before the next commit. Same pattern used today in Layout.tsx
-    // for sessionTarget reset.
+  // `useState` (not `useRef`) for the prev-project tracker because
+  // setState during render is tracked by React across re-invocations of
+  // the render function (e.g. when concurrent rendering aborts and
+  // re-runs a component). A `useRef.current` mutation during render
+  // would persist even if the render is dropped, causing the second
+  // run to skip the reset — old project's tabs leak into the new
+  // projectPath. This is the same pattern the old Layout.tsx used for
+  // its sessionTarget reset (the documented React "adjust state on
+  // prop change" recipe).
+  const [prevProject, setPrevProject] = useState(projectPath);
+  if (prevProject !== projectPath) {
+    setPrevProject(projectPath);
     dispatch({ type: 'resetForProject' });
   }
 

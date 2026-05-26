@@ -110,7 +110,11 @@ pub fn install_wrapper() -> std::io::Result<()> {
          # claui — capture claude's statusline JSON. Written by claui; do not edit.\n\
          input=$(cat)\n\
          if [ -n \"$CLAUI_PRIMARY\" ]; then\n\
-           tmp=\"{status}.tmp.$$\"\n\
+           # Temp suffix uses $$ (shell PID) AND $RANDOM (per-invocation\n\
+           # entropy) so concurrent invocations from the same shell tree\n\
+           # cannot collide on the same .tmp path. $$ alone repeats when\n\
+           # two wrappers run in the same subshell process.\n\
+           tmp=\"{status}.tmp.$$.${{RANDOM}}\"\n\
            printf '%s' \"$input\" > \"$tmp\" && mv -f \"$tmp\" \"{status}\"\n\
          fi\n\
          if [ -z \"$CLAUI_ACTIVE\" ]; then\n\
