@@ -18,7 +18,14 @@
   font-family: var(--claui-font-ui);
   font-size: 12px;
   color: var(--claui-fg-dim);
+  /* `user-select: none` should propagate down, but WKWebView occasionally
+     ignores it for div children with text content. We also force the
+     default cursor: without it WKWebView falls back to the text I-beam
+     over the project name, which both reads as "selectable" and feels
+     wrong against a draggable region. */
   user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
 }
 /* Buttons inside the title bar must opt out — otherwise WKWebView's
    native drag handler swallows the click. Tauri's drag-region detection
@@ -46,9 +53,13 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  /* The whole strip is a drag region; the project label rides on top of
-     it (not in an interactive element) so dragging from this area still
-     moves the window. */
+  /* Redundant with `.titlebar` defaults but spelled out here because
+     this is the wide drag-target the user actually grabs; WKWebView has
+     been seen to honour these on the *direct* element when inheritance
+     gets confused by the flex layout above. */
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
 }
 
 .titlebar-toolbar {
