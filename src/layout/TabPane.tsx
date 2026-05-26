@@ -9,6 +9,12 @@ interface Props {
   projectPath: string;
   theme: Theme;
   isActive: boolean;
+  /**
+   * Called when the tab's PTY spawn fails — host should remove the tab so
+   * a never-running tab doesn't keep its `sessionId` reserved in the
+   * sidebar's "open in tab" set.
+   */
+  onSpawnFailed?: () => void;
 }
 
 /**
@@ -24,7 +30,7 @@ interface Props {
  * actually matter for the spawn — `projectPath`, `tab.kind`, `tab.resumeId`,
  * `tab.isPrimary`.
  */
-export function TabPane({ tab, projectPath, theme, isActive }: Props) {
+export function TabPane({ tab, projectPath, theme, isActive, onSpawnFailed }: Props) {
   const open = useCallback(
     (ch: Channel<ArrayBuffer>, cols: number, rows: number) => {
       if (tab.kind === 'claude') {
@@ -44,7 +50,12 @@ export function TabPane({ tab, projectPath, theme, isActive }: Props) {
 
   return (
     <div className={isActive ? 'layout-tab-pane active' : 'layout-tab-pane'}>
-      <TerminalView theme={theme} open={open} autoFocus={isActive} />
+      <TerminalView
+        theme={theme}
+        open={open}
+        autoFocus={isActive}
+        onSpawnFailed={onSpawnFailed}
+      />
     </div>
   );
 }

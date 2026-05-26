@@ -18,9 +18,19 @@ interface Props {
    */
   open: (onOutput: Channel<ArrayBuffer>, cols: number, rows: number) => Promise<number>;
   autoFocus?: boolean;
+  /**
+   * Called when `open()` rejects (PTY spawn failed — claude binary missing,
+   * cwd vanished, etc.). The host can use this to remove the dead tab so it
+   * doesn't keep occupying a sessionId in the open-tabs set forever.
+   */
+  onSpawnFailed?: () => void;
 }
 
-export function TerminalView({ theme, open, autoFocus }: Props) {
+export function TerminalView({ theme, open, autoFocus, onSpawnFailed }: Props) {
+  // Latest onSpawnFailed via ref so the main effect doesn't re-run when the
+  // callback identity changes (it's an inline arrow at the call site).
+  const onSpawnFailedRef = useRef(onSpawnFailed);
+  onSpawnFailedRef.current = onSpawnFailed;
   const hostRef = useRef<HTMLDivElement>(null);
   // Lives across the main effect so a separate autoFocus effect (below) can
   // call .focus() when the tab becomes active without tearing down the term.
@@ -88,7 +98,10 @@ export function TerminalView({ theme, open, autoFocus }: Props) {
         }
       })
       .catch(() => {
-        if (!cancelled) setExited(true);
+        if (!cancelled) {
+          setExited(true);
+          onSpawnFailedRef.current?.();
+        }
       });
 
     const dataSub = term.onData((data) => {

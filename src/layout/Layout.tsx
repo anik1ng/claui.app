@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { TerminalView } from '../terminal/TerminalView';
 import { StatusBar } from '../status/StatusBar';
 import { Sidebar } from '../sessions/Sidebar';
@@ -34,14 +34,17 @@ export function Layout({ theme, projectPath, onRequestProjectSwitch }: Props) {
     setActive,
   } = useTabs(projectPath);
 
-  const sessions = useSessionsPolling(projectPath);
-  const sessionIdsOpen = openSessionIds(tabs);
-
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerEverOpened, setDrawerEverOpened] = useState(false);
   const [drawerHeight, setDrawerHeight] = useState(220);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [status, setStatus] = useState<StatusPayload | null>(null);
+
+  // status.sessionId as the refetchKey: when claude finishes its first turn
+  // and the new sessionId arrives, refetch sessions immediately rather than
+  // waiting up to 2s for the next polling tick.
+  const sessions = useSessionsPolling(projectPath, status?.sessionId);
+  const sessionIdsOpen = openSessionIds(tabs);
 
   useEffect(() => {
     const unlisten = listen<StatusPayload>('status:update', (e) =>
@@ -63,18 +66,28 @@ export function Layout({ theme, projectPath, onRequestProjectSwitch }: Props) {
   // macOS File menu owns ⌘T / ⌘⇧T / ⌘W (see src-tauri/src/menu.rs). The
   // menu accelerators fire before the webview ever sees the keystroke; we
   // just subscribe to the events the Rust side emits on click.
+  //
+  // `activeUid` is read through a ref so this effect doesn't re-run on
+  // every tab switch. Re-running tears down the Tauri listeners (async
+  // via `.then(fn => fn())`) and installs new ones; a fast Cmd+W during
+  // the cleanup-then-install window would fire BOTH the stale listener
+  // (closing the previous active tab) AND the new one (closing the new
+  // active tab). Reading the latest activeUid from a ref closes that race.
+  const activeUidRef = useRef(activeUid);
+  activeUidRef.current = activeUid;
   useEffect(() => {
     const unlistenNew = listen('menu:new-claude-tab', () => openClaudeTab());
     const unlistenShell = listen('menu:new-shell-tab', () => openShellTab());
     const unlistenClose = listen('menu:close-tab', () => {
-      if (activeUid) closeTab(activeUid);
+      const uid = activeUidRef.current;
+      if (uid) closeTab(uid);
     });
     return () => {
       void unlistenNew.then((fn) => fn());
       void unlistenShell.then((fn) => fn());
       void unlistenClose.then((fn) => fn());
     };
-  }, [activeUid, openClaudeTab, openShellTab, closeTab]);
+  }, [openClaudeTab, openShellTab, closeTab]);
 
   useLayoutKeyboard({
     tabs,
@@ -145,6 +158,12 @@ export function Layout({ theme, projectPath, onRequestProjectSwitch }: Props) {
                 projectPath={projectPath}
                 theme={theme}
                 isActive={tab.uid === activeUid}
+                // Primary tabs aren't auto-closed on spawn failure — they
+                // show the "restart" overlay instead so the user can retry
+                // without losing the project. closeTab on primary is a
+                // no-op anyway (reducer guard), but skipping the call here
+                // avoids an unnecessary dispatch.
+                onSpawnFailed={tab.isPrimary ? undefined : () => closeTab(tab.uid)}
               />
             ))}
           </div>
