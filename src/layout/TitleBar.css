@@ -38,14 +38,19 @@
 
 /* Reserve room for the macOS traffic lights — they sit overlaid on top
    of this strip via `TitleBarStyle::Overlay`. Three buttons at ~14px each
-   plus the standard ~12px gap to the right of the rightmost one ≈ 78px. */
+   plus the standard ~12px gap to the right of the rightmost one ≈ 78px.
+   `-webkit-app-region: drag` is repeated because it is NOT an inherited
+   CSS property — children of a drag region default back to no-drag and
+   the WKWebView hit-test would cancel the drag started by the parent. */
 .titlebar-traffic-lights {
+  -webkit-app-region: drag;
   flex: none;
   width: 78px;
   height: 100%;
 }
 
 .titlebar-project {
+  -webkit-app-region: drag;
   flex: 1;
   color: var(--claui-fg);
   font-weight: 500;
@@ -53,16 +58,16 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  /* Redundant with `.titlebar` defaults but spelled out here because
-     this is the wide drag-target the user actually grabs; WKWebView has
-     been seen to honour these on the *direct* element when inheritance
-     gets confused by the flex layout above. */
   user-select: none;
   -webkit-user-select: none;
   cursor: default;
 }
 
 .titlebar-toolbar {
+  /* Toolbar wrapper itself opts OUT of the drag region — its no-drag
+     applies to the whole toolbar surface, and the hover-reveal handles
+     the interactive flip. */
+  -webkit-app-region: no-drag;
   display: flex;
   align-items: center;
   gap: 2px;
