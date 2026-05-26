@@ -40,12 +40,16 @@ function basename(p: string): string {
  */
 export function TitleBar({ projectPath, onOpenClaude, onOpenShell, onOpenProject }: Props) {
   return (
-    // Single drag region on the outer container. Tauri's auto-exclusion
-    // covers <button>/<input>/<textarea>, so the toolbar buttons stay
-    // clickable; everything else (traffic-light slot, project label) is
-    // draggable by default. No nested `data-tauri-drag-region` attributes
-    // — they confuse the event-target lookup in WKWebView.
-    <div className="titlebar" data-tauri-drag-region>
+    // Single drag region on the outer container with `="deep"` so the
+    // attribute applies to every descendant. WITHOUT `"deep"`, Tauri's
+    // drag.js fires only when the click target IS this exact element
+    // (`el === composedPath[0]`) — and since the title bar is fully
+    // covered by flex children (traffic-lights slot, project label,
+    // toolbar), no click ever hits `.titlebar` directly. `"deep"` walks
+    // the composed path and triggers drag for any non-clickable child;
+    // Tauri's own logic auto-excludes <button>/<input>/<textarea>, so
+    // the toolbar icons stay clickable without extra opt-outs.
+    <div className="titlebar" data-tauri-drag-region="deep">
       <div className="titlebar-traffic-lights" aria-hidden />
       <div className="titlebar-project">{basename(projectPath)}</div>
       <div className="titlebar-toolbar" role="toolbar" aria-label="Tab actions">
