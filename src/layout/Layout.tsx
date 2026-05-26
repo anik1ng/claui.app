@@ -52,6 +52,14 @@ export function Layout({ theme, projectPath, onRequestProjectSwitch }: Props) {
     };
   }, []);
 
+  // Clear stale status when switching projects — otherwise StatusBar shows
+  // the previous project's model/cost/context (and Sidebar sees the previous
+  // activeSessionId as a false-positive highlight) until the new project's
+  // primary writes its first statusline tick.
+  useEffect(() => {
+    setStatus(null);
+  }, [projectPath]);
+
   // macOS File menu owns ⌘T / ⌘⇧T / ⌘W (see src-tauri/src/menu.rs). The
   // menu accelerators fire before the webview ever sees the keystroke; we
   // just subscribe to the events the Rust side emits on click.

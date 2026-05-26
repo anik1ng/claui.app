@@ -34,6 +34,13 @@ function handleChromeKey(
     return true;
   }
   if (e.key === 'Escape' && drawerOpen) {
+    // preventDefault + stopPropagation: without these the Escape continues
+    // to xterm.js, which forwards an ESC byte to the running process —
+    // claude treats that as "cancel prompt" and IME compositions get
+    // aborted. The two Ctrl+ branches above swallow their events; this
+    // one must too for consistent behavior.
+    e.preventDefault();
+    e.stopPropagation();
     setDrawerOpen(false);
     return true;
   }

@@ -22,6 +22,9 @@ interface Props {
 
 export function TerminalView({ theme, open, autoFocus }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
+  // Lives across the main effect so a separate autoFocus effect (below) can
+  // call .focus() when the tab becomes active without tearing down the term.
+  const termRef = useRef<Terminal | null>(null);
   const [exited, setExited] = useState(false);
   // Bumped to force the effect to re-run — a fresh terminal and a freshly
   // spawned process. Driven by both the auto-restart and the manual button.
@@ -57,6 +60,7 @@ export function TerminalView({ theme, open, autoFocus }: Props) {
     // logs, the recommended path is the Canvas addon (better resize
     // behaviour than WebGL while still GPU-friendly), not WebGL.
     fit.fit();
+    termRef.current = term;
     if (autoFocus) term.focus();
 
     let id: number | null = null;
@@ -72,6 +76,15 @@ export function TerminalView({ theme, open, autoFocus }: Props) {
         } else {
           id = tid;
           startedAtRef.current = Date.now();
+          // Race fix: `document.fonts.ready` may have resolved and refit
+          // `term.cols/rows` between the `open()` call and this `.then()`
+          // (warm font cache + slow IPC round-trip). The spawn used the
+          // pre-refit dims; sync now so the PTY isn't stuck at the
+          // Menlo-measured geometry while xterm renders Monaspace-measured.
+          // No-op when dims haven't changed (matches existing applyFit guard).
+          if (term.cols > 0 && term.rows > 0) {
+            void ptyResize(tid, term.cols, term.rows);
+          }
         }
       })
       .catch(() => {
@@ -180,6 +193,7 @@ export function TerminalView({ theme, open, autoFocus }: Props) {
       if (pendingFit) cancelAnimationFrame(pendingFit);
       dataSub.dispose();
       void exitUnlisten.then((fn) => fn());
+      termRef.current = null;
       term.dispose();
       if (id != null) void ptyClose(id);
     };
@@ -191,6 +205,13 @@ export function TerminalView({ theme, open, autoFocus }: Props) {
     // the restart affordance forces a fresh terminal.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [theme, open, restartKey]);
+
+  // Focus when autoFocus flips true *after* mount (tab switch, drawer open).
+  // Lives in its own effect so changes don't tear down the term; reads the
+  // current Terminal via termRef set by the main effect above.
+  useEffect(() => {
+    if (autoFocus) termRef.current?.focus();
+  }, [autoFocus]);
 
   return (
     <div className="terminal-view">
