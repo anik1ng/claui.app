@@ -75,6 +75,21 @@ export function TerminalView({ theme, open, autoFocus, onSpawnFailed }: Props) {
 
     let id: number | null = null;
     let cancelled = false;
+    // Dedupe noop SIGWINCH: the ResizeObserver tick and the font-ready
+    // re-measure both used to send ptyResize unconditionally. claude (and
+    // most TUIs) repaint their full UI on SIGWINCH including the intro
+    // banner — if the banner already scrolled into scrollback, the repaint
+    // adds a duplicate copy that the user sees when scrolling or resizing.
+    // Track the last cols/rows sent to the PTY and skip when unchanged.
+    let lastSentCols = 0;
+    let lastSentRows = 0;
+    const sendResizeIfChanged = () => {
+      if (id == null) return;
+      if (term.cols === lastSentCols && term.rows === lastSentRows) return;
+      lastSentCols = term.cols;
+      lastSentRows = term.rows;
+      void ptyResize(id, term.cols, term.rows);
+    };
 
     const channel = makeOutputChannel((bytes) => term.write(bytes));
     open(channel, term.cols, term.rows)
@@ -91,9 +106,9 @@ export function TerminalView({ theme, open, autoFocus, onSpawnFailed }: Props) {
           // (warm font cache + slow IPC round-trip). The spawn used the
           // pre-refit dims; sync now so the PTY isn't stuck at the
           // Menlo-measured geometry while xterm renders Monaspace-measured.
-          // No-op when dims haven't changed (matches existing applyFit guard).
+          // Goes through the dedupe path so we don't re-send the same dims.
           if (term.cols > 0 && term.rows > 0) {
-            void ptyResize(tid, term.cols, term.rows);
+            sendResizeIfChanged();
           }
         }
       })
@@ -143,9 +158,7 @@ export function TerminalView({ theme, open, autoFocus, onSpawnFailed }: Props) {
         });
       }
       window.clearTimeout(resizeTimer);
-      resizeTimer = window.setTimeout(() => {
-        if (id != null) void ptyResize(id, term.cols, term.rows);
-      }, 80);
+      resizeTimer = window.setTimeout(sendResizeIfChanged, 80);
     });
     observer.observe(host);
 
@@ -181,7 +194,7 @@ export function TerminalView({ theme, open, autoFocus, onSpawnFailed }: Props) {
       term.options.fontFamily = `${ff} `;
       term.options.fontFamily = ff;
       applyFit();
-      if (id != null) void ptyResize(id, term.cols, term.rows);
+      sendResizeIfChanged();
     });
 
     const exitUnlisten = listen<{ id: number; code: number }>(
