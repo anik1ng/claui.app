@@ -41,3 +41,6 @@ docs/superpowers/
 .env
 .env.*
 !.env.example
+
+# Local diagnostic dumps — never committed
+/diag-sample.txt

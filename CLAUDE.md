@@ -60,17 +60,28 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   sink closure; child exit to an `on_exit` closure. Killed on `Drop`.
 - `state.rs` — `AppState`: a `Mutex`-guarded registry of live `PtySession`s
   keyed by id, plus an id counter.
-- `ipc.rs` — the Tauri commands (`get_last_project`, `open_project`,
-  `open_command_terminal`, `pty_input`, `pty_resize`, `pty_close`,
-  `list_sessions`) and the `claude:not-found` / `terminal:exit` /
-  `status:update` events.
-- `menu.rs` — builds the native macOS menu; `File → Open Project` emits
-  `menu:open-project`.
+- `ipc.rs` — the Tauri commands (`open_project`, `open_command_terminal`,
+  `pty_input`, `pty_resize`, `pty_close`, `list_sessions`, `get_window_state`,
+  `save_window_state`, `cleanup_project_status`) and the `claude:not-found` /
+  `terminal:exit` / `status:update` events. `build_spawn_env(is_primary,
+  project_id)` adds `CLAUI_STATUS_FILE` to primary claudes so each project
+  writes its statusline to its own file.
+- `menu.rs` — builds the native macOS menu; the File submenu owns the
+  `Add Project (⌘⇧N)` / `Close Project (⌘⇧W)` / `New Claude Tab (⌘T)` /
+  `New Terminal Tab (⌘⇧T)` / `Close Tab (⌘W)` accelerators and emits
+  `menu:add-project` / `menu:close-project` / `menu:new-claude-tab` /
+  `menu:new-shell-tab` / `menu:close-tab` events.
 - `statusline.rs` — installs the wrapper script that captures `claude`'s
-  statusline JSON, watches its output file, and emits `status:update`.
+  statusline JSON, watches `/tmp/claui/` for `status-<projectId>.json` files
+  (one per primary claude), and emits one `status:update` per project with
+  payload `{ projectId, status }`. `filename_to_project_id` is a pure helper
+  for extracting the id from the filename.
 - `sessions.rs` — reads a project's `claude` session files from
   `~/.claude/projects/<encoded>/` for the sessions sidebar.
 - `claude.rs` — locates the `claude` binary on `$PATH` and common install dirs.
+- `window_state.rs` — types + atomic save/load for `<app_config_dir>/window.json`
+  (the persisted list of open projects). Versioned; stale paths are filtered
+  on load.
 
 ### Frontend (`src/`)
 
@@ -83,18 +94,93 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
 - `terminal/xtermTheme.ts` — pure: claui `Theme` → `xterm.js` options.
 - `theme/themeStore.ts` — the `Theme` TypeScript types, the built-in
   `defaultTheme`, and applying the theme to the app chrome via CSS variables.
-- `layout/Layout.tsx` — status bar, main pane, the slide-out command-terminal
-  drawer, and the sessions sidebar.
-- `status/StatusBar.tsx` — the bottom status bar (model, context, cost, limits),
-  fed by the `status:update` event.
-- `sessions/Sidebar.tsx` — the sessions list; clicking a row resumes that
-  `claude` session.
-- `ipc/commands.ts` — typed `invoke` wrappers and the output-`Channel` helper.
-- `tabs/useTabs.ts`, `tabs/tabsReducer.ts`, `tabs/types.ts`, `tabs/openSessionIds.ts`, `tabs/tabTitle.ts`, `tabs/keyboard.ts` — the workspace tab list and its pure helpers. Each Tab descriptor is a kind (`claude` / `shell`), an `isPrimary` flag, and resume/session ids. `TerminalView` retains PTY ownership; `useTabs` only manages tab descriptors. The first claude tab of each open project is pinned — `closeTab` on it returns the state unchanged.
-- `layout/TitleBar.tsx`, `layout/Icons.tsx` — the 32px strip claui draws at the very top of the window, replacing the native macOS title bar (which is hidden via `TitleBarStyle::Overlay` in `lib.rs`). Left ~78px reserved for the overlaid traffic lights; centre carries the project name (Phase 3b will turn that slot into a project tab strip when multiple projects are alive); right end has a hover-revealed toolbar of inline SVG icons (claude / terminal / open-project / browser-placeholder / split-pane-placeholder). The strip carries `-webkit-app-region: drag` so the user can still drag the window from it; interactive children override with `no-drag`. `Icons.tsx` hosts the Lucide-style SVG paths.
-- `tabs/WorkspaceTabBar.tsx` — the 28px workspace tab strip. Rendered only when `tabs.length >= 2`. Just the tab list — the "new tab" toolbar lives in `TitleBar`, not here.
-- `layout/useLayoutKeyboard.ts` — extracted keydown effect for the drawer / sidebar / sessions sidebar toggles and the numeric tab switcher (`Cmd+1..9`). `Cmd+T` / `Cmd+Shift+T` / `Cmd+W` are NOT here — they're owned by the macOS File menu (see `src-tauri/src/menu.rs`); `Layout` subscribes to the `menu:new-claude-tab` / `menu:new-shell-tab` / `menu:close-tab` events the Rust side emits on click.
-- `sessions/useSessionsPolling.ts` — extracted from `Sidebar.tsx`; `Layout` calls it once and feeds the result into both the sidebar and the workspace tab bar (for titles).
+- `layout/ProjectArea.tsx` — one project's terminal stack (workspace
+  TabPanes + drawer). All open projects' `ProjectArea` instances are
+  mounted simultaneously; the active one is marked `.is-active` (CSS class,
+  not inline style), others are `visibility: hidden` on a
+  `position: absolute; inset: 0` container so xterm geometry and scrollback
+  survive a project switch. The window chrome — `WorkspaceTabBar`,
+  `StatusBar`, `SessionsSection` — is rendered into App-level slots
+  (`#workspace-tabs-slot`, `#status-slot`, `#sessions-slot`) via
+  `createPortal`. The portals are gated on `isActive`, so only one
+  project's chrome ever occupies the slots. Per-project `useTabs(path, id)`,
+  `useSessionsPolling(path)`, drawer state. Menu listeners
+  (`menu:new-claude-tab` / `menu:new-shell-tab` / `menu:close-tab`) are
+  gated on `isActive` so only the visible project responds.
+- `projects/useProjects.ts`, `projects/projectsReducer.ts`,
+  `projects/types.ts`, `projects/ProjectsSection.tsx`,
+  `projects/useProjectSwitchKeyboard.ts` — the list of open projects and
+  its top-of-sidebar rendering. `useProjects` reads `window.json` at mount
+  (via `getWindowState`) and debounced-writes it back on every state change
+  (250 ms). Duplicate-path adds focus the existing entry instead of
+  appending. `ProjectsSection` renders projects as `<ListRow>`s into the
+  top of the right sidebar; it returns `null` when only one project is
+  open (no choice to surface). `useProjectSwitchKeyboard` handles
+  `Cmd+Alt+1..9` for project switching at the App level.
+- `status/useStatusByProject.ts` — listens to `status:update` events with
+  the `{ projectId, status }` shape, aggregates them into
+  `Map<projectId, StatusPayload>`. `App` slices the map per project and
+  passes the active entry into each `ProjectArea`. Belt-and-suspenders
+  content-dedupe (field-by-field equality) keeps identical payloads from
+  flipping Map identity and forcing unnecessary re-renders.
+- `status/StatusBar.tsx` — the bottom status bar (model, context, cost,
+  limits), fed by the active project's status slice. Portaled into
+  `#status-slot` at App-level by the active `ProjectArea`.
+- `sessions/Sidebar.tsx` — the right-hand sidebar shell. A bare flex
+  column that wraps two sections: `<ProjectsSection>` (rendered directly
+  by `App`) on top, and `#sessions-slot` (portal target for the active
+  project's `<SessionsSection>`) on the bottom.
+- `sessions/SessionsSection.tsx` — the active project's session list,
+  rendered as `<ListRow>`s. Portaled into `#sessions-slot` by the active
+  `ProjectArea`. Each row carries the session title + relative-time meta;
+  rows whose session is currently held by some workspace tab get a small
+  `↗` badge.
+- `sessions/ListRow.tsx` — the unified row used by both
+  `ProjectsSection` and `SessionsSection`. One visual contract: label
+  on the left (truncated with ellipsis), optional meta on the right,
+  hover-revealed `×` close button when `onClose` is provided, accent
+  strip on the left edge when active.
+- `ipc/commands.ts` — typed `invoke` wrappers and the output-`Channel`
+  helper. Hosts the `ProjectEntry` / `WindowState` / `StatusUpdate` types
+  the webview shares with Rust.
+- `tabs/useTabs.ts`, `tabs/tabsReducer.ts`, `tabs/types.ts`,
+  `tabs/openSessionIds.ts`, `tabs/tabTitle.ts`, `tabs/keyboard.ts` —
+  the workspace tab list and its pure helpers. Each Tab descriptor is a
+  kind (`claude` / `shell`), an `isPrimary` flag, and resume/session ids.
+  `TerminalView` retains PTY ownership; `useTabs` only manages tab
+  descriptors. The first claude tab of each open project is pinned —
+  `closeTab` on it returns the state unchanged. `useTabs` is keyed by
+  `projectId` so each project's `status:update` events bind to its own
+  primary tab (cross-project status bleed is filtered out).
+- `layout/TitleBar.tsx`, `layout/Icons.tsx` — the 32px strip claui draws
+  at the very top of the window, replacing the native macOS title bar
+  (which is hidden via `TitleBarStyle::Overlay` in `lib.rs`). Left ~78px
+  reserved for the overlaid traffic lights; centre is
+  `#workspace-tabs-slot` — the active `ProjectArea` portals its
+  `<WorkspaceTabBar>` into it via `createPortal`. Right end has a
+  hover-revealed toolbar of inline SVG icons (claude / terminal /
+  browser-placeholder / split-pane-placeholder). The toolbar's
+  claude/terminal buttons emit `menu:new-claude-tab` /
+  `menu:new-shell-tab` events via Tauri `emit()` so the active
+  ProjectArea picks them up. The strip carries `-webkit-app-region: drag`
+  so the user can still drag the window from it; interactive children
+  override with `no-drag`. `Icons.tsx` hosts the Lucide-style SVG paths.
+- `tabs/WorkspaceTabBar.tsx` — the workspace tab strip, rendered into
+  the title bar via portal. Returns `null` when `tabs.length < 2` (a
+  single primary needs no switcher). Uses the same `<IconClaudeMascot>` /
+  `<IconTerminal>` SVG icons as the title-bar toolbar so the visual
+  language is consistent.
+- `layout/useLayoutKeyboard.ts` — extracted keydown effect for the
+  drawer / sidebar toggles and the numeric tab switcher (`Cmd+1..9`).
+  `Cmd+T` / `Cmd+Shift+T` / `Cmd+W` are NOT here — they're owned by the
+  macOS File menu (see `src-tauri/src/menu.rs`); `ProjectArea` subscribes
+  to the corresponding `menu:*` events the Rust side emits on click. The
+  hook accepts an `enabled` flag so only the active project's installation
+  runs.
+- `sessions/useSessionsPolling.ts` — extracted from `Sidebar.tsx`;
+  `ProjectArea` calls it once per project and feeds the result into both
+  the sessions section (via portal) and the workspace tab bar (for
+  titles).
 
 ## Conventions and non-obvious points
 
@@ -127,30 +213,43 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
 - Shipped today: the terminal core, the macOS menu / project switching, the
   status bar at the bottom of the window (model / context / cost / 5h+7d
   limits, captured via a `statusLine` wrapper claui writes into project-local
-  `.claude/settings.local.json`; locked to the primary claude tab), the
-  sessions sidebar, plus workspace tabs (Cmd+T / Cmd+Shift+T / Cmd+1..9 /
-  Cmd+W), a pinned primary claude per project, and the hover toolbar for
-  opening claude/terminal in a new tab. The sessions sidebar marks rows whose
-  session is currently open in some tab. Split panes, the
-  dashboard, and a git panel are later phases.
-- The primary claude of each open project gets `CLAUI_PRIMARY=1` in its env
-  in addition to `CLAUI_ACTIVE=1` (see `src-tauri/src/ipc.rs::build_spawn_env`).
-  The statusline wrapper writes the global status file only when `CLAUI_PRIMARY`
-  is set, so the status bar always reflects the primary tab even when multiple
-  claudes are alive. Non-primary claudes still run the wrapper (claude requires
-  a statusline command) but their wrapper invocations short-circuit out of the
-  file-write branch.
-- The macOS File menu (`src-tauri/src/menu.rs`) owns the `Cmd+T` /
-  `Cmd+Shift+T` / `Cmd+W` accelerators. macOS intercepts menu shortcuts
-  before the webview, so the webview doesn't (and must not) bind these
-  in JS — it subscribes to the `menu:new-claude-tab` / `menu:new-shell-tab`
-  / `menu:close-tab` events emitted from `on_menu_event`. The "primary
-  tab is unclosable" invariant lives in `tabsReducer`: a `closeTab`
-  action on the primary returns the state unchanged, so the menu's
-  Cmd+W fires harmlessly when the primary is active. We removed the
+  `.claude/settings.local.json`; one file per project), the sessions sidebar,
+  workspace tabs (`Cmd+T` / `Cmd+Shift+T` / `Cmd+1..9` / `Cmd+W`), and
+  multi-project tabs (`Cmd+Shift+N` Add Project / `Cmd+Shift+W` Close Project
+  / `Cmd+Alt+1..9` switch project). The sessions sidebar marks rows whose
+  session is currently open in some tab. Open projects + the active one
+  persist to `<app_config_dir>/window.json` and restore on next launch
+  (workspace tabs inside a project do NOT persist; each restored project
+  boots with one fresh primary claude). Split panes, the dashboard, and a
+  git panel are later phases.
+- The primary claude of each open project gets `CLAUI_PRIMARY=1` AND
+  `CLAUI_STATUS_FILE=/tmp/claui/status-<projectId>.json` in its env, in
+  addition to `CLAUI_ACTIVE=1` (see `src-tauri/src/ipc.rs::build_spawn_env`).
+  The statusline wrapper reads `$CLAUI_STATUS_FILE` and writes there only
+  when `CLAUI_PRIMARY` is set, so each project's primary writes to its own
+  file. The Rust watcher iterates `/tmp/claui/status-*.json` on every FS
+  event and emits one `status:update` per file with payload `{ projectId,
+  status }`; the webview's `useStatusByProject` aggregates them into a Map
+  keyed by projectId. Non-primary claudes still run the wrapper (claude
+  requires a statusline command) but their wrapper invocations short-circuit
+  out of the file-write branch because `CLAUI_PRIMARY` is unset.
+- The macOS File menu (`src-tauri/src/menu.rs`) owns the
+  `Cmd+Shift+N Add Project` / `Cmd+Shift+W Close Project` / `Cmd+T New Claude
+  Tab` / `Cmd+Shift+T New Terminal Tab` / `Cmd+W Close Tab` accelerators.
+  macOS intercepts menu shortcuts before the webview, so the webview doesn't
+  (and must not) bind these in JS — it subscribes to the `menu:add-project`
+  / `menu:close-project` / `menu:new-claude-tab` / `menu:new-shell-tab` /
+  `menu:close-tab` events emitted from `on_menu_event`. App listens for the
+  project events; each `ProjectArea` listens for the tab events but only
+  when `isActive`, so exactly one ProjectArea handles a given keypress. The
+  "primary tab is unclosable" invariant lives in `tabsReducer`: a `closeTab`
+  action on the primary returns the state unchanged. We removed the
   predefined `.close_window()` item from the Window submenu because its
   default `Cmd+W` would otherwise fight File → Close Tab; the red
-  traffic-light button remains the way to close the window.
+  traffic-light button remains the way to close the window. `Cmd+Alt+1..9`
+  (project switch) is handled in `src/projects/useProjectSwitchKeyboard.ts`
+  at the App level via a capture-phase keydown listener — nine items don't
+  deserve menu entries.
 - TDD: pure logic carries tests (`cargo test`, Vitest); the terminal and UI are
   verified by running the app — `cargo test` passing does not prove the UI works.
 - All code, comments, commit messages, and documentation are written in English.
