@@ -1,5 +1,7 @@
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 use std::time::UNIX_EPOCH;
 
 use serde::Serialize;
@@ -72,8 +74,21 @@ fn user_message_text(value: &serde_json::Value) -> Option<&str> {
         .as_str()
 }
 
+/// Module-level cache keyed by absolute session-file path, storing the
+/// `(mtime_ms, parsed SessionInfo)`. The polling sidebar calls
+/// `list_sessions` every couple of seconds for every open project; reading
+/// and full-JSON-parsing each multi-megabyte JSONL file every tick burned
+/// ~75 % of the main thread under sample. Skipping the file read when
+/// `mtime` matches the cached entry collapses the steady-state cost to one
+/// metadata syscall per file.
+fn session_cache() -> &'static Mutex<HashMap<PathBuf, SessionInfo>> {
+    static CACHE: OnceLock<Mutex<HashMap<PathBuf, SessionInfo>>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
 /// Read one session file into a `SessionInfo`; `None` if its name or metadata
-/// is unreadable.
+/// is unreadable. Uses the module-level `session_cache` so unchanged files
+/// (matched by `mtime`) skip the file read and the JSON parse entirely.
 fn parse_session_file(path: &Path) -> Option<SessionInfo> {
     let id = path.file_stem()?.to_str()?.to_string();
     let metadata = fs::metadata(path).ok()?;
@@ -83,9 +98,22 @@ fn parse_session_file(path: &Path) -> Option<SessionInfo> {
         .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
         .and_then(|d| u64::try_from(d.as_millis()).ok())
         .unwrap_or(0);
+
+    if let Ok(cache) = session_cache().lock() {
+        if let Some(cached) = cache.get(path) {
+            if cached.last_activity == last_activity && cached.id == id {
+                return Some(cached.clone());
+            }
+        }
+    }
+
     let contents = fs::read_to_string(path).unwrap_or_default();
     let title = extract_title(&contents).unwrap_or_else(|| "Untitled".to_string());
-    Some(SessionInfo { id, title, last_activity })
+    let info = SessionInfo { id, title, last_activity };
+    if let Ok(mut cache) = session_cache().lock() {
+        cache.insert(path.to_path_buf(), info.clone());
+    }
+    Some(info)
 }
 
 /// List a project's sessions found under `projects_root`, newest first. Split

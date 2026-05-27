@@ -18,6 +18,15 @@ pub struct StatusPayload {
     pub seven_day_pct: Option<f64>,
 }
 
+/// Per-project wrapper around `StatusPayload`, emitted as the `status:update`
+/// event payload so the webview can route the update to the right project area.
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StatusUpdate {
+    pub project_id: String,
+    pub status: StatusPayload,
+}
+
 #[derive(Deserialize)]
 struct Raw {
     session_id: Option<String>,
@@ -87,46 +96,49 @@ fn wrapper_path() -> PathBuf {
     claui_temp_dir().join("claui-statusline.sh")
 }
 
-/// Absolute path of the file the wrapper writes `claude`'s statusline JSON to.
-fn status_file_path() -> PathBuf {
-    claui_temp_dir().join("claui-statusline.json")
+/// Absolute path of the per-project statusline file. The watcher iterates
+/// `/tmp/claui/status-*.json` and extracts the project id from the file name.
+pub fn project_status_file_path(project_id: &str) -> PathBuf {
+    claui_temp_dir().join(format!("status-{project_id}.json"))
+}
+
+/// Extract `<id>` from a `status-<id>.json` filename. Returns `None` for
+/// anything that doesn't match the pattern.
+pub fn filename_to_project_id(name: &str) -> Option<&str> {
+    let stripped = name.strip_prefix("status-")?;
+    stripped.strip_suffix(".json")
 }
 
 /// Write the statusline wrapper script. The script captures `claude`'s
 /// statusline JSON (delivered on stdin) into the file claui watches when
 /// the spawned claude is the primary one (`CLAUI_PRIMARY=1`) — that gate
-/// keeps the global status file single-sourced even when multiple claude
-/// tabs are alive. Inside claui (`CLAUI_ACTIVE=1`) it prints nothing —
-/// claui renders the metrics in its native bar. Outside claui (neither
-/// env set), it chains to the user's real statusline command (read from
+/// keeps the status file single-sourced per project even when multiple claude
+/// tabs are alive. The destination path is passed via `$CLAUI_STATUS_FILE` so
+/// each primary claude writes to its own `status-<projectId>.json` rather than
+/// a single global file. Inside claui (`CLAUI_ACTIVE=1`) it prints nothing —
+/// claui renders the metrics in its native bar. Outside claui (neither env
+/// set), it chains to the user's real statusline command (read from
 /// `~/.claude/settings.json` via `jq`) and forwards its output, so plain
 /// `claude` in this project still renders the user's strip.
 pub fn install_wrapper() -> std::io::Result<()> {
     std::fs::create_dir_all(claui_temp_dir())?;
-    let status = status_file_path();
-    let status = status.to_string_lossy();
-    let script = format!(
-        "#!/bin/sh\n\
-         # claui — capture claude's statusline JSON. Written by claui; do not edit.\n\
-         input=$(cat)\n\
-         if [ -n \"$CLAUI_PRIMARY\" ]; then\n\
-           # Temp suffix uses $$ (shell PID) AND $RANDOM (per-invocation\n\
-           # entropy) so concurrent invocations from the same shell tree\n\
-           # cannot collide on the same .tmp path. $$ alone repeats when\n\
-           # two wrappers run in the same subshell process.\n\
-           tmp=\"{status}.tmp.$$.${{RANDOM}}\"\n\
-           printf '%s' \"$input\" > \"$tmp\" && mv -f \"$tmp\" \"{status}\"\n\
-         fi\n\
-         if [ -z \"$CLAUI_ACTIVE\" ]; then\n\
-           user_settings=\"$HOME/.claude/settings.json\"\n\
-           if [ -f \"$user_settings\" ] && command -v jq >/dev/null 2>&1; then\n\
-             orig=$(jq -r '.statusLine.command // empty' \"$user_settings\" 2>/dev/null)\n\
-             if [ -n \"$orig\" ]; then\n\
-               printf '%s' \"$input\" | sh -c \"$orig\"\n\
-             fi\n\
-           fi\n\
-         fi\n",
-    );
+    let script = "#!/bin/sh\n\
+        # claui — capture claude's statusline JSON. Written by claui; do not edit.\n\
+        input=$(cat)\n\
+        if [ -n \"$CLAUI_PRIMARY\" ] && [ -n \"$CLAUI_STATUS_FILE\" ]; then\n\
+          # Concurrent-safe temp suffix: shell PID + per-invocation $RANDOM.\n\
+          tmp=\"$CLAUI_STATUS_FILE.tmp.$$.${RANDOM}\"\n\
+          printf '%s' \"$input\" > \"$tmp\" && mv -f \"$tmp\" \"$CLAUI_STATUS_FILE\"\n\
+        fi\n\
+        if [ -z \"$CLAUI_ACTIVE\" ]; then\n\
+          user_settings=\"$HOME/.claude/settings.json\"\n\
+          if [ -f \"$user_settings\" ] && command -v jq >/dev/null 2>&1; then\n\
+            orig=$(jq -r '.statusLine.command // empty' \"$user_settings\" 2>/dev/null)\n\
+            if [ -n \"$orig\" ]; then\n\
+              printf '%s' \"$input\" | sh -c \"$orig\"\n\
+            fi\n\
+          fi\n\
+        fi\n";
     let path = wrapper_path();
     std::fs::write(&path, script)?;
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))?;
@@ -157,46 +169,79 @@ pub fn install_project_settings(project_path: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Watch the wrapper's directory and emit a parsed `status:update` to the
-/// webview on every change. The watcher is moved into its own thread so it
-/// lives for the process — dropping it stops all events.
+/// Watch the wrapper's directory and emit `status:update` to the webview on
+/// every change.
+///
+/// Performance contract — the wrapper runs once per claude render, and macOS
+/// FSEvents fires 2-3 events per atomic write (tmp create + rename). A naive
+/// "scan the whole directory on every event, emit one update per file" loop
+/// amplifies one logical write into N × events_per_write emits, each carrying
+/// a fresh `StatusPayload` reference that defeats `React.memo` and forces
+/// every `ProjectArea` to re-render — observed as 80-100 % CPU at idle with
+/// two projects open.
+///
+/// Two guards keep the work O(actual change):
+///   1. Filter by `event.paths` basename — emit only for the file the event
+///      mentions. FSEvents canonicalises full paths but the basename is
+///      stable, so `Path::file_name()` is enough to identify the project.
+///   2. Dedupe by content — keep the last-emitted JSON per project and skip
+///      emits whose payload didn't change, collapsing FSEvents bursts to one.
 pub fn start_watcher(app: AppHandle) -> notify::Result<()> {
     use notify::{RecursiveMode, Watcher};
 
     let dir = claui_temp_dir();
-    let status_path = status_file_path();
     let (tx, rx) = std::sync::mpsc::channel();
     let mut watcher = notify::recommended_watcher(tx)?;
     watcher.watch(&dir, RecursiveMode::NonRecursive)?;
 
-    // NOTE: on macOS, FSEvents canonicalises paths (e.g. inserts
-    // `/System/Volumes/Data/`), so the path in an `Event` rarely equals the
-    // `status_path` PathBuf we built. Rather than match paths, we attempt a
-    // read on every event in the watched dir — there are only a handful of
-    // files there, so the wasted reads are cheap and the logic is robust.
-
-    // Bootstrap: if the wrapper has already written the file in a prior run,
-    // surface its contents immediately so the bar isn't blank on startup.
-    read_and_emit(&status_path, &app);
+    let mut last_emitted: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
+    bootstrap_emit(&dir, &app, &mut last_emitted);
 
     std::thread::spawn(move || {
         let _watcher = watcher;
         for result in rx {
-            if result.is_err() {
-                continue;
+            let Ok(event) = result else { continue };
+            for path in &event.paths {
+                process_path(path, &app, &mut last_emitted);
             }
-            read_and_emit(&status_path, &app);
         }
     });
     Ok(())
 }
 
-/// Read the status file and forward its parsed contents to the webview as a
-/// `status:update` event. A missing file is expected before the wrapper's
-/// first write; any other read error is silently swallowed.
-fn read_and_emit(status_path: &Path, app: &AppHandle) {
-    if let Ok(text) = std::fs::read_to_string(status_path) {
-        let _ = app.emit("status:update", parse(&text));
+/// Read a single status file and emit `status:update` for it, skipping emits
+/// whose JSON is byte-identical to the last one for that project. Returns
+/// silently for paths that don't match `status-<id>.json` or that can't be read.
+fn process_path(
+    path: &Path,
+    app: &AppHandle,
+    last_emitted: &mut std::collections::HashMap<String, String>,
+) {
+    let Some(name) = path.file_name().and_then(|n| n.to_str()) else { return };
+    let Some(project_id) = filename_to_project_id(name) else { return };
+    let Ok(text) = std::fs::read_to_string(path) else { return };
+    if last_emitted.get(project_id) == Some(&text) {
+        return;
+    }
+    let status = parse(&text);
+    let _ = app.emit(
+        "status:update",
+        StatusUpdate { project_id: project_id.to_owned(), status },
+    );
+    last_emitted.insert(project_id.to_owned(), text);
+}
+
+/// One-shot scan of the watched directory at startup so the bar isn't blank
+/// if the wrapper has already written files in a prior run.
+fn bootstrap_emit(
+    dir: &Path,
+    app: &AppHandle,
+    last_emitted: &mut std::collections::HashMap<String, String>,
+) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        process_path(&entry.path(), app, last_emitted);
     }
 }
 
@@ -240,5 +285,20 @@ mod tests {
         let p = parse("not json at all");
         assert_eq!(p.session_id, None);
         assert_eq!(p.context_pct, None);
+    }
+
+    #[test]
+    fn filename_to_project_id_happy_path() {
+        assert_eq!(filename_to_project_id("status-abc-123.json"), Some("abc-123"));
+    }
+
+    #[test]
+    fn filename_to_project_id_wrong_prefix() {
+        assert_eq!(filename_to_project_id("claui-statusline.json"), None);
+    }
+
+    #[test]
+    fn filename_to_project_id_wrong_extension() {
+        assert_eq!(filename_to_project_id("status-abc-123.txt"), None);
     }
 }
