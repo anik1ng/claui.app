@@ -1,4 +1,13 @@
+import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import './ListRow.css';
+
+/**
+ * The event passed to `onClick`. Union so handlers that care about modifier
+ * keys (e.g. session rows treating Cmd+click as "open in new tab") can read
+ * `e.metaKey` regardless of whether the user clicked or activated via
+ * keyboard — both React event types expose `metaKey`.
+ */
+export type ListRowActivateEvent = ReactMouseEvent<HTMLDivElement> | ReactKeyboardEvent<HTMLDivElement>;
 
 interface Props {
   label: string;
@@ -7,7 +16,7 @@ interface Props {
   /** Optional secondary indicator (e.g. "session is currently open in some tab"). */
   badge?: 'open';
   isActive: boolean;
-  onClick: () => void;
+  onClick: (e: ListRowActivateEvent) => void;
   /** When provided, renders a hover-revealed `×` button on the right. */
   onClose?: () => void;
   /** Tooltip text (e.g. full path for project rows). */
@@ -31,7 +40,7 @@ export function ListRow({ label, meta, badge, isActive, onClick, onClose, title 
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          onClick();
+          onClick(e);
         }
       }}
       role="button"

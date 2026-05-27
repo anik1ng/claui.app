@@ -2,12 +2,24 @@ import type { SessionInfo } from '../ipc/commands';
 import { ListRow } from './ListRow';
 import { relativeTime } from './relativeTime';
 
+/**
+ * What the user expressed by clicking on a session row.
+ *
+ *  - `default`: macOS-classic — reuse the active claude tab if it's claude,
+ *    otherwise open a new tab.
+ *  - `newTab`: explicit "open in new tab" (Cmd+click, middle-click later).
+ *
+ * Abstracting the intent here decouples callers from how it was expressed.
+ * If we add keyboard shortcuts or right-click later, only this enum grows.
+ */
+export type SessionPickIntent = 'default' | 'newTab';
+
 interface Props {
   sessions: SessionInfo[];
   activeSessionId: string | null;
   /** Set of sessionIds currently held by some workspace tab. */
   openSessionIds: Set<string>;
-  onPick: (id: string) => void;
+  onPick: (id: string, intent: SessionPickIntent) => void;
   onNew: () => void;
 }
 
@@ -43,7 +55,7 @@ export function SessionsSection({
               meta={relativeTime(s.lastActivity)}
               badge={isOpen && !isActive ? 'open' : undefined}
               isActive={isActive}
-              onClick={() => onPick(s.id)}
+              onClick={(e) => onPick(s.id, e.metaKey ? 'newTab' : 'default')}
             />
           );
         })}

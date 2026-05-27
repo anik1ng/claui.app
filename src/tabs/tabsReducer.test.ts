@@ -107,3 +107,44 @@ describe('tabsReducer / updatePrimarySessionId', () => {
     expect(s).toEqual(s0);
   });
 });
+
+describe('tabsReducer / setTabResume', () => {
+  it('replaces both resumeId and sessionId on the matching tab', () => {
+    const s0: TabsState = {
+      tabs: [primary({ resumeId: 'old', sessionId: 'old' })],
+      activeUid: 'tab-1',
+    };
+    const s = tabsReducer(s0, { type: 'setTabResume', uid: 'tab-1', resumeId: 'new' });
+    expect(s.tabs[0].resumeId).toBe('new');
+    expect(s.tabs[0].sessionId).toBe('new');
+  });
+
+  it('does not touch other tabs', () => {
+    const s0: TabsState = {
+      tabs: [
+        primary({ resumeId: 'one', sessionId: 'one' }),
+        sub('tab-2', { resumeId: 'two', sessionId: 'two' }),
+      ],
+      activeUid: 'tab-1',
+    };
+    const s = tabsReducer(s0, { type: 'setTabResume', uid: 'tab-2', resumeId: 'changed' });
+    expect(s.tabs[0].resumeId).toBe('one');
+    expect(s.tabs[0].sessionId).toBe('one');
+    expect(s.tabs[1].resumeId).toBe('changed');
+    expect(s.tabs[1].sessionId).toBe('changed');
+  });
+
+  it('is a no-op for an unknown uid', () => {
+    const s0: TabsState = { tabs: [primary()], activeUid: 'tab-1' };
+    const s = tabsReducer(s0, { type: 'setTabResume', uid: 'nope', resumeId: 'x' });
+    expect(s).toEqual(s0);
+  });
+
+  it('preserves isPrimary when applied to the primary tab', () => {
+    // Reusing the pinned primary's slot should NOT demote it — primary stays
+    // pinned and unclosable, only its hosted session changes.
+    const s0: TabsState = { tabs: [primary()], activeUid: 'tab-1' };
+    const s = tabsReducer(s0, { type: 'setTabResume', uid: 'tab-1', resumeId: 'abc' });
+    expect(s.tabs[0].isPrimary).toBe(true);
+  });
+});

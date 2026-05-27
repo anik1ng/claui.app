@@ -70,6 +70,7 @@ function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, set
     openShellTab,
     closeTab,
     setActive,
+    setTabResume,
   } = useTabs(projectPath, projectId);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -108,16 +109,31 @@ function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, set
     enabled: isActive,
   });
 
+  // macOS-classic picker: click reuses the active claude tab (replaces the
+  // session it's hosting), Cmd+click forces a new tab. If the session is
+  // already open somewhere, just switch to that tab — never spawn a duplicate
+  // claude on the same session file (claude doesn't tolerate concurrent
+  // writers to one session). If the active tab is a shell, fall back to a
+  // new tab so we never destroy a live shell with a session click.
   const pickSession = useCallback(
-    (id: string) => {
+    (id: string, intent: 'default' | 'newTab') => {
       const existing = tabs.find((t) => t.kind === 'claude' && t.sessionId === id);
       if (existing) {
         setActive(existing.uid);
+        return;
+      }
+      if (intent === 'newTab') {
+        openClaudeTab(id);
+        return;
+      }
+      const activeTab = tabs.find((t) => t.uid === activeUid);
+      if (activeTab?.kind === 'claude') {
+        setTabResume(activeTab.uid, id);
       } else {
         openClaudeTab(id);
       }
     },
-    [tabs, setActive, openClaudeTab],
+    [tabs, activeUid, setActive, openClaudeTab, setTabResume],
   );
 
   const startDrag = (e: React.MouseEvent) => {

@@ -24,6 +24,10 @@ export interface UseTabs {
   openShellTab: () => void;
   closeTab: (uid: string) => void;
   setActive: (uid: string) => void;
+  /** Replace the session hosted by `uid` — used for "reuse current tab"
+   *  when the user picks a session in the sidebar and the active tab is
+   *  already a claude tab. */
+  setTabResume: (uid: string, resumeId: string) => void;
 }
 
 // Auto-creates the primary claude tab when the list is empty.
@@ -116,5 +120,17 @@ export function useTabs(projectPath: string, projectId: string): UseTabs {
     dispatch({ type: 'setActive', uid });
   }, []);
 
-  return { tabs: state.tabs, activeUid: state.activeUid, openClaudeTab, openShellTab, closeTab, setActive };
+  const setTabResume = useCallback((uid: string, resumeId: string) => {
+    dispatch({ type: 'setTabResume', uid, resumeId });
+  }, []);
+
+  return {
+    tabs: state.tabs,
+    activeUid: state.activeUid,
+    openClaudeTab,
+    openShellTab,
+    closeTab,
+    setActive,
+    setTabResume,
+  };
 }

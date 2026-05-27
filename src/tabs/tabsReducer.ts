@@ -5,7 +5,8 @@ export type TabsAction =
   | { type: 'add'; tab: Tab }
   | { type: 'setActive'; uid: string }
   | { type: 'closeTab'; uid: string }
-  | { type: 'updatePrimarySessionId'; sessionId: string };
+  | { type: 'updatePrimarySessionId'; sessionId: string }
+  | { type: 'setTabResume'; uid: string; resumeId: string };
 
 export const initialState: TabsState = { tabs: [], activeUid: null };
 
@@ -41,6 +42,20 @@ export function tabsReducer(state: TabsState, action: TabsAction): TabsState {
       if (idx < 0) return state;
       const tabs = [...state.tabs];
       tabs[idx] = { ...tabs[idx], sessionId: action.sessionId };
+      return { ...state, tabs };
+    }
+
+    case 'setTabResume': {
+      // Replace which session a tab is hosting. `resumeId` is the `--resume`
+      // argument the next claude spawn will use; `sessionId` is what claui
+      // reports as the tab's current session — they must agree here, since
+      // the user explicitly picked this session for this tab. `TabPane`'s
+      // `open` callback depends on `tab.resumeId`, so this mutation re-runs
+      // `TerminalView`'s effect and respawns the PTY with the new session.
+      const idx = state.tabs.findIndex((t) => t.uid === action.uid);
+      if (idx < 0) return state;
+      const tabs = [...state.tabs];
+      tabs[idx] = { ...tabs[idx], resumeId: action.resumeId, sessionId: action.resumeId };
       return { ...state, tabs };
     }
   }
