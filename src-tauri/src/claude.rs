@@ -13,10 +13,14 @@ where
             return Some(candidate);
         }
     }
-    // 2. Known fallback locations, in priority order.
+    // 2. Known fallback locations, in priority order. GUI launches on macOS
+    // get launchd's minimal $PATH (`/usr/bin:/bin:/usr/sbin:/sbin`), so the
+    // shell-rc-augmented PATH that finds claude in Terminal is gone — these
+    // fallbacks are the only way the bundled .app sees a real install.
     let fallbacks = [
-        home.join(".claude/local/claude"),
-        home.join(".npm-global/bin/claude"),
+        home.join(".local/bin/claude"),       // current Anthropic installer (XDG-ish)
+        home.join(".claude/local/claude"),    // legacy Anthropic installer
+        home.join(".npm-global/bin/claude"),  // npm install -g without sudo
         PathBuf::from("/opt/homebrew/bin/claude"),
         PathBuf::from("/usr/local/bin/claude"),
     ];
@@ -50,6 +54,18 @@ mod tests {
             p == Path::new("/home/u/.claude/local/claude")
         });
         assert_eq!(found, Some(PathBuf::from("/home/u/.claude/local/claude")));
+    }
+
+    #[test]
+    fn falls_back_to_xdg_local_bin() {
+        // Current Anthropic installer puts claude in ~/.local/bin. Regression
+        // pin: GUI launches on macOS only see this through the fallback list,
+        // not $PATH.
+        let home = Path::new("/home/u");
+        let found = find_claude("/usr/bin", home, |p| {
+            p == Path::new("/home/u/.local/bin/claude")
+        });
+        assert_eq!(found, Some(PathBuf::from("/home/u/.local/bin/claude")));
     }
 
     #[test]
