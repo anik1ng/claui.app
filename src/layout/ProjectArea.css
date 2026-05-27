@@ -1,0 +1,63 @@
+/* INVARIANT: position:absolute + inset:0 lets multiple ProjectAreas stack
+   in the same container; the active one is visibility:visible, others are
+   visibility:hidden so xterm geometry and scrollback survive project switches.
+   The `.is-active` toggle is a class (not inline style) so we can chain it
+   with `:not(...)` selectors below to gate the workspace tab pane's own
+   visibility override; otherwise the active workspace pane of a HIDDEN
+   project would re-show itself through visibility-inheritance defeat. */
+.project-area {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  visibility: hidden;
+}
+.project-area.is-active {
+  visibility: visible;
+}
+/* The workspace stack (one TerminalView per workspace tab) + drawer. The
+   chrome — WorkspaceTabBar, StatusBar, SessionsSection — is portaled to
+   App-level slots (#workspace-tabs-slot, #status-slot, #sessions-slot) so
+   only the active project's chrome ever appears. */
+.layout-workspace {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.layout-tab-pane {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+  /* Breathing room around the terminal, as in the old single-pane layout. */
+  padding: 10px 12px;
+  box-sizing: border-box;
+}
+/* Scoped to the active project so the active workspace pane of a HIDDEN
+   project doesn't override its parent's visibility:hidden. */
+.project-area.is-active .layout-tab-pane.active {
+  visibility: visible;
+}
+.layout-divider {
+  flex: none;
+  height: 6px;
+  position: relative;
+  cursor: row-resize;
+  background: transparent;
+}
+.layout-divider::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--claui-divider);
+}
+.layout-drawer {
+  overflow: hidden;
+}
+.layout-drawer-inner {
+  height: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+}

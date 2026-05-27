@@ -10,6 +10,9 @@ interface Params {
   setDrawerOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setDrawerEverOpened: React.Dispatch<React.SetStateAction<boolean>>;
   setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  /** When false the listener is not installed. ProjectArea passes `isActive`
+   *  so only the visible project handles keyboard shortcuts. */
+  enabled: boolean;
 }
 
 /** Drawer / sidebar shortcuts that predate tabs. Returns true if handled. */
@@ -75,8 +78,10 @@ export function useLayoutKeyboard({
   setDrawerOpen,
   setDrawerEverOpened,
   setSidebarOpen,
+  enabled,
 }: Params): void {
   useEffect(() => {
+    if (!enabled) return;
     const onKey = (e: KeyboardEvent) => {
       if (handleChromeKey(e, drawerOpen, setDrawerOpen, setDrawerEverOpened, setSidebarOpen)) return;
       const intent = keyboardEventToAction(e, tabs);
@@ -87,5 +92,5 @@ export function useLayoutKeyboard({
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [drawerOpen, tabs, setActive, setDrawerOpen, setDrawerEverOpened, setSidebarOpen]);
+  }, [drawerOpen, tabs, setActive, setDrawerOpen, setDrawerEverOpened, setSidebarOpen, enabled]);
 }

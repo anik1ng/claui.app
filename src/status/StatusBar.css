@@ -5,11 +5,10 @@
   flex: none;
   height: 34px;
   padding: 0 16px;
-  /* Sit flush with the window chrome — the bar is a continuation of the
-     window's bottom edge, not a floating panel that should read as
-     elevated. The 1px divider above is enough separation from the
-     terminal canvas. (Sidebar still uses --claui-bg-elevated because it
-     IS a separate panel and benefits from one luminance step up.) */
+  /* Sits flush with the window's bottom edge — a quiet metric strip,
+     not an elevated panel. `border-top` separates it from the terminal
+     area above; sidebar still uses --claui-bg-elevated because it IS a
+     separate panel and benefits from one luminance step up. */
   background: var(--claui-bg);
   border-top: 1px solid var(--claui-divider);
   color: var(--claui-fg);

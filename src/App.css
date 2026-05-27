@@ -113,6 +113,35 @@ body,
    */
   overscroll-behavior: none;
 }
+/* #root is the React mount point. Flex column stacks the top-level
+   surfaces vertically: TitleBar → status slot → app body. The body
+   itself is a horizontal flex (terminal area + right sidebar). */
+#root {
+  display: flex;
+  flex-direction: column;
+}
+/* The body row: terminal area on the left, optional right sidebar. Both
+   fight for vertical room left after TitleBar + StatusBar. */
+.app-body {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+/* Relative-positioned grow region that gives the absolute-positioned
+   ProjectArea children their anchor. Multiple ProjectAreas stack here;
+   the active one is visibility:visible, others visibility:hidden. */
+.app-projects {
+  flex: 1 1 auto;
+  position: relative;
+  min-height: 0;
+}
+/* `#status-slot` is the portal target for the active project's
+   <StatusBar />. The StatusBar component sets its own height + border;
+   the slot div is just a flex anchor so the portaled content stacks
+   between the title bar and the body. */
+#status-slot {
+  flex: none;
+}
 body {
   /* The UI text default lives on body so every chrome surface inherits
      it; individual components can still opt into the mono face.

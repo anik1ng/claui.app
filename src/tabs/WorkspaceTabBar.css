@@ -1,11 +1,14 @@
 /* src/tabs/WorkspaceTabBar.css */
 .ws-tab-bar {
+  /* Now lives inside the TitleBar's #workspace-tabs-slot — inherits the
+     32px title bar height and the elevated background. No own border-bottom
+     (the title bar carries its own). */
   display: flex;
   align-items: stretch;
-  height: 28px;
-  flex: none;
-  background: var(--claui-bg);
-  border-bottom: 1px solid var(--claui-divider);
+  height: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+  background: transparent;
   font-family: var(--claui-font-ui);
   font-size: 11px;
   position: relative;
@@ -19,6 +22,10 @@
   gap: 0;
 }
 .ws-tab {
+  /* Override TitleBar's drag region so clicks select tabs instead of
+     dragging the window. Buttons inside (the × close) are auto-handled
+     by `.titlebar button` no-drag rule. */
+  -webkit-app-region: no-drag;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -40,10 +47,9 @@
   background: var(--claui-hover);
 }
 .ws-tab-glyph {
-  font-family: var(--claui-font-mono);
-  font-size: 10px;
-  width: 10px;
-  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: var(--claui-fg-dim);
   flex: none;
 }

@@ -49,21 +49,22 @@
   height: 100%;
 }
 
-.titlebar-project {
+/* Portal target for the active project's workspace tabs. Re-apply
+   `-webkit-app-region: drag` here so empty space (when there are no
+   tabs, or to the right of the tabs) still drags the window. Each
+   `.ws-tab` inside flips back to `no-drag` (see WorkspaceTabBar.css). */
+.workspace-tabs-slot {
   -webkit-app-region: drag;
-  flex: 1;
-  color: var(--claui-fg);
-  font-weight: 500;
-  letter-spacing: -0.005em;
-  white-space: nowrap;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: stretch;
   overflow: hidden;
-  text-overflow: ellipsis;
-  user-select: none;
-  -webkit-user-select: none;
-  cursor: default;
 }
 
 .titlebar-toolbar {
+  margin-left: auto;
   /* Toolbar wrapper itself opts OUT of the drag region — its no-drag
      applies to the whole toolbar surface, and the hover-reveal handles
      the interactive flip. */

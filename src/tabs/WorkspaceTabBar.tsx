@@ -1,6 +1,7 @@
 // src/tabs/WorkspaceTabBar.tsx
 import type { Tab } from './types';
 import type { SessionInfo } from '../ipc/commands';
+import { IconClaudeMascot, IconTerminal } from '../layout/Icons';
 import { tabTitle } from './tabTitle';
 import './WorkspaceTabBar.css';
 
@@ -37,7 +38,6 @@ export function WorkspaceTabBar({
       <div className="ws-tab-list">
         {tabs.map((tab) => {
           const active = tab.uid === activeUid;
-          const glyph = tab.kind === 'claude' ? '✦' : '$';
           return (
             <div
               key={tab.uid}
@@ -45,7 +45,7 @@ export function WorkspaceTabBar({
               onClick={() => onPickTab(tab.uid)}
             >
               <span className="ws-tab-glyph" aria-hidden>
-                {glyph}
+                {tab.kind === 'claude' ? <IconClaudeMascot /> : <IconTerminal />}
               </span>
               <span className="ws-tab-title">{tabTitle(tab, sessions)}</span>
               {!tab.isPrimary && (

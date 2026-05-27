@@ -1,0 +1,67 @@
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 14px;
+  background: transparent;
+  color: var(--claui-fg-dim);
+  font-family: var(--claui-font-ui);
+  font-size: 12px;
+  cursor: pointer;
+  position: relative;
+  border-left: 2px solid transparent;
+  transition: background 120ms ease, color 120ms ease;
+  user-select: none;
+  outline: none;
+}
+.list-row:hover {
+  background: var(--claui-hover);
+  color: var(--claui-fg);
+}
+.list-row.active {
+  /* `--claui-active` is one luminance step above `--claui-hover` so the live
+     row reads as distinct even when an inactive row is being hovered. */
+  background: var(--claui-active);
+  color: var(--claui-fg);
+  border-left-color: var(--claui-accent);
+}
+.list-row-label {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.list-row-meta {
+  flex: none;
+  color: var(--claui-fg-dim);
+  font-size: 10px;
+  font-feature-settings: 'tnum' 1;
+}
+.list-row-badge {
+  flex: none;
+  color: var(--claui-fg-dim);
+  font-size: 11px;
+  opacity: 0.75;
+}
+.list-row-close {
+  flex: none;
+  background: transparent;
+  border: none;
+  color: var(--claui-fg-dim);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease, background 120ms ease, color 120ms ease;
+}
+.list-row:hover .list-row-close {
+  opacity: 1;
+}
+.list-row-close:hover {
+  background: var(--claui-active);
+  color: var(--claui-fg);
+}
