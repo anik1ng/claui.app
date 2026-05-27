@@ -14,6 +14,27 @@
 .terminal-view .xterm-viewport {
   overscroll-behavior: contain;
 }
+/* xterm.css forces `overflow-y: scroll` on .xterm-viewport, which in
+   WKWebView renders a wide, opaque, always-visible system scrollbar — very
+   un-macOS. Override with an overlay-style thin scrollbar that matches
+   native Terminal.app / iTerm2 conventions. */
+.terminal-view .xterm-viewport::-webkit-scrollbar {
+  width: 8px;
+  background: transparent;
+}
+.terminal-view .xterm-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+.terminal-view .xterm-viewport::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.terminal-view .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.32);
+  background-clip: padding-box;
+}
 .terminal-exited {
   position: absolute;
   inset: 0;
