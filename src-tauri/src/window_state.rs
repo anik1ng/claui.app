@@ -112,11 +112,11 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let path = tmp.path().join("window.json");
         let live = tmp.path();
-        let stale = tmp.path().join("does-not-exist");
+        let stale_path = tmp.path().join("does-not-exist");
         let state = WindowState {
             version: CURRENT_VERSION,
             projects: vec![
-                ProjectEntry { id: "a".into(), path: stale.to_string_lossy().into_owned() },
+                ProjectEntry { id: "a".into(), path: stale_path.to_string_lossy().into_owned() },
                 ProjectEntry { id: "b".into(), path: live.to_string_lossy().into_owned() },
             ],
             active_id: Some("a".into()),

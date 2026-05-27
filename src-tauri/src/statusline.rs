@@ -194,14 +194,14 @@ pub fn purge_stale_status_files() {
 /// every change.
 ///
 /// Performance contract — the wrapper runs once per claude render, and macOS
-/// FSEvents fires 2-3 events per atomic write (tmp create + rename). A naive
+/// `FSEvents` fires 2-3 events per atomic write (tmp create + rename). A naive
 /// "scan the whole directory on every event, emit one update per file" loop
-/// amplifies one logical write into N × events_per_write emits, each carrying
+/// amplifies one logical write into N × `events_per_write` emits, each carrying
 /// a fresh `StatusPayload` reference that defeats `React.memo` and forces
 /// every `ProjectArea` to re-render — observed as 80-100 % CPU at idle with
 /// two projects open.
 ///
-/// `event.paths` carries the changed file(s). FSEvents canonicalises full
+/// `event.paths` carries the changed file(s). `FSEvents` canonicalises full
 /// paths but the basename is stable, so `Path::file_name()` is enough to
 /// identify the project. We do NOT bootstrap-scan the directory: any files
 /// present at watcher start were left over from a previous app run (see

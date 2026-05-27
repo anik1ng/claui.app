@@ -95,7 +95,7 @@ _None yet._
 
 The following functions exceed R1.5's 50-line body limit and are permitted to.
 
-_None yet._
+- `src-tauri/src/menu.rs::init` (64 lines) — linear macOS menu construction: five `MenuItemBuilder` declarations, four `SubmenuBuilder` assemblies, the `MenuBuilder` itself, and the `on_menu_event` dispatch. Splitting fragments a single declarative menu definition with no cohesive domain seams to cut on. Re-evaluate when the menu grows beyond 80 lines.
 
 ## 10. How this file is maintained
 

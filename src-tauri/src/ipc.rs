@@ -38,6 +38,11 @@ pub(crate) fn build_spawn_env(is_primary: bool, project_id: &str) -> Vec<(String
     env
 }
 
+// Tauri commands cross the JS↔Rust IPC boundary with each parameter
+// independently typed. A config-struct refactor would force the webview to
+// construct it in TypeScript and Tauri's `#[command]` macro shape doesn't
+// make that ergonomic — the wide arg list is the load-bearing IPC contract.
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub fn open_project(
     app: AppHandle,

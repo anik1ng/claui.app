@@ -17,6 +17,11 @@ use tauri::{App, Emitter};
 /// because it bound ⌘W to "close the whole window", which would fight
 /// File → Close Tab. Closing the window is still possible via the red
 /// traffic-light button.
+// Linear menu builder — five MenuItemBuilders, four SubmenuBuilders, one
+// MenuBuilder, and the `on_menu_event` dispatch. No internal seam splits
+// without fragmenting a single declarative menu definition. Listed as an
+// R1.5 exception in AUDIT_RULES.md Section 9.
+#[allow(clippy::too_many_lines)]
 pub fn init(app: &App) -> tauri::Result<()> {
     let app_menu = SubmenuBuilder::new(app, "claui")
         .about(None)
