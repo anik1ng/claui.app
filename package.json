@@ -2,6 +2,17 @@
   "name": "claui",
   "private": true,
   "version": "0.1.0",
+  "description": "A desktop GUI shell for Claude Code",
+  "author": "anik1ng <mail@anikin.pro>",
+  "license": "MIT",
+  "homepage": "https://github.com/anik1ng/claui",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anik1ng/claui.git"
+  },
+  "bugs": {
+    "url": "https://github.com/anik1ng/claui/issues"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",

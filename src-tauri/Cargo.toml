@@ -1,7 +1,11 @@
 [package]
 name = "claui"
 version = "0.1.0"
-description = "A GUI shell for Claude Code"
+description = "A desktop GUI shell for Claude Code"
+authors = ["anik1ng <mail@anikin.pro>"]
+license = "MIT"
+repository = "https://github.com/anik1ng/claui"
+homepage = "https://github.com/anik1ng/claui"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
