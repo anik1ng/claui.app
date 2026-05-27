@@ -1,7 +1,7 @@
 // src/tabs/useTabs.ts
-import { useCallback, useEffect, useReducer, useState } from 'react';
+import { useCallback, useEffect, useReducer } from 'react';
 import { listen } from '@tauri-apps/api/event';
-import type { StatusPayload } from '../ipc/commands';
+import type { StatusUpdate } from '../ipc/commands';
 import { initialState, tabsReducer } from './tabsReducer';
 import type { TabsAction } from './tabsReducer';
 import type { Tab, TabsState } from './types';
@@ -49,20 +49,23 @@ function useAutoCreatePrimary(
 }
 
 // Subscribes to status:update and forwards sessionId to the primary tab.
-function useStatusListener(dispatch: Dispatch): void {
+// Filters by projectId so sibling projects' status events are ignored —
+// each ProjectArea mounts its own useTabs instance and must not cross-update.
+function useStatusListener(dispatch: Dispatch, projectId: string): void {
   useEffect(() => {
-    const unlisten = listen<StatusPayload>('status:update', (e) => {
-      const sid = e.payload.sessionId;
+    const unlisten = listen<StatusUpdate>('status:update', (e) => {
+      if (e.payload.projectId !== projectId) return;
+      const sid = e.payload.status.sessionId;
       if (sid) dispatch({ type: 'updatePrimarySessionId', sessionId: sid });
     });
     return () => {
       void unlisten.then((fn) => fn());
     };
-  }, [dispatch]);
+  }, [dispatch, projectId]);
 }
 
 /**
- * Owns the tab list for the open project.
+ * Owns the tab list for a single open project, keyed by `projectId`.
  *
  * State invariants:
  *  - The first tab is always the primary claude (isPrimary: true) — auto-created
@@ -71,33 +74,19 @@ function useStatusListener(dispatch: Dispatch): void {
  *
  * Side effects:
  *  - Subscribes to `status:update` and propagates each event's sessionId to
- *    the primary tab via `useStatusListener`.
- *  - Watches `projectPath`: on change, dispatches `resetForProject` so all
- *    `<TerminalView>` instances unmount and ptyClose themselves.
+ *    the primary tab via `useStatusListener`, filtered by `projectId` so
+ *    concurrent ProjectAreas don't bleed status into each other.
  *
  * The hook does NOT directly call PTY IPC. `TerminalView` retains its
  * spawn-on-mount / close-on-unmount pattern; adding a Tab causes a new
- * TerminalView to mount, which spawns the PTY.
+ * TerminalView to mount, which spawns the PTY. Each ProjectArea gets its own
+ * useTabs instance with a fixed projectPath, so tabs are reset by unmounting
+ * the entire ProjectArea when the project changes.
  */
-export function useTabs(projectPath: string): UseTabs {
+export function useTabs(projectPath: string, projectId: string): UseTabs {
   const [state, dispatch] = useReducer(tabsReducer, initialState);
-  // `useState` (not `useRef`) for the prev-project tracker because
-  // setState during render is tracked by React across re-invocations of
-  // the render function (e.g. when concurrent rendering aborts and
-  // re-runs a component). A `useRef.current` mutation during render
-  // would persist even if the render is dropped, causing the second
-  // run to skip the reset — old project's tabs leak into the new
-  // projectPath. This is the same pattern the old Layout.tsx used for
-  // its sessionTarget reset (the documented React "adjust state on
-  // prop change" recipe).
-  const [prevProject, setPrevProject] = useState(projectPath);
-  if (prevProject !== projectPath) {
-    setPrevProject(projectPath);
-    dispatch({ type: 'resetForProject' });
-  }
-
   useAutoCreatePrimary(dispatch, state.tabs, projectPath);
-  useStatusListener(dispatch);
+  useStatusListener(dispatch, projectId);
 
   const openClaudeTab = useCallback((resumeId?: string) => {
     dispatch({

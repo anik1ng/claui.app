@@ -5,8 +5,7 @@ export type TabsAction =
   | { type: 'add'; tab: Tab }
   | { type: 'setActive'; uid: string }
   | { type: 'closeTab'; uid: string }
-  | { type: 'updatePrimarySessionId'; sessionId: string }
-  | { type: 'resetForProject' };
+  | { type: 'updatePrimarySessionId'; sessionId: string };
 
 export const initialState: TabsState = { tabs: [], activeUid: null };
 
@@ -44,8 +43,5 @@ export function tabsReducer(state: TabsState, action: TabsAction): TabsState {
       tabs[idx] = { ...tabs[idx], sessionId: action.sessionId };
       return { ...state, tabs };
     }
-
-    case 'resetForProject':
-      return { tabs: [], activeUid: null };
   }
 }

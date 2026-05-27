@@ -5,7 +5,24 @@ import { invoke, Channel } from '@tauri-apps/api/core';
 // eslint.config.js restricts that import to this file, the single IPC funnel.
 export type { Channel } from '@tauri-apps/api/core';
 
-export const getLastProject = () => invoke<string | null>('get_last_project');
+export interface ProjectEntry {
+  id: string;
+  path: string;
+}
+
+export interface WindowState {
+  version: number;
+  projects: ProjectEntry[];
+  activeId: string | null;
+}
+
+export const getWindowState = () => invoke<WindowState | null>('get_window_state');
+
+export const saveWindowState = (state: WindowState) =>
+  invoke<void>('save_window_state', { state });
+
+export const cleanupProjectStatus = (projectId: string) =>
+  invoke<void>('cleanup_project_status', { projectId });
 
 export const openProject = (
   path: string,
@@ -14,7 +31,17 @@ export const openProject = (
   rows: number,
   resumeSessionId: string | undefined,
   isPrimary: boolean,
-) => invoke<number>('open_project', { path, onOutput, cols, rows, resumeSessionId, isPrimary });
+  projectId: string,
+) =>
+  invoke<number>('open_project', {
+    path,
+    onOutput,
+    cols,
+    rows,
+    resumeSessionId,
+    isPrimary,
+    projectId,
+  });
 
 export const openCommandTerminal = (
   path: string,
@@ -42,6 +69,16 @@ export interface StatusPayload {
   costUsd: number | null;
   fiveHourPct: number | null;
   sevenDayPct: number | null;
+}
+
+/**
+ * The shape of `status:update` events. Wraps the per-project payload with
+ * its `projectId` so the webview can route updates to the matching
+ * ProjectArea.
+ */
+export interface StatusUpdate {
+  projectId: string;
+  status: StatusPayload;
 }
 
 /** One `claude` session of a project, for the sessions sidebar. */

@@ -107,14 +107,3 @@ describe('tabsReducer / updatePrimarySessionId', () => {
     expect(s).toEqual(s0);
   });
 });
-
-describe('tabsReducer / resetForProject', () => {
-  it('resetForProject empties tabs and clears activeUid', () => {
-    const s0: TabsState = {
-      tabs: [primary(), sub('tab-2')],
-      activeUid: 'tab-2',
-    };
-    const s = tabsReducer(s0, { type: 'resetForProject' });
-    expect(s).toEqual({ tabs: [], activeUid: null });
-  });
-});
