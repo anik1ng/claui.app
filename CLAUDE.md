@@ -65,7 +65,10 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   `save_window_state`, `cleanup_project_status`) and the `claude:not-found` /
   `terminal:exit` / `status:update` events. `build_spawn_env(is_primary,
   project_id)` adds `CLAUI_STATUS_FILE` to primary claudes so each project
-  writes its statusline to its own file.
+  writes its statusline to its own file, and overrides `PATH` so child
+  processes see Homebrew, `~/.local/bin`, `~/.cargo/bin`, and other
+  user-level dev directories that launchd's minimal PATH (the one a `.app`
+  GUI launch inherits) otherwise hides.
 - `menu.rs` — builds the native macOS menu; the File submenu owns the
   `Add Project (⌘⇧N)` / `Close Project (⌘⇧W)` / `New Claude Tab (⌘T)` /
   `New Terminal Tab (⌘⇧T)` / `Close Tab (⌘W)` accelerators and emits

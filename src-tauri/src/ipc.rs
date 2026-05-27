@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 use tauri::ipc::Channel;
@@ -13,6 +13,46 @@ struct ExitPayload {
     code: i32,
 }
 
+/// User-level binary directories that a developer-oriented macOS GUI app
+/// should make visible to its child processes. macOS launchd hands GUI
+/// launches a minimal `$PATH` (`/usr/bin:/bin:/usr/sbin:/sbin`), so
+/// Homebrew, Anthropic's native installer, cargo, npm, and go installs are
+/// all invisible to a child unless we prepend these. Prepended (not
+/// appended) so user installs win over older system copies if both exist.
+fn extra_path_dirs(home: &Path) -> Vec<PathBuf> {
+    vec![
+        home.join(".local/bin"),             // Anthropic installer, pipx, user installs
+        PathBuf::from("/opt/homebrew/bin"),  // Homebrew on Apple Silicon
+        PathBuf::from("/opt/homebrew/sbin"), // Homebrew system tools on M1+
+        PathBuf::from("/usr/local/bin"),     // Homebrew on Intel / system
+        PathBuf::from("/usr/local/sbin"),    // /usr/local system tools
+        home.join(".cargo/bin"),             // rustup-installed Rust tools
+        home.join(".npm-global/bin"),        // npm install -g without sudo
+        home.join("go/bin"),                 // Go tools installed via `go install`
+    ]
+}
+
+/// Merge `extra_path_dirs(home)` with the existing `$PATH`, deduplicating so
+/// a directory that's already present doesn't shift in priority. Result
+/// preserves the order: extras first, then surviving entries from
+/// `existing` in their original order.
+fn augment_path(home: &Path, existing: &str) -> String {
+    let extras = extra_path_dirs(home);
+    let mut result: Vec<String> = Vec::with_capacity(extras.len() + 8);
+    for dir in extras {
+        let s = dir.to_string_lossy().into_owned();
+        if !result.iter().any(|d| d == &s) {
+            result.push(s);
+        }
+    }
+    for dir in existing.split(':').filter(|d| !d.is_empty()) {
+        if !result.iter().any(|d| d == dir) {
+            result.push(dir.to_string());
+        }
+    }
+    result.join(":")
+}
+
 /// Build the env tuple passed to the spawned claude. Owned strings because
 /// `CLAUI_STATUS_FILE` carries a per-project path generated at runtime — it
 /// can't be a `&'static str`. `project_id` is only consulted when
@@ -24,8 +64,18 @@ struct ExitPayload {
 /// the statusline wrapper writes the per-project status file for that PTY
 /// only, so claui's status bar tracks a single source of truth per project
 /// even with multiple claude tabs alive.
+///
+/// `PATH` is also overridden with `augment_path` so sub-tools claude spawns
+/// (MCP servers, hooks, version managers) can find binaries Homebrew /
+/// cargo / npm / Anthropic-installer drop into user-level directories. The
+/// inherited launchd-minimal `$PATH` of a `.app` GUI launch would otherwise
+/// hide all of those.
 pub(crate) fn build_spawn_env(is_primary: bool, project_id: &str) -> Vec<(String, String)> {
     let mut env: Vec<(String, String)> = vec![("CLAUI_ACTIVE".into(), "1".into())];
+    if let Some(home) = std::env::var_os("HOME").map(PathBuf::from) {
+        let existing = std::env::var("PATH").unwrap_or_default();
+        env.push(("PATH".into(), augment_path(&home, &existing)));
+    }
     if is_primary {
         env.push(("CLAUI_PRIMARY".into(), "1".into()));
         env.push((
@@ -214,7 +264,8 @@ fn window_state_file(app: &AppHandle) -> Option<PathBuf> {
 
 #[cfg(test)]
 mod tests {
-    use super::build_spawn_env;
+    use super::{augment_path, build_spawn_env};
+    use std::path::Path;
 
     #[test]
     fn build_spawn_env_marks_primary_with_status_file() {
@@ -224,7 +275,6 @@ mod tests {
         let status = env.iter().find(|(k, _)| k == "CLAUI_STATUS_FILE");
         assert!(status.is_some());
         assert!(status.unwrap().1.ends_with("status-abc-123.json"));
-        assert_eq!(env.len(), 3);
     }
 
     #[test]
@@ -233,6 +283,50 @@ mod tests {
         assert!(env.iter().any(|(k, _)| k == "CLAUI_ACTIVE"));
         assert!(!env.iter().any(|(k, _)| k == "CLAUI_PRIMARY"));
         assert!(!env.iter().any(|(k, _)| k == "CLAUI_STATUS_FILE"));
-        assert_eq!(env.len(), 1);
+    }
+
+    #[test]
+    fn augment_path_prepends_extras_and_keeps_existing() {
+        let home = Path::new("/Users/u");
+        let got = augment_path(home, "/usr/bin:/bin");
+        let parts: Vec<&str> = got.split(':').collect();
+        // ~/.local/bin is the highest-priority dev-tools dir, so it leads.
+        assert_eq!(parts[0], "/Users/u/.local/bin");
+        // System dirs from the existing PATH are preserved at the tail.
+        assert!(parts.contains(&"/usr/bin"));
+        assert!(parts.contains(&"/bin"));
+    }
+
+    #[test]
+    fn augment_path_deduplicates_overlap() {
+        let home = Path::new("/Users/u");
+        // /opt/homebrew/bin appears in BOTH our extras and the existing PATH —
+        // the merged result must contain it exactly once, in the extras
+        // position (not duplicated at the tail).
+        let got = augment_path(home, "/opt/homebrew/bin:/usr/bin");
+        let count = got.split(':').filter(|p| *p == "/opt/homebrew/bin").count();
+        assert_eq!(count, 1, "expected dedup, got: {got}");
+    }
+
+    #[test]
+    fn augment_path_handles_empty_existing() {
+        let home = Path::new("/Users/u");
+        let got = augment_path(home, "");
+        // All extras are still present even when the inherited PATH is empty.
+        assert!(got.contains("/Users/u/.local/bin"));
+        assert!(got.contains("/opt/homebrew/bin"));
+        // No leading/trailing colon producing an empty entry.
+        let parts: Vec<&str> = got.split(':').collect();
+        assert!(!parts.iter().any(|p| p.is_empty()), "empty entry leaked: {got}");
+    }
+
+    #[test]
+    fn augment_path_filters_empty_segments_in_existing() {
+        // Trailing or doubled colons in $PATH produce empty segments — they
+        // would be interpreted by shells as cwd, which is a footgun. Skip them.
+        let home = Path::new("/Users/u");
+        let got = augment_path(home, "/usr/bin::/bin");
+        let parts: Vec<&str> = got.split(':').collect();
+        assert!(!parts.iter().any(|p| p.is_empty()), "empty entry leaked: {got}");
     }
 }
