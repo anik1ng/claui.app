@@ -30,6 +30,13 @@ const INIT_SCRIPT: &str = "(function(){var apply=function(){var r=document.docum
 #[allow(clippy::expect_used)]
 pub fn run() {
     tauri::Builder::default()
+        // tauri-plugin-window-state restores the main window's last
+        // size/position on launch and saves them on every resize/move.
+        // Registered before the window is built so the saved frame is
+        // applied at WebviewWindowBuilder.build() time. Default StateFlags
+        // (size + position + maximized + fullscreen + decorated + visible)
+        // also handle the off-screen / missing-monitor recovery cases.
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState::new())
         .setup(|app| {
