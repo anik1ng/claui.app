@@ -7,6 +7,14 @@ import {
 import './TitleBar.css';
 
 interface Props {
+  /** Callback ref for the workspace-tabs portal target. App tracks this via
+   *  `useState`, so a remount (e.g. via TitleBar conditional rendering — not
+   *  currently done — would still feed the fresh DOM node into `ProjectArea`. */
+  workspaceTabsRef: (el: HTMLElement | null) => void;
+  /** Whether to render the new-claude / new-shell toolbar buttons. False when
+   *  no projects are open — the buttons would emit menu events into a webview
+   *  with no listeners (no `ProjectArea` mounted) and silently do nothing. */
+  showTabActions: boolean;
   onOpenClaude: () => void;
   onOpenShell: () => void;
 }
@@ -24,28 +32,32 @@ interface Props {
  * cooperates (see TitleBar.css for the matching no-drag overrides on
  * buttons and the workspace tabs).
  */
-export function TitleBar({ onOpenClaude, onOpenShell }: Props) {
+export function TitleBar({ workspaceTabsRef, showTabActions, onOpenClaude, onOpenShell }: Props) {
   return (
     <div className="titlebar" data-tauri-drag-region="deep">
       <div className="titlebar-traffic-lights" aria-hidden />
-      <div id="workspace-tabs-slot" className="workspace-tabs-slot" />
+      <div ref={workspaceTabsRef} className="workspace-tabs-slot" />
       <div className="titlebar-toolbar" role="toolbar" aria-label="Window actions">
-        <button
-          type="button"
-          className="tb-icon"
-          title="New Claude tab (⌘T)"
-          onClick={onOpenClaude}
-        >
-          <IconClaudeMascot />
-        </button>
-        <button
-          type="button"
-          className="tb-icon"
-          title="New terminal tab (⌘⇧T)"
-          onClick={onOpenShell}
-        >
-          <IconTerminal />
-        </button>
+        {showTabActions && (
+          <>
+            <button
+              type="button"
+              className="tb-icon"
+              title="New Claude tab (⌘T)"
+              onClick={onOpenClaude}
+            >
+              <IconClaudeMascot />
+            </button>
+            <button
+              type="button"
+              className="tb-icon"
+              title="New terminal tab (⌘⇧T)"
+              onClick={onOpenShell}
+            >
+              <IconTerminal />
+            </button>
+          </>
+        )}
         <span
           className="tb-icon tb-disabled"
           title="Browser (coming later)"

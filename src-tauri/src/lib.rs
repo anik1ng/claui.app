@@ -71,6 +71,11 @@ pub fn run() {
             if let Err(e) = statusline::install_wrapper() {
                 eprintln!("claui: failed to install the statusline wrapper: {e}");
             }
+            // Wipe orphan status-*.json files from previous runs before the
+            // watcher starts — otherwise they'd surface as phantom
+            // `status:update` events for projectIds the new window state
+            // doesn't know about, and would never be cleaned up.
+            statusline::purge_stale_status_files();
             if let Err(e) = statusline::start_watcher(app.handle().clone()) {
                 eprintln!("claui: statusline watcher failed to start: {e}");
             }

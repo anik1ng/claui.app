@@ -74,35 +74,46 @@ fn user_message_text(value: &serde_json::Value) -> Option<&str> {
         .as_str()
 }
 
-/// Module-level cache keyed by absolute session-file path, storing the
-/// `(mtime_ms, parsed SessionInfo)`. The polling sidebar calls
-/// `list_sessions` every couple of seconds for every open project; reading
-/// and full-JSON-parsing each multi-megabyte JSONL file every tick burned
-/// ~75 % of the main thread under sample. Skipping the file read when
-/// `mtime` matches the cached entry collapses the steady-state cost to one
-/// metadata syscall per file.
-fn session_cache() -> &'static Mutex<HashMap<PathBuf, SessionInfo>> {
-    static CACHE: OnceLock<Mutex<HashMap<PathBuf, SessionInfo>>> = OnceLock::new();
+/// Cache entry — the parsed `SessionInfo` plus the metadata fingerprint we
+/// validated it against. We deliberately do NOT trust `last_activity` alone:
+/// the `SessionInfo.last_activity` exposed to JS is in milliseconds (because
+/// that's what `Date.now()` semantics call for), but APFS supports
+/// nanosecond mtimes. Two writes within the same millisecond would collapse
+/// to the same `last_activity` and the cache would serve stale contents.
+/// Including file size catches that case — any meaningful claude write
+/// changes the byte length.
+struct CachedSession {
+    info: SessionInfo,
+    fingerprint: (u128, u64), // (mtime_ns, file_size)
+}
+
+/// Module-level cache keyed by absolute session-file path. The polling
+/// sidebar calls `list_sessions` every couple of seconds for every open
+/// project; reading and full-JSON-parsing each multi-megabyte JSONL file
+/// every tick burned ~75 % of the main thread under sample(1). Skipping the
+/// file read when the fingerprint matches collapses steady-state cost to
+/// one metadata syscall per file.
+fn session_cache() -> &'static Mutex<HashMap<PathBuf, CachedSession>> {
+    static CACHE: OnceLock<Mutex<HashMap<PathBuf, CachedSession>>> = OnceLock::new();
     CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
 /// Read one session file into a `SessionInfo`; `None` if its name or metadata
 /// is unreadable. Uses the module-level `session_cache` so unchanged files
-/// (matched by `mtime`) skip the file read and the JSON parse entirely.
+/// (matched by mtime + size fingerprint) skip the file read and JSON parse.
 fn parse_session_file(path: &Path) -> Option<SessionInfo> {
     let id = path.file_stem()?.to_str()?.to_string();
     let metadata = fs::metadata(path).ok()?;
-    let last_activity = metadata
-        .modified()
-        .ok()
-        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-        .and_then(|d| u64::try_from(d.as_millis()).ok())
-        .unwrap_or(0);
+    let modified = metadata.modified().ok()?;
+    let mtime_ns = modified.duration_since(UNIX_EPOCH).ok()?.as_nanos();
+    let size = metadata.len();
+    let last_activity = u64::try_from(mtime_ns / 1_000_000).unwrap_or(0);
+    let fingerprint = (mtime_ns, size);
 
     if let Ok(cache) = session_cache().lock() {
         if let Some(cached) = cache.get(path) {
-            if cached.last_activity == last_activity && cached.id == id {
-                return Some(cached.clone());
+            if cached.fingerprint == fingerprint && cached.info.id == id {
+                return Some(cached.info.clone());
             }
         }
     }
@@ -111,7 +122,7 @@ fn parse_session_file(path: &Path) -> Option<SessionInfo> {
     let title = extract_title(&contents).unwrap_or_else(|| "Untitled".to_string());
     let info = SessionInfo { id, title, last_activity };
     if let Ok(mut cache) = session_cache().lock() {
-        cache.insert(path.to_path_buf(), info.clone());
+        cache.insert(path.to_path_buf(), CachedSession { info: info.clone(), fingerprint });
     }
     Some(info)
 }

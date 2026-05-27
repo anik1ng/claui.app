@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { listen, emit } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ProjectPicker } from './project/ProjectPicker';
@@ -19,6 +19,13 @@ export default function App() {
   const statuses = useStatusByProject();
   const [claudeMissing, setClaudeMissing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Portal slots — tracked via callback refs so when a slot's parent unmounts
+  // (e.g. Sidebar toggled by Ctrl+B) and remounts, the new DOM node propagates
+  // here, ProjectArea re-renders, and createPortal targets the fresh element.
+  const [workspaceTabsSlot, setWorkspaceTabsSlot] = useState<HTMLElement | null>(null);
+  const [statusSlot, setStatusSlot] = useState<HTMLElement | null>(null);
+  const [sessionsSlot, setSessionsSlot] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
     setTheme(defaultTheme);
@@ -46,24 +53,34 @@ export default function App() {
     [closeProject],
   );
 
+  // Menu listeners are installed ONCE for App's lifetime. Live values are
+  // read through `menuRef` so a re-register cycle on every projects/activeId
+  // change can't open a race window where unlisten is in flight while the
+  // next listen hasn't yet attached.
+  const menuRef = useRef({ requestAddProject, handleCloseProject, activeId });
+  menuRef.current = { requestAddProject, handleCloseProject, activeId };
   useEffect(() => {
-    const unlistenAdd = listen('menu:add-project', () => requestAddProject());
+    const unlistenAdd = listen('menu:add-project', () => menuRef.current.requestAddProject());
     const unlistenClose = listen('menu:close-project', () => {
-      if (activeId) handleCloseProject(activeId);
+      const { handleCloseProject: closeNow, activeId: id } = menuRef.current;
+      if (id) closeNow(id);
     });
     return () => {
       void unlistenAdd.then((fn) => fn());
       void unlistenClose.then((fn) => fn());
     };
-  }, [requestAddProject, handleCloseProject, activeId]);
+  }, []);
 
-  // Window title follows the active project.
+  // Window title follows the active project. Resets to plain `claui` when
+  // the project list is empty (otherwise the OS title bar would keep the
+  // last-active project's name even after the ProjectPicker is showing).
   useEffect(() => {
     const active = projects.find((p) => p.id === activeId);
-    if (!active) return;
-    const name = active.path.split('/').filter(Boolean).pop() ?? active.path;
+    const title = active
+      ? `claui — ${active.path.split('/').filter(Boolean).pop() ?? active.path}`
+      : 'claui';
     getCurrentWindow()
-      .setTitle(`claui — ${name}`)
+      .setTitle(title)
       .catch((err: unknown) => {
         console.warn('setTitle failed:', err);
       });
@@ -84,6 +101,8 @@ export default function App() {
         </div>
       )}
       <TitleBar
+        workspaceTabsRef={setWorkspaceTabsSlot}
+        showTabActions={projects.length > 0}
         onOpenClaude={() => void emit('menu:new-claude-tab')}
         onOpenShell={() => void emit('menu:new-shell-tab')}
       />
@@ -101,6 +120,11 @@ export default function App() {
                 isActive={p.id === activeId}
                 status={statuses.get(p.id) ?? null}
                 setSidebarOpen={setSidebarOpen}
+                slots={{
+                  workspaceTabs: workspaceTabsSlot,
+                  status: statusSlot,
+                  sessions: sessionsSlot,
+                }}
               />
             ))}
           </div>
@@ -115,14 +139,14 @@ export default function App() {
               />
               {/* Portal target — the active ProjectArea renders SessionsSection
                   into this slot via createPortal. */}
-              <div id="sessions-slot" className="sessions-slot" />
+              <div ref={setSessionsSlot} className="sessions-slot" />
             </Sidebar>
           )}
         </div>
       )}
       {/* StatusBar sits at the bottom of the window. The active ProjectArea
           portals its <StatusBar /> here. Empty when no projects yet. */}
-      <div id="status-slot" />
+      <div ref={setStatusSlot} />
     </>
   );
 }

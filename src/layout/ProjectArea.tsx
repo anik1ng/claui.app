@@ -18,6 +18,16 @@ import {
 import type { Theme } from '../theme/themeStore';
 import './ProjectArea.css';
 
+/** App-owned portal targets for the active project's chrome. App tracks each
+ *  via a callback `ref`, so when a slot's parent (e.g. `Sidebar` toggled by
+ *  Ctrl+B) unmounts and remounts, the new DOM node propagates here and
+ *  triggers a memo re-render with the fresh `createPortal` target. */
+export interface ProjectChromeSlots {
+  workspaceTabs: HTMLElement | null;
+  status: HTMLElement | null;
+  sessions: HTMLElement | null;
+}
+
 interface Props {
   theme: Theme;
   projectId: string;
@@ -28,6 +38,8 @@ interface Props {
   /** Window-level sidebar visibility setter (App owns the state; `Ctrl+B`
    *  inside the active ProjectArea toggles the shared sidebar). */
   setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  /** DOM nodes the active project's chrome portals into. */
+  slots: ProjectChromeSlots;
 }
 
 /**
@@ -50,7 +62,7 @@ interface Props {
  * status reference changes via `statuses.get(projectId)`, so the active one
  * still re-renders correctly.
  */
-function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, setSidebarOpen }: Props) {
+function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, setSidebarOpen, slots }: Props) {
   const {
     tabs,
     activeUid,
@@ -66,14 +78,6 @@ function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, set
 
   const sessions = useSessionsPolling(projectPath, status?.sessionId);
   const sessionIdsOpen = openSessionIds(tabs);
-
-  // Portal targets — refs are resolved on first render and re-resolved on
-  // every render via `useState(lookup)` so that if the slot DOM mounts AFTER
-  // ProjectArea (unlikely but possible during cold start), the portal still
-  // attaches once the slot appears.
-  const wsSlot = usePortalSlot('workspace-tabs-slot');
-  const statusSlot = usePortalSlot('status-slot');
-  const sessionsSlot = usePortalSlot('sessions-slot');
 
   // Menu subscriptions: only the ACTIVE ProjectArea responds, so window-
   // global Cmd+T / Cmd+Shift+T / Cmd+W are handled in exactly one place.
@@ -139,7 +143,7 @@ function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, set
 
   return (
     <>
-      {isActive && wsSlot && createPortal(
+      {isActive && slots.workspaceTabs && createPortal(
         <WorkspaceTabBar
           tabs={tabs}
           activeUid={activeUid}
@@ -147,10 +151,10 @@ function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, set
           onPickTab={setActive}
           onCloseTab={closeTab}
         />,
-        wsSlot,
+        slots.workspaceTabs,
       )}
-      {isActive && statusSlot && createPortal(<StatusBar status={status} />, statusSlot)}
-      {isActive && sessionsSlot && createPortal(
+      {isActive && slots.status && createPortal(<StatusBar status={status} />, slots.status)}
+      {isActive && slots.sessions && createPortal(
         <SessionsSection
           sessions={sessions}
           activeSessionId={status?.sessionId ?? null}
@@ -158,7 +162,7 @@ function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, set
           onPick={pickSession}
           onNew={() => openClaudeTab()}
         />,
-        sessionsSlot,
+        slots.sessions,
       )}
       <div className={`project-area${isActive ? ' is-active' : ''}`}>
         <div className="layout-workspace">
@@ -188,19 +192,6 @@ function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, set
       </div>
     </>
   );
-}
-
-/**
- * Resolve a DOM element by id after the parent has committed. Returns
- * `null` on the first render (portal target unknown), then the element
- * after `useEffect` runs — one frame later, imperceptible to the user.
- */
-function usePortalSlot(id: string): HTMLElement | null {
-  const [el, setEl] = useState<HTMLElement | null>(null);
-  useEffect(() => {
-    setEl(document.getElementById(id));
-  }, [id]);
-  return el;
 }
 
 export const ProjectArea = memo(ProjectAreaInner);

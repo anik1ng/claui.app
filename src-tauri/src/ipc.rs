@@ -72,7 +72,7 @@ pub fn open_project(
     let env = build_spawn_env(is_primary, &project_id);
 
     let claude = claude.to_string_lossy();
-    let id = spawn_terminal(
+    spawn_terminal(
         &app,
         &state,
         claude.as_ref(),
@@ -82,15 +82,7 @@ pub fn open_project(
         cols,
         rows,
         on_output,
-    )?;
-
-    if let Some(window) = app.get_webview_window("main") {
-        let name = PathBuf::from(&path)
-            .file_name()
-            .map_or_else(|| path.clone(), |n| n.to_string_lossy().into_owned());
-        let _ = window.set_title(&format!("claui — {name}"));
-    }
-    Ok(id)
+    )
 }
 
 #[tauri::command]

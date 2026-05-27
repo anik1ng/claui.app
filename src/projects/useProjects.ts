@@ -17,25 +17,18 @@ export interface UseProjects {
   isHydrating: boolean;
 }
 
-const PERSIST_DEBOUNCE_MS = 250;
-
 /**
- * Debounces window-state persistence so a burst of project actions (e.g.
- * closing several tabs quickly) only writes once, 250 ms after the last change.
- * Skips the write while hydration is still in-flight — isHydrating guards
- * against immediately overwriting the file we just read.
+ * Persist window state on every change. We don't debounce: the file is
+ * ~hundreds of bytes, the save is async (background), and a debounced
+ * scheme loses the last 250 ms on `Cmd+Q` because the unmount cleanup
+ * clears the pending timer without flushing. State changes here are
+ * user-paced (clicks / keypresses), not high-frequency, so writing each
+ * one immediately is the simpler correct shape.
  */
-function usePersistDebounce(state: ProjectsState, isHydrating: boolean): void {
-  const persistTimer = useRef<number | null>(null);
+function usePersist(state: ProjectsState, isHydrating: boolean): void {
   useEffect(() => {
     if (isHydrating) return;
-    if (persistTimer.current !== null) window.clearTimeout(persistTimer.current);
-    persistTimer.current = window.setTimeout(() => {
-      void saveWindowState({ version: 1, projects: state.projects, activeId: state.activeId });
-    }, PERSIST_DEBOUNCE_MS);
-    return () => {
-      if (persistTimer.current !== null) window.clearTimeout(persistTimer.current);
-    };
+    void saveWindowState({ version: 1, projects: state.projects, activeId: state.activeId });
   }, [state, isHydrating]);
 }
 
@@ -48,7 +41,7 @@ function usePersistDebounce(state: ProjectsState, isHydrating: boolean): void {
 export function useProjects(): UseProjects {
   const [state, dispatch] = useReducer(projectsReducer, initialState);
   const [isHydrating, setIsHydrating] = useState(true);
-  usePersistDebounce(state, isHydrating);
+  usePersist(state, isHydrating);
 
   useEffect(() => {
     void (async () => {
@@ -63,19 +56,28 @@ export function useProjects(): UseProjects {
     })();
   }, []);
 
-  const addProject = useCallback(
-    (path: string): string => {
-      const existing = state.projects.find((p) => p.path === path);
-      if (existing) {
-        dispatch({ type: 'setActive', id: existing.id });
-        return existing.id;
-      }
-      const id = crypto.randomUUID();
-      dispatch({ type: 'add', project: { id, path } });
-      return id;
-    },
-    [state.projects],
-  );
+  // `projects` is read through a ref inside `addProject` so the callback
+  // identity stays stable for the lifetime of the App — consumers like
+  // `App.tsx`'s menu listener can use `addProject` in a `useEffect` with
+  // empty deps without re-registering on every project-list mutation.
+  const projectsRef = useRef(state.projects);
+  projectsRef.current = state.projects;
+
+  const addProject = useCallback((path: string): string => {
+    // Case-insensitive path comparison: macOS APFS is case-insensitive by
+    // default, so /Users/Alice/foo and /Users/alice/foo are the same
+    // directory; the dedup guard would otherwise create two ProjectAreas
+    // for one folder, each spawning a primary claude into the same cwd.
+    const norm = path.toLowerCase();
+    const existing = projectsRef.current.find((p) => p.path.toLowerCase() === norm);
+    if (existing) {
+      dispatch({ type: 'setActive', id: existing.id });
+      return existing.id;
+    }
+    const id = crypto.randomUUID();
+    dispatch({ type: 'add', project: { id, path } });
+    return id;
+  }, []);
 
   const closeProject = useCallback((id: string) => {
     dispatch({ type: 'closeProject', id });

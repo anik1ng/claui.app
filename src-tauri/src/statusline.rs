@@ -103,10 +103,13 @@ pub fn project_status_file_path(project_id: &str) -> PathBuf {
 }
 
 /// Extract `<id>` from a `status-<id>.json` filename. Returns `None` for
-/// anything that doesn't match the pattern.
+/// anything that doesn't match the pattern, including the empty-id form
+/// `status-.json` — an empty project id has no consumer and would just
+/// pollute the webview's status Map.
 pub fn filename_to_project_id(name: &str) -> Option<&str> {
     let stripped = name.strip_prefix("status-")?;
-    stripped.strip_suffix(".json")
+    let id = stripped.strip_suffix(".json")?;
+    if id.is_empty() { None } else { Some(id) }
 }
 
 /// Write the statusline wrapper script. The script captures `claude`'s
@@ -169,6 +172,24 @@ pub fn install_project_settings(project_path: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
+/// Wipe stale `status-*.json` files at app startup. Every status file present
+/// at startup was written by a claude from a previous run — those claudes are
+/// dead, and ingesting their contents would emit phantom `status:update`
+/// events for projectIds that may no longer be in `window.json`, leaking
+/// payloads into `useStatusByProject` and the orphan files into `/tmp`. New
+/// claudes spawning under the freshly-installed wrapper will write fresh
+/// files within their first render — at most a sub-second blank bar.
+pub fn purge_stale_status_files() {
+    let dir = claui_temp_dir();
+    let Ok(entries) = std::fs::read_dir(&dir) else { return };
+    for entry in entries.flatten() {
+        let Some(name) = entry.file_name().to_str().map(str::to_owned) else { continue };
+        if filename_to_project_id(&name).is_some() {
+            let _ = std::fs::remove_file(entry.path());
+        }
+    }
+}
+
 /// Watch the wrapper's directory and emit `status:update` to the webview on
 /// every change.
 ///
@@ -180,12 +201,12 @@ pub fn install_project_settings(project_path: &Path) -> std::io::Result<()> {
 /// every `ProjectArea` to re-render — observed as 80-100 % CPU at idle with
 /// two projects open.
 ///
-/// Two guards keep the work O(actual change):
-///   1. Filter by `event.paths` basename — emit only for the file the event
-///      mentions. FSEvents canonicalises full paths but the basename is
-///      stable, so `Path::file_name()` is enough to identify the project.
-///   2. Dedupe by content — keep the last-emitted JSON per project and skip
-///      emits whose payload didn't change, collapsing FSEvents bursts to one.
+/// `event.paths` carries the changed file(s). FSEvents canonicalises full
+/// paths but the basename is stable, so `Path::file_name()` is enough to
+/// identify the project. We do NOT bootstrap-scan the directory: any files
+/// present at watcher start were left over from a previous app run (see
+/// `purge_stale_status_files`, called once before this) — fresh claudes will
+/// write new files and trigger fresh events on their own.
 pub fn start_watcher(app: AppHandle) -> notify::Result<()> {
     use notify::{RecursiveMode, Watcher};
 
@@ -194,55 +215,32 @@ pub fn start_watcher(app: AppHandle) -> notify::Result<()> {
     let mut watcher = notify::recommended_watcher(tx)?;
     watcher.watch(&dir, RecursiveMode::NonRecursive)?;
 
-    let mut last_emitted: std::collections::HashMap<String, String> =
-        std::collections::HashMap::new();
-    bootstrap_emit(&dir, &app, &mut last_emitted);
-
     std::thread::spawn(move || {
         let _watcher = watcher;
         for result in rx {
             let Ok(event) = result else { continue };
             for path in &event.paths {
-                process_path(path, &app, &mut last_emitted);
+                process_path(path, &app);
             }
         }
     });
     Ok(())
 }
 
-/// Read a single status file and emit `status:update` for it, skipping emits
-/// whose JSON is byte-identical to the last one for that project. Returns
-/// silently for paths that don't match `status-<id>.json` or that can't be read.
-fn process_path(
-    path: &Path,
-    app: &AppHandle,
-    last_emitted: &mut std::collections::HashMap<String, String>,
-) {
+/// Read a single status file and emit `status:update` for it. Returns
+/// silently for paths that don't match `status-<id>.json` or that can't be
+/// read (e.g. the wrapper's tmp file mid-rename, or a file that was just
+/// deleted). The webview deduplicates content-identical payloads on the JS
+/// side (see `useStatusByProject`), so we do not need a Rust-side cache.
+fn process_path(path: &Path, app: &AppHandle) {
     let Some(name) = path.file_name().and_then(|n| n.to_str()) else { return };
     let Some(project_id) = filename_to_project_id(name) else { return };
     let Ok(text) = std::fs::read_to_string(path) else { return };
-    if last_emitted.get(project_id) == Some(&text) {
-        return;
-    }
     let status = parse(&text);
     let _ = app.emit(
         "status:update",
         StatusUpdate { project_id: project_id.to_owned(), status },
     );
-    last_emitted.insert(project_id.to_owned(), text);
-}
-
-/// One-shot scan of the watched directory at startup so the bar isn't blank
-/// if the wrapper has already written files in a prior run.
-fn bootstrap_emit(
-    dir: &Path,
-    app: &AppHandle,
-    last_emitted: &mut std::collections::HashMap<String, String>,
-) {
-    let Ok(entries) = std::fs::read_dir(dir) else { return };
-    for entry in entries.flatten() {
-        process_path(&entry.path(), app, last_emitted);
-    }
 }
 
 #[cfg(test)]
@@ -300,5 +298,10 @@ mod tests {
     #[test]
     fn filename_to_project_id_wrong_extension() {
         assert_eq!(filename_to_project_id("status-abc-123.txt"), None);
+    }
+
+    #[test]
+    fn filename_to_project_id_rejects_empty_id() {
+        assert_eq!(filename_to_project_id("status-.json"), None);
     }
 }
