@@ -5,6 +5,7 @@ mod pty;
 mod sessions;
 mod state;
 mod statusline;
+mod window_state;
 
 use state::AppState;
 
@@ -76,13 +77,15 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            ipc::get_last_project,
             ipc::open_project,
             ipc::open_command_terminal,
             ipc::pty_input,
             ipc::pty_resize,
             ipc::pty_close,
             ipc::list_sessions,
+            ipc::get_window_state,
+            ipc::save_window_state,
+            ipc::cleanup_project_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -25,6 +25,9 @@ anyhow = "1"
 notify = "8"
 serde_json = "1"
 
+[dev-dependencies]
+tempfile = "3"
+
 [lints.rust]
 # claui's own code never needs `unsafe` — portable-pty owns every raw FFI
 # call behind a safe API. `forbid` makes any future `unsafe` block a hard

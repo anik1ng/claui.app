@@ -3,16 +3,20 @@ use tauri::{App, Emitter};
 
 /// Build the application menu and wire its events.
 ///
-/// The File submenu owns the tab-related shortcuts: Open Project (⌘O),
-/// New Claude Tab (⌘T), New Terminal Tab (⌘⇧T), Close Tab (⌘W). The
-/// macOS menu intercepts these accelerators before the webview, so the
-/// webview's keydown handler is NOT responsible for them — it just
-/// subscribes to the `menu:*` events emitted from `on_menu_event` below.
+/// The File submenu owns project and tab shortcuts: Add Project (⌘⇧N),
+/// Close Project (⌘⇧W), New Claude Tab (⌘T), New Terminal Tab (⌘⇧T),
+/// Close Tab (⌘W). "Open Project" (⌘O) is replaced by "Add Project" because
+/// Phase 3b allows multiple projects open simultaneously — there is no single
+/// active project to replace, only projects to add to the window.
 ///
-/// The Window submenu's default `.close_window()` predefined item is
-/// dropped because it bound ⌘W to "close the whole window", which would
-/// fight File → Close Tab. Closing the window is still possible via the
-/// red traffic-light button.
+/// The macOS menu intercepts these accelerators before the webview, so the
+/// webview's keydown handler is NOT responsible for them — it just subscribes
+/// to the `menu:*` events emitted from `on_menu_event` below.
+///
+/// The Window submenu's default `.close_window()` predefined item is dropped
+/// because it bound ⌘W to "close the whole window", which would fight
+/// File → Close Tab. Closing the window is still possible via the red
+/// traffic-light button.
 pub fn init(app: &App) -> tauri::Result<()> {
     let app_menu = SubmenuBuilder::new(app, "claui")
         .about(None)
@@ -20,8 +24,11 @@ pub fn init(app: &App) -> tauri::Result<()> {
         .quit()
         .build()?;
 
-    let open_project = MenuItemBuilder::with_id("open-project", "Open Project…")
-        .accelerator("CmdOrCtrl+O")
+    let add_project = MenuItemBuilder::with_id("add-project", "Add Project…")
+        .accelerator("CmdOrCtrl+Shift+N")
+        .build(app)?;
+    let close_project = MenuItemBuilder::with_id("close-project", "Close Project")
+        .accelerator("CmdOrCtrl+Shift+W")
         .build(app)?;
     let new_claude_tab = MenuItemBuilder::with_id("new-claude-tab", "New Claude Tab")
         .accelerator("CmdOrCtrl+T")
@@ -33,7 +40,8 @@ pub fn init(app: &App) -> tauri::Result<()> {
         .accelerator("CmdOrCtrl+W")
         .build(app)?;
     let file_menu = SubmenuBuilder::new(app, "File")
-        .item(&open_project)
+        .item(&add_project)
+        .item(&close_project)
         .separator()
         .item(&new_claude_tab)
         .item(&new_shell_tab)
@@ -61,8 +69,11 @@ pub fn init(app: &App) -> tauri::Result<()> {
     app.set_menu(menu)?;
 
     app.on_menu_event(|app, event| match event.id().0.as_str() {
-        "open-project" => {
-            let _ = app.emit("menu:open-project", ());
+        "add-project" => {
+            let _ = app.emit("menu:add-project", ());
+        }
+        "close-project" => {
+            let _ = app.emit("menu:close-project", ());
         }
         "new-claude-tab" => {
             let _ = app.emit("menu:new-claude-tab", ());

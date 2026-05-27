@@ -24,7 +24,7 @@ impl PtySession {
         program: &str,
         args: &[&str],
         cwd: Option<&str>,
-        env: &[(&str, &str)],
+        env: &[(String, String)],
         cols: u16,
         rows: u16,
         on_output: O,
