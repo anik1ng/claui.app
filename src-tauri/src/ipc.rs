@@ -5,6 +5,7 @@ use tauri::ipc::Channel;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::pty::PtySession;
+use crate::shell_env::ShellEnv;
 use crate::state::AppState;
 
 #[derive(Clone, Serialize)]
@@ -65,17 +66,48 @@ fn augment_path(home: &Path, existing: &str) -> String {
 /// only, so claui's status bar tracks a single source of truth per project
 /// even with multiple claude tabs alive.
 ///
-/// `PATH` is also overridden with `augment_path` so sub-tools claude spawns
-/// (MCP servers, hooks, version managers) can find binaries Homebrew /
-/// cargo / npm / Anthropic-installer drop into user-level directories. The
-/// inherited launchd-minimal `$PATH` of a `.app` GUI launch would otherwise
-/// hide all of those.
-pub(crate) fn build_spawn_env(is_primary: bool, project_id: &str) -> Vec<(String, String)> {
-    let mut env: Vec<(String, String)> = vec![("CLAUI_ACTIVE".into(), "1".into())];
-    if let Some(home) = std::env::var_os("HOME").map(PathBuf::from) {
-        let existing = std::env::var("PATH").unwrap_or_default();
-        env.push(("PATH".into(), augment_path(&home, &existing)));
+/// Three layers stack into the result:
+///
+///   1. `captured` — every variable the user's `$SHELL -ilc 'env'` reported,
+///      sans STRIP-listed session locals (see `shell_env`). This is what
+///      brings in `FNM_DIR` / `NVM_DIR` / `ASDF_*` / `MISE_*` / etc. and the
+///      shell's PATH (the only place fnm's per-shell node symlink ever
+///      appears). Empty when capture failed — caller falls through to:
+///   2. `augment_path` — prepends `extra_path_dirs(home)` to the
+///      shell-PATH-or-launchd-PATH (whichever's available), deduplicating.
+///      This is the safety net for users whose `.zshrc` doesn't add
+///      Homebrew etc.
+///   3. CLAUI overlays — `CLAUI_ACTIVE`, and optionally `CLAUI_PRIMARY`
+///      with `CLAUI_STATUS_FILE`. Overlays come last so they win over any
+///      same-keyed entry the captured shell happened to set.
+pub(crate) fn build_spawn_env(
+    captured: &ShellEnv,
+    is_primary: bool,
+    project_id: &str,
+) -> Vec<(String, String)> {
+    let mut env: Vec<(String, String)> = Vec::with_capacity(captured.len() + 4);
+    // Carry over every captured shell-env entry; PATH gets re-augmented
+    // separately below so the extras prepend logic stays in one place.
+    for (k, v) in captured {
+        if k == "PATH" {
+            continue;
+        }
+        env.push((k.clone(), v.clone()));
     }
+    // PATH base: shell PATH if we have it, else the process's inherited
+    // (launchd-minimal in a `.app` GUI launch) PATH. Either way, augment
+    // with extras so Homebrew/cargo/Anthropic-installer paths are present
+    // regardless of how the user's `.zshrc` is set up.
+    let base_path = match captured.get("PATH") {
+        Some(p) if !p.is_empty() => p.clone(),
+        _ => std::env::var("PATH").unwrap_or_default(),
+    };
+    if let Some(home) = std::env::var_os("HOME").map(PathBuf::from) {
+        env.push(("PATH".into(), augment_path(&home, &base_path)));
+    } else if !base_path.is_empty() {
+        env.push(("PATH".into(), base_path));
+    }
+    env.push(("CLAUI_ACTIVE".into(), "1".into()));
     if is_primary {
         env.push(("CLAUI_PRIMARY".into(), "1".into()));
         env.push((
@@ -124,7 +156,7 @@ pub fn open_project(
         args.push(sid.as_str());
     }
 
-    let env = build_spawn_env(is_primary, &project_id);
+    let env = build_spawn_env(crate::shell_env::get(), is_primary, &project_id);
 
     let claude = claude.to_string_lossy();
     spawn_terminal(
@@ -265,11 +297,12 @@ fn window_state_file(app: &AppHandle) -> Option<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::{augment_path, build_spawn_env};
+    use crate::shell_env::ShellEnv;
     use std::path::Path;
 
     #[test]
     fn build_spawn_env_marks_primary_with_status_file() {
-        let env = build_spawn_env(true, "abc-123");
+        let env = build_spawn_env(&ShellEnv::new(), true, "abc-123");
         assert!(env.iter().any(|(k, v)| k == "CLAUI_ACTIVE" && v == "1"));
         assert!(env.iter().any(|(k, v)| k == "CLAUI_PRIMARY" && v == "1"));
         let status = env.iter().find(|(k, _)| k == "CLAUI_STATUS_FILE");
@@ -279,10 +312,62 @@ mod tests {
 
     #[test]
     fn build_spawn_env_skips_primary_and_status_file_for_non_primary() {
-        let env = build_spawn_env(false, "abc-123");
+        let env = build_spawn_env(&ShellEnv::new(), false, "abc-123");
         assert!(env.iter().any(|(k, _)| k == "CLAUI_ACTIVE"));
         assert!(!env.iter().any(|(k, _)| k == "CLAUI_PRIMARY"));
         assert!(!env.iter().any(|(k, _)| k == "CLAUI_STATUS_FILE"));
+    }
+
+    #[test]
+    fn build_spawn_env_propagates_captured_shell_vars() {
+        let mut captured = ShellEnv::new();
+        captured.insert("FNM_DIR".into(), "/Users/u/.fnm".into());
+        captured.insert("NVM_DIR".into(), "/Users/u/.nvm".into());
+        captured.insert("EDITOR".into(), "nvim".into());
+        let env = build_spawn_env(&captured, false, "p");
+        assert!(env
+            .iter()
+            .any(|(k, v)| k == "FNM_DIR" && v == "/Users/u/.fnm"));
+        assert!(env
+            .iter()
+            .any(|(k, v)| k == "NVM_DIR" && v == "/Users/u/.nvm"));
+        assert!(env.iter().any(|(k, v)| k == "EDITOR" && v == "nvim"));
+    }
+
+    #[test]
+    fn build_spawn_env_uses_captured_path_as_base() {
+        // A captured PATH containing fnm's per-shell node symlink must
+        // survive into the spawn env (with our extras prepended). Without
+        // this, fnm/nvm/asdf users see no node inside spawned claude.
+        let mut captured = ShellEnv::new();
+        let fnm_path = "/Users/u/Library/Application Support/fnm_multishells/12345_abc/bin";
+        captured.insert(
+            "PATH".into(),
+            format!("{fnm_path}:/opt/homebrew/bin:/usr/bin"),
+        );
+        let env = build_spawn_env(&captured, false, "p");
+        let (_, path) = env.iter().find(|(k, _)| k == "PATH").unwrap();
+        assert!(path.contains(fnm_path), "fnm symlink dropped: {path}");
+        // Extras are still prepended for safety.
+        assert!(
+            path.starts_with(&format!(
+                "{}/.local/bin",
+                std::env::var("HOME").unwrap_or_else(|_| "/Users/u".into())
+            )) || path.contains("/.local/bin"),
+            "extras missing: {path}"
+        );
+    }
+
+    #[test]
+    fn build_spawn_env_only_one_path_entry() {
+        // Regression guard: if the captured map happens to leak a stray
+        // duplicate, augment_path's dedup should keep the final PATH
+        // single-entry.
+        let mut captured = ShellEnv::new();
+        captured.insert("PATH".into(), "/usr/bin:/bin".into());
+        let env = build_spawn_env(&captured, false, "p");
+        let path_count = env.iter().filter(|(k, _)| k == "PATH").count();
+        assert_eq!(path_count, 1, "expected exactly one PATH entry");
     }
 
     #[test]

@@ -63,12 +63,23 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
 - `ipc.rs` — the Tauri commands (`open_project`, `open_command_terminal`,
   `pty_input`, `pty_resize`, `pty_close`, `list_sessions`, `get_window_state`,
   `save_window_state`, `cleanup_project_status`) and the `claude:not-found` /
-  `terminal:exit` / `status:update` events. `build_spawn_env(is_primary,
-  project_id)` adds `CLAUI_STATUS_FILE` to primary claudes so each project
-  writes its statusline to its own file, and overrides `PATH` so child
-  processes see Homebrew, `~/.local/bin`, `~/.cargo/bin`, and other
-  user-level dev directories that launchd's minimal PATH (the one a `.app`
-  GUI launch inherits) otherwise hides.
+  `terminal:exit` / `status:update` events. `build_spawn_env(captured,
+  is_primary, project_id)` layers three sources for the spawned claude's env:
+  (1) every variable from `shell_env::get()` (the interactive-shell snapshot —
+  this is what brings `FNM_DIR` / `NVM_DIR` / `ASDF_*` / `MISE_*` and the
+  shell's PATH, which is the only place fnm's per-shell node symlink ever
+  appears); (2) `augment_path` prepends `extra_path_dirs` (Homebrew /
+  `~/.local/bin` / `~/.cargo/bin` / ...) to that PATH as a safety net for
+  users whose `.zshrc` doesn't set them up; (3) the `CLAUI_*` overlays
+  (`CLAUI_ACTIVE`, `CLAUI_PRIMARY`, `CLAUI_STATUS_FILE`).
+- `shell_env.rs` — captures the user's `$SHELL -ilc 'env'` snapshot once at
+  app start, parses it between sentinels (chatter-tolerant, NUL-separated),
+  caches it in a `OnceLock`. `warm()` spawns the capture on a bg thread from
+  `lib.rs::run`'s setup so its 50-200 ms cost overlaps with window paint.
+  Failures (timeout, missing sentinels, shell crash) return an empty map and
+  `build_spawn_env` falls back to its `augment_path`-only behaviour. This is
+  the same trick VSCode / Cursor / Warp use via the `shell-env` npm package
+  to bridge launchd's minimal `.app` PATH to the user's terminal env.
 - `menu.rs` — builds the native macOS menu; the File submenu owns the
   `Add Project (⌘⇧N)` / `Close Project (⌘⇧W)` / `New Claude Tab (⌘T)` /
   `New Terminal Tab (⌘⇧T)` / `Close Tab (⌘W)` accelerators and emits

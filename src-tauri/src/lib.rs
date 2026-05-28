@@ -3,6 +3,7 @@ mod ipc;
 mod menu;
 mod pty;
 mod sessions;
+mod shell_env;
 mod state;
 mod statusline;
 mod window_state;
@@ -73,6 +74,15 @@ pub fn run() {
             // (Discovered the hard way; copying the working setup from Diary.)
             .disable_drag_drop_handler()
             .build()?;
+
+            // Warm the interactive-shell env snapshot in the background so
+            // its capture cost (typically 50-200 ms) overlaps with window
+            // paint. The cache is what `build_spawn_env` reads to give
+            // spawned claudes the same PATH / FNM_DIR / NVM_DIR / ... a
+            // hand-typed `claude` in Terminal would see — without it,
+            // shell-managed version managers (fnm, nvm, asdf, ...) are
+            // invisible inside the app.
+            shell_env::warm();
 
             menu::init(app)?;
             if let Err(e) = statusline::install_wrapper() {

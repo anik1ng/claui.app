@@ -80,6 +80,18 @@ Workspace-tab visuals are unified with the toolbar: the `✦` / `$` text glyphs 
 
 ---
 
+### 2026-05-28 — Capture interactive shell env at app start
+
+**Context.** `build_spawn_env` in `src-tauri/src/ipc.rs` seeded spawned claudes with `PATH = extra_path_dirs(home) ∪ launchd_PATH`. That covered Homebrew, `~/.local/bin`, `~/.cargo/bin` — anything installed at a *static* directory — but every shell-driven version manager (fnm, nvm, asdf, mise, volta, rbenv, pyenv) lives at a dynamic path the user's `.zshrc` materialises via `eval "$(fnm env)"` or equivalent. Those paths only existed inside an interactive shell, so claude (and every Bash subshell its tools opened) saw a stripped-down environment where `node` / `npm` / `python` (under pyenv) / `ruby` (under rbenv) were invisible. The user dogfooding claui kept hitting this — running tools that worked fine in their Terminal failed inside claui's pane. "Base of the app, should work out of the box."
+
+**Decision.** New module `src-tauri/src/shell_env.rs` runs `$SHELL -i -l -c '<sentinel script>'` once at app start (warmed on a bg thread from `lib.rs::run`'s setup so the 50-200 ms cost overlaps with window paint), parses the `env -0` block between sentinels, caches the result in a `OnceLock<HashMap<String, String>>`. `build_spawn_env(captured, is_primary, project_id)` now layers three sources: (1) every variable from `shell_env::get()` minus a STRIP list of session locals (`SHLVL`, `PWD`, `OLDPWD`, `_`, `TERM`, `XPC_FLAGS`, `XPC_SERVICE_NAME`); (2) `augment_path` prepends `extra_path_dirs` to the captured PATH (or to launchd PATH if capture failed) as a safety net; (3) the `CLAUI_*` overlays. The capture script uses `__CLAUI_ENV_BEGIN__` / `__CLAUI_ENV_END__` sentinels to defuse `.zshrc` chatter (motd, p10k instant prompt, welcome banners) and a 5 s timeout to defuse `.zshrc` hangs. On any failure (spawn error, timeout, missing sentinels, shell crash) the capture returns an empty map and `build_spawn_env` falls back to today's `augment_path`-only behaviour.
+
+**Consequences.** fnm / nvm / asdf / mise / volta / rbenv / pyenv users now see their actively-managed `node`/`npm`/`python`/`ruby` from inside claui without any setup — the spawned claude inherits the same environment a hand-typed `claude` in Terminal would inherit, plus claui's own overlays. The fix is generic (not a fnm-specific patch), so future version managers Just Work. Same trick the VSCode / Cursor / Warp / GitHub Desktop family uses via the npm `shell-env` package. Cost: one `$SHELL` invocation at app start (typical ~100 ms, hard-capped at 5 s), captured shell env held in memory for the app's lifetime. The shell-init snapshot is frozen at app start — if the user edits `.zshrc` mid-session they must restart claui to pick up the change (same as VSCode). `build_spawn_env`'s signature gained a `&ShellEnv` parameter for test determinism (the production call passes `shell_env::get()`); unit tests construct synthetic maps and never touch the real `$SHELL`. Fish-shell-specific syntax is out of scope; modern macOS defaults to zsh and `$SHELL -i -l -c` works for bash too. Re-capture on `.zshrc` changes (file watcher / SIGHUP) is out of scope.
+
+**References.** `src-tauri/src/shell_env.rs` (new), `src-tauri/src/ipc.rs` (`build_spawn_env` signature + layering), `src-tauri/src/lib.rs` (`shell_env::warm()` in setup). `CLAUDE.md` (`shell_env.rs` module entry, `build_spawn_env` description). Spec: `docs/superpowers/specs/2026-05-28-shell-env-capture-design.md` (gitignored; local-only).
+
+---
+
 ## Template (do not delete)
 
 ### YYYY-MM-DD — Short title

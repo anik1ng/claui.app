@@ -278,9 +278,9 @@ mod tests {
         assert_eq!(p.context_pct, Some(12.5));
         assert_eq!(p.cost_usd, Some(0.47));
         assert_eq!(p.five_hour_pct, Some(15.0));
-        assert_eq!(p.five_hour_resets_at, Some(1779992400));
+        assert_eq!(p.five_hour_resets_at, Some(1_779_992_400));
         assert_eq!(p.seven_day_pct, Some(35.0));
-        assert_eq!(p.seven_day_resets_at, Some(1780059600));
+        assert_eq!(p.seven_day_resets_at, Some(1_780_059_600));
     }
 
     #[test]
