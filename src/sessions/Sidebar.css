@@ -21,23 +21,29 @@
   flex: none;
 }
 /* "+ New" / "+ Add" pill — same styling for both projects and sessions
-   sections so the header reads identically. */
+   sections so the header reads identically. Auxiliary action: dim and
+   border-less at rest so it doesn't compete with the row labels below,
+   pops to full contrast on hover. */
 .sidebar-new {
   padding: 3px 9px;
   background: transparent;
-  border: 1px solid var(--claui-divider);
+  border: 1px solid transparent;
   border-radius: 999px;
-  color: var(--claui-fg);
+  color: var(--claui-fg-dim);
+  opacity: 0.55;
   font-family: inherit;
   font-size: 11px;
   letter-spacing: normal;
   text-transform: none;
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease;
+  transition: background 120ms ease, border-color 120ms ease,
+    color 120ms ease, opacity 120ms ease;
 }
 .sidebar-new:hover {
   background: var(--claui-hover);
   border-color: var(--claui-fg-dim);
+  color: var(--claui-fg);
+  opacity: 1;
 }
 .sidebar-list {
   overflow-y: auto;
