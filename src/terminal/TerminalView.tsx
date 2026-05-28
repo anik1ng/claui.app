@@ -5,6 +5,7 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import { listen } from '@tauri-apps/api/event';
 import '@xterm/xterm/css/xterm.css';
 import { themeToXterm } from './xtermTheme';
+import { isShiftEnterTrigger } from './keyHandler';
 import { type Channel, makeOutputChannel, ptyClose, ptyInput, ptyResize } from '../ipc/commands';
 import type { Theme } from '../theme/themeStore';
 import './TerminalView.css';
@@ -142,21 +143,21 @@ export function TerminalView({ theme, open, autoFocus, onSpawnFailed }: Props) {
     // `preventDefault()` on the keydown event cancels the subsequent
     // keypress event per DOM spec, breaking that double-emission.
     //
+    // `term.scrollToBottom()` mirrors xterm.js's default `scrollOnUserInput`
+    // behaviour (CoreBrowserTerminal.ts:1033-1035): when the user has
+    // scrolled into history and types, the viewport snaps back to the
+    // prompt. Our intercept exits before that path, so without this call
+    // a Shift+Enter while scrolled up inserts the newline invisibly.
+    //
     // Trade-off: in a shell tab zsh will still submit on Shift+Enter
     // because the canonical-mode tty driver translates LF the same as CR
     // (ICRNL). Acceptable — Shift+Enter in a shell isn't a standard
     // multiline gesture (users rely on `\` + Enter or here-docs).
     term.attachCustomKeyEventHandler((e) => {
-      if (
-        e.type === 'keydown' &&
-        e.key === 'Enter' &&
-        e.shiftKey &&
-        !e.ctrlKey &&
-        !e.metaKey &&
-        !e.altKey
-      ) {
+      if (isShiftEnterTrigger(e)) {
         e.preventDefault();
         if (id != null) void ptyInput(id, '\n');
+        term.scrollToBottom();
         return false;
       }
       return true;
