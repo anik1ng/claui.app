@@ -123,6 +123,45 @@ export function TerminalView({ theme, open, autoFocus, onSpawnFailed }: Props) {
       if (id != null) void ptyInput(id, data);
     });
 
+    // Shift+Enter would otherwise emit the same `\r` as plain Enter — claude
+    // (and any other TUI built on Ink / readline) then sees the two as
+    // identical and treats Shift+Enter as "submit". Intercept the keydown
+    // and emit a bare LF (`\n`, byte 0x0A). Claude's Ink-based input handler
+    // reads PTY bytes in raw mode and distinguishes CR (submit) from LF
+    // (newline-in-input). This matches ghostty's recommended config —
+    // `keybind = shift+enter=text:\n` — which is the documented fix.
+    //
+    // `e.preventDefault()` is load-bearing: xterm.js's `_keyDown` (in
+    // node_modules/@xterm/xterm/src/browser/CoreBrowserTerminal.ts:1025)
+    // returns early on `_customKeyEventHandler(...) === false`, which means
+    // it does NOT set `_keyDownHandled = true`. The browser then auto-fires
+    // a keypress event for Enter, and xterm.js's `_keyPress` handler
+    // (same file:1140) checks `_keyDownHandled` — sees false — and emits
+    // the default `\r` via `triggerDataEvent`. PTY ends up receiving BOTH
+    // our `\n` AND xterm.js's `\r`, and the `\r` triggers submit.
+    // `preventDefault()` on the keydown event cancels the subsequent
+    // keypress event per DOM spec, breaking that double-emission.
+    //
+    // Trade-off: in a shell tab zsh will still submit on Shift+Enter
+    // because the canonical-mode tty driver translates LF the same as CR
+    // (ICRNL). Acceptable — Shift+Enter in a shell isn't a standard
+    // multiline gesture (users rely on `\` + Enter or here-docs).
+    term.attachCustomKeyEventHandler((e) => {
+      if (
+        e.type === 'keydown' &&
+        e.key === 'Enter' &&
+        e.shiftKey &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey
+      ) {
+        e.preventDefault();
+        if (id != null) void ptyInput(id, '\n');
+        return false;
+      }
+      return true;
+    });
+
     // Why not `fit.fit()`? FitAddon.fit() unconditionally calls
     // `_renderService.clear()` before `term.resize()` whenever cols/rows
     // change (see node_modules/@xterm/addon-fit/src/FitAddon.ts) — that
