@@ -50,6 +50,12 @@
 .statusbar-cost {
   color: var(--claui-fg-dim);
 }
+/* "time until window reset" suffix — minute-resolution countdown rendered
+   inside a `.statusbar-limit` chip after the percentage. Same dim treatment
+   as `.statusbar-label` so the suffix recedes behind the colour-coded %. */
+.statusbar-reset {
+  color: var(--claui-fg-dim);
+}
 /* Limit colours: saturated teal / amber / red so the three thresholds
    read at a glance on the dark chrome. Mirrors `claude`'s own status-
    line conventions (ok / warn / high). */

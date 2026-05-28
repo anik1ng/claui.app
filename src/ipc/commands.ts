@@ -68,7 +68,9 @@ export interface StatusPayload {
   contextPct: number | null;
   costUsd: number | null;
   fiveHourPct: number | null;
+  fiveHourResetsAt: number | null;
   sevenDayPct: number | null;
+  sevenDayResetsAt: number | null;
 }
 
 /**

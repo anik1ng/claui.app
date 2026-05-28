@@ -15,7 +15,9 @@ pub struct StatusPayload {
     pub context_pct: Option<f64>,
     pub cost_usd: Option<f64>,
     pub five_hour_pct: Option<f64>,
+    pub five_hour_resets_at: Option<u64>,
     pub seven_day_pct: Option<f64>,
+    pub seven_day_resets_at: Option<u64>,
 }
 
 /// Per-project wrapper around `StatusPayload`, emitted as the `status:update`
@@ -55,6 +57,7 @@ struct RawLimits {
 #[derive(Deserialize)]
 struct RawWindow {
     used_percentage: Option<f64>,
+    resets_at: Option<u64>,
 }
 
 /// Parse the statusline JSON into a `StatusPayload`. Tolerant by design — a
@@ -68,13 +71,23 @@ pub fn parse(json: &str) -> StatusPayload {
         Some(limits) => (limits.five_hour, limits.seven_day),
         None => (None, None),
     };
+    let (five_pct, five_resets) = match five {
+        Some(w) => (w.used_percentage, w.resets_at),
+        None => (None, None),
+    };
+    let (seven_pct, seven_resets) = match seven {
+        Some(w) => (w.used_percentage, w.resets_at),
+        None => (None, None),
+    };
     StatusPayload {
         session_id: raw.session_id,
         model: raw.model.and_then(|m| m.display_name),
         context_pct: raw.context_window.and_then(|c| c.used_percentage),
         cost_usd: raw.cost.and_then(|c| c.total_cost_usd),
-        five_hour_pct: five.and_then(|w| w.used_percentage),
-        seven_day_pct: seven.and_then(|w| w.used_percentage),
+        five_hour_pct: five_pct,
+        five_hour_resets_at: five_resets,
+        seven_day_pct: seven_pct,
+        seven_day_resets_at: seven_resets,
     }
 }
 
@@ -255,8 +268,8 @@ mod tests {
             "context_window": { "used_percentage": 12.5 },
             "cost": { "total_cost_usd": 0.47 },
             "rate_limits": {
-                "five_hour": { "used_percentage": 15.0 },
-                "seven_day": { "used_percentage": 35.0 }
+                "five_hour": { "used_percentage": 15.0, "resets_at": 1779992400 },
+                "seven_day": { "used_percentage": 35.0, "resets_at": 1780059600 }
             }
         }"#;
         let p = parse(json);
@@ -265,7 +278,23 @@ mod tests {
         assert_eq!(p.context_pct, Some(12.5));
         assert_eq!(p.cost_usd, Some(0.47));
         assert_eq!(p.five_hour_pct, Some(15.0));
+        assert_eq!(p.five_hour_resets_at, Some(1779992400));
         assert_eq!(p.seven_day_pct, Some(35.0));
+        assert_eq!(p.seven_day_resets_at, Some(1780059600));
+    }
+
+    #[test]
+    fn reset_times_are_optional() {
+        let json = r#"{
+            "rate_limits": {
+                "five_hour": { "used_percentage": 15.0 },
+                "seven_day": { "used_percentage": 35.0 }
+            }
+        }"#;
+        let p = parse(json);
+        assert_eq!(p.five_hour_pct, Some(15.0));
+        assert_eq!(p.five_hour_resets_at, None);
+        assert_eq!(p.seven_day_resets_at, None);
     }
 
     #[test]

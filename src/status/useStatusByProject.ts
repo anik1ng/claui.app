@@ -9,7 +9,9 @@ function statusEqual(a: StatusPayload, b: StatusPayload): boolean {
     a.contextPct === b.contextPct &&
     a.costUsd === b.costUsd &&
     a.fiveHourPct === b.fiveHourPct &&
-    a.sevenDayPct === b.sevenDayPct
+    a.fiveHourResetsAt === b.fiveHourResetsAt &&
+    a.sevenDayPct === b.sevenDayPct &&
+    a.sevenDayResetsAt === b.sevenDayResetsAt
   );
 }
 
