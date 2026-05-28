@@ -39,6 +39,8 @@ pub fn run() {
         // also handle the off-screen / missing-monitor recovery cases.
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(AppState::new())
         .setup(|app| {
             // The main window is built programmatically (NOT auto-created
