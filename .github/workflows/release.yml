@@ -1,0 +1,129 @@
+name: release
+
+# Only an annotated `v*` tag push triggers a release — no branch pushes, no
+# manual dispatch. The release initiation flow (bump versions, write CHANGELOG,
+# tag) lives in docs/superpowers and is run by hand; this workflow is the
+# build-sign-publish half that the tag push kicks off.
+on:
+  push:
+    tags:
+      - 'v*'
+
+# Same tag pushed twice serialises rather than racing; we never want two builds
+# of the same version clobbering each other's upload.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+# No write access inside this (private) repo. Every mutation lands on the public
+# repo via PUBLIC_REPO_TOKEN in the publish job.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history so the annotated tag's message (the release notes) is
+          # readable via `git tag -l --format=...`.
+          fetch-depth: 0
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Version consistency check
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          PKG=$(node -p "require('./package.json').version")
+          CONF=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          CARGO=$(grep -m1 '^version' src-tauri/Cargo.toml | cut -d'"' -f2)
+          if [ "$TAG" != "$PKG" ] || [ "$TAG" != "$CONF" ] || [ "$TAG" != "$CARGO" ]; then
+            echo "Version mismatch: tag=$TAG package=$PKG tauri=$CONF cargo=$CARGO"
+            exit 1
+          fi
+          echo "Version $TAG consistent across package.json / tauri.conf.json / Cargo.toml"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (universal, signed)
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npm run tauri build -- --target universal-apple-darwin
+
+      - name: Assemble release artifacts + update manifest
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          BUNDLE=src-tauri/target/universal-apple-darwin/release/bundle
+          mkdir release-out
+          cp "$BUNDLE"/dmg/*.dmg release-out/claui-universal.dmg
+          cp "$BUNDLE"/macos/claui.app.tar.gz release-out/claui.app.tar.gz
+          SIG=$(cat "$BUNDLE"/macos/claui.app.tar.gz.sig)
+          PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          URL="https://github.com/anik1ng/claui.app/releases/download/v$TAG/claui.app.tar.gz"
+          jq -n --arg v "$TAG" --arg sig "$SIG" --arg url "$URL" --arg date "$PUB_DATE" '{
+            version: $v,
+            notes: ("See https://github.com/anik1ng/claui.app/releases/tag/v" + $v),
+            pub_date: $date,
+            platforms: {
+              "darwin-aarch64": { signature: $sig, url: $url },
+              "darwin-x86_64":  { signature: $sig, url: $url }
+            }
+          }' > release-out/latest.json
+
+      - name: Extract release notes
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          git tag -l --format='%(contents)' "v$TAG" > release-out/release-notes.md
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-out
+          path: release-out/
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-out
+          path: release-out
+
+      - name: Create release on public repo
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          # Idempotency: never clobber an existing public release for this tag.
+          if gh release view "v$TAG" --repo anik1ng/claui.app >/dev/null 2>&1; then
+            echo "Release v$TAG already exists on anik1ng/claui.app. Aborting."
+            exit 1
+          fi
+          gh release create "v$TAG" --repo anik1ng/claui.app \
+            --title "claui v$TAG" \
+            --notes-file release-out/release-notes.md \
+            release-out/claui-universal.dmg \
+            release-out/claui.app.tar.gz \
+            release-out/latest.json
+          echo "Published https://github.com/anik1ng/claui.app/releases/tag/v$TAG"
