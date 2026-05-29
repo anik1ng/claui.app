@@ -15,6 +15,14 @@
       "csp": null
     }
   },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/anik1ng/claui.app/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEMxOUZDMTI2MTNGNTNDOQpSV1RKVXo5aEV2d1pEQXBLdHJlTEY0bG52MDJUV3hrZjVoVXFJMTgzV25JMHJhSnB3ekNreVRjNAo="
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",
