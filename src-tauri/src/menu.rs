@@ -13,6 +13,10 @@ use tauri::{App, Emitter};
 /// webview's keydown handler is NOT responsible for them — it just subscribes
 /// to the `menu:*` events emitted from `on_menu_event` below.
 ///
+/// The `claui` app submenu (leftmost on macOS) owns a "Check for Updates…"
+/// item above "About"; it has no accelerator and emits `menu:check-updates`,
+/// which the frontend's updater hook listens for to run an explicit check.
+///
 /// The Window submenu's default `.close_window()` predefined item is dropped
 /// because it bound ⌘W to "close the whole window", which would fight
 /// File → Close Tab. Closing the window is still possible via the red
@@ -23,7 +27,11 @@ use tauri::{App, Emitter};
 // R1.5 exception in AUDIT_RULES.md Section 9.
 #[allow(clippy::too_many_lines)]
 pub fn init(app: &App) -> tauri::Result<()> {
+    let check_updates =
+        MenuItemBuilder::with_id("check-updates", "Check for Updates…").build(app)?;
     let app_menu = SubmenuBuilder::new(app, "claui")
+        .item(&check_updates)
+        .separator()
         .about(None)
         .separator()
         .quit()
@@ -74,6 +82,9 @@ pub fn init(app: &App) -> tauri::Result<()> {
     app.set_menu(menu)?;
 
     app.on_menu_event(|app, event| match event.id().0.as_str() {
+        "check-updates" => {
+            let _ = app.emit("menu:check-updates", ());
+        }
         "add-project" => {
             let _ = app.emit("menu:add-project", ());
         }

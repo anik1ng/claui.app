@@ -1,0 +1,63 @@
+/*
+ * Bottom-left toast for the in-app updater. Sits above everything (z-index
+ * higher than the title-bar banner) and uses the elevated chrome surface so it
+ * reads as "one layer up" from the window background, matching the status bar
+ * and sidebar.
+ */
+.update-toast {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 360px;
+  padding: 10px 12px;
+  font-family: var(--claui-font-ui);
+  font-size: 13px;
+  color: var(--claui-fg);
+  background: var(--claui-bg-elevated);
+  border: 1px solid var(--claui-divider);
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.update-toast-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.update-toast-action {
+  flex: none;
+  padding: 5px 10px;
+  font: inherit;
+  color: var(--claui-accent-fg);
+  background: var(--claui-accent);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.update-toast-action:hover {
+  filter: brightness(1.08);
+}
+
+.update-toast-close {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--claui-fg-dim);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.update-toast-close:hover {
+  color: var(--claui-fg);
+  background: var(--claui-hover);
+}

@@ -9,6 +9,8 @@ import { ProjectsSection } from './projects/ProjectsSection';
 import { useProjects } from './projects/useProjects';
 import { useProjectSwitchKeyboard } from './projects/useProjectSwitchKeyboard';
 import { useStatusByProject } from './status/useStatusByProject';
+import { useUpdaterCheck } from './updater/useUpdaterCheck';
+import { UpdateToast } from './updater/UpdateToast';
 import { pickProjectFolder } from './project/pickProjectFolder';
 import { cleanupProjectStatus } from './ipc/commands';
 import { defaultTheme, setTheme } from './theme/themeStore';
@@ -17,6 +19,12 @@ import './App.css';
 export default function App() {
   const { projects, activeId, addProject, closeProject, setActive, isHydrating } = useProjects();
   const statuses = useStatusByProject();
+  const {
+    toast: updateToast,
+    checkForUpdates,
+    install: installUpdate,
+    dismiss: dismissUpdate,
+  } = useUpdaterCheck();
   const [claudeMissing, setClaudeMissing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -37,6 +45,15 @@ export default function App() {
       void unlisten.then((fn) => fn());
     };
   }, []);
+
+  // The "Check for Updates…" menu item (src-tauri/src/menu.rs) emits this.
+  // `checkForUpdates` is a stable callback, so this listener attaches once.
+  useEffect(() => {
+    const unlisten = listen('menu:check-updates', () => checkForUpdates());
+    return () => {
+      void unlisten.then((fn) => fn());
+    };
+  }, [checkForUpdates]);
 
   const requestAddProject = useCallback(() => {
     void (async () => {
@@ -147,6 +164,11 @@ export default function App() {
       {/* StatusBar sits at the bottom of the window. The active ProjectArea
           portals its <StatusBar /> here. Empty when no projects yet. */}
       <div ref={setStatusSlot} />
+      <UpdateToast
+        toast={updateToast}
+        onInstall={() => void installUpdate()}
+        onDismiss={dismissUpdate}
+      />
     </>
   );
 }
