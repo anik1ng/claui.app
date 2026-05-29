@@ -27,8 +27,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          # Full history so the annotated tag's message (the release notes) is
-          # readable via `git tag -l --format=...`.
+          # Full history so the version-consistency check and the tag re-fetch
+          # (see "Extract release notes") have everything they need.
           fetch-depth: 0
 
       - name: Setup Rust
@@ -91,7 +91,17 @@ jobs:
       - name: Extract release notes
         run: |
           TAG="${GITHUB_REF#refs/tags/v}"
+          # actions/checkout leaves a *lightweight* tag pointing at the commit,
+          # so the annotated tag's message isn't present locally and
+          # `%(contents)` would fall back to the commit message. Re-fetch the
+          # tag object itself to get the real annotation.
+          git fetch --force origin "refs/tags/v$TAG:refs/tags/v$TAG"
           git tag -l --format='%(contents)' "v$TAG" > release-out/release-notes.md
+          # Never publish an empty body — fail loudly if the annotation is gone.
+          if [ ! -s release-out/release-notes.md ]; then
+            echo "Release notes for v$TAG are empty — is the tag annotated?"
+            exit 1
+          fi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
@@ -121,7 +131,7 @@ jobs:
             exit 1
           fi
           gh release create "v$TAG" --repo anik1ng/claui.app \
-            --title "claui v$TAG" \
+            --title "v$TAG" \
             --notes-file release-out/release-notes.md \
             release-out/claui-universal.dmg \
             release-out/claui.app.tar.gz \
