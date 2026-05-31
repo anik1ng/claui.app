@@ -1,0 +1,37 @@
+name: pages
+
+# Deploy the static site to GitHub Pages on every push to main.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Allow the workflow to publish to Pages; one deploy at a time, newest wins.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          # The whole repo root is the site — it's already static.
+          path: .
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v5
