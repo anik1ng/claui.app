@@ -15,6 +15,9 @@
   font-family: var(--claui-font-ui);
   font-size: 12px;
   font-feature-settings: 'tnum' 1; /* tabular figures so percentages don't jitter */
+  /* Metrics are glanceable chrome, not selectable content. */
+  user-select: none;
+  -webkit-user-select: none;
 }
 .statusbar-left,
 .statusbar-right {

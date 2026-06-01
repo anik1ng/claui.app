@@ -8,6 +8,11 @@
   color: var(--claui-fg);
   font-family: var(--claui-font-ui);
   overflow: hidden;
+  /* Chrome, not content: the section headers and +Add/+New buttons shouldn't
+     be text-selectable. Rows already opt out in ListRow.css; this covers the
+     headers too. The terminal lives outside .sidebar and keeps its selection. */
+  user-select: none;
+  -webkit-user-select: none;
 }
 .sidebar-header {
   display: flex;
