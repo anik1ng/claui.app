@@ -93,14 +93,6 @@ section { position: relative; z-index: 1; }
 .btn:hover { transform: translateY(-1px); filter: brightness(1.07); }
 .btn-lg { font-size: 18px; padding: 16px 28px; }
 .btn-sm { padding: 8px 16px; font-size: 14px; box-shadow: none; }
-.ver {
-  font-family: var(--font-mono);
-  font-size: 0.8em;
-  font-weight: 500;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
-}
 
 /* ---------- Top bar ---------- */
 .topbar {

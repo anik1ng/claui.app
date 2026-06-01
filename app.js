@@ -79,23 +79,6 @@
     reveals.forEach(function (r) { r.classList.add('in-view'); });
   }
 
-  /* ---- Version badge (progressive enhancement) ----------------------
-     Replace the hardcoded version with the latest published tag. If the
-     request fails or is rate-limited, the hardcoded default stays. */
-  var badges = Array.prototype.slice.call(document.querySelectorAll('[data-version]'));
-  if (badges.length && window.fetch) {
-    fetch('https://api.github.com/repos/anik1ng/claui.app/releases/latest', {
-      headers: { Accept: 'application/vnd.github+json' }
-    })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (data) {
-        if (data && data.tag_name) {
-          badges.forEach(function (b) { b.textContent = data.tag_name; });
-        }
-      })
-      .catch(function () { /* keep the default */ });
-  }
-
   /* ---- GitHub star count (progressive enhancement) ------------------
      Stays hidden until a count arrives, so a failed/rate-limited request
      just leaves the bare octocat icon — no empty "★" placeholder. */
