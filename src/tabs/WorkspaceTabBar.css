@@ -64,15 +64,24 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Fixed-width right slot shared by the close button and the shortcut badge,
+   so toggling the HUD never resizes or shifts a tab. The primary tab renders
+   an empty tail to reserve the same width. */
+.ws-tab-tail {
+  flex: none;
+  width: 26px;
+  margin-left: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
 .ws-tab-hint {
-  margin-left: 4px;
   padding: 0 4px;
   border-radius: 3px;
   font-size: 10px;
   line-height: 1.4;
-  color: var(--claui-accent);
+  color: var(--claui-fg-dim);
   background: var(--claui-active);
-  flex: none;
 }
 .ws-tab-close {
   display: inline-flex;
@@ -80,7 +89,6 @@
   justify-content: center;
   width: 14px;
   height: 14px;
-  margin-left: 2px;
   padding: 0;
   background: transparent;
   border: none;

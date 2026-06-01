@@ -53,23 +53,27 @@ export function WorkspaceTabBar({
                 {tab.kind === 'claude' ? <IconClaudeMascot /> : <IconTerminal />}
               </span>
               <span className="ws-tab-title">{tabTitle(tab, sessions)}</span>
-              {showShortcuts && labels[i] != null && (
-                <span className="ws-tab-hint" aria-hidden>⌃{labels[i]}</span>
-              )}
-              {!tab.isPrimary && (
-                <button
-                  type="button"
-                  className="ws-tab-close"
-                  aria-label="Close tab"
-                  title="Close (⌘W)"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onCloseTab(tab.uid);
-                  }}
-                >
-                  ×
-                </button>
-              )}
+              {/* Fixed-width tail: the shortcut badge takes the SAME slot as the
+                  close button (no layout shift when the HUD toggles), and the
+                  primary tab — which has no × — still reserves the slot. */}
+              <span className="ws-tab-tail">
+                {showShortcuts && labels[i] != null ? (
+                  <span className="ws-tab-hint" aria-hidden>⌘{labels[i]}</span>
+                ) : !tab.isPrimary ? (
+                  <button
+                    type="button"
+                    className="ws-tab-close"
+                    aria-label="Close tab"
+                    title="Close (⌘W)"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCloseTab(tab.uid);
+                    }}
+                  >
+                    ×
+                  </button>
+                ) : null}
+              </span>
             </div>
           );
         })}

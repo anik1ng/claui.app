@@ -71,7 +71,7 @@
   border-radius: 3px;
   font-size: 10px;
   line-height: 1.5;
-  color: var(--claui-accent);
+  color: var(--claui-fg-dim);
   background: var(--claui-active);
   flex: none;
 }

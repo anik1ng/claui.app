@@ -46,7 +46,7 @@ export function ProjectsSection({ projects, activeId, onPick, onClose, onAdd, sh
             title={p.path}
             onClick={() => onPick(p.id)}
             onClose={() => onClose(p.id)}
-            hint={showShortcuts && labels[i] != null ? `⌘${labels[i]}` : undefined}
+            hint={showShortcuts && labels[i] != null ? `⌃${labels[i]}` : undefined}
           />
         ))}
       </div>

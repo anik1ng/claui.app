@@ -139,7 +139,7 @@ export default function App() {
                 isActive={p.id === activeId}
                 status={statuses.get(p.id) ?? null}
                 setSidebarOpen={setSidebarOpen}
-                showTabShortcuts={heldModifier === 'ctrl'}
+                showTabShortcuts={heldModifier !== null}
                 slots={{
                   workspaceTabs: workspaceTabsSlot,
                   status: statusSlot,
@@ -156,7 +156,7 @@ export default function App() {
                 onPick={setActive}
                 onClose={handleCloseProject}
                 onAdd={requestAddProject}
-                showShortcuts={heldModifier === 'meta'}
+                showShortcuts={heldModifier !== null}
               />
               {/* Portal target — the active ProjectArea renders SessionsSection
                   into this slot via createPortal. */}
