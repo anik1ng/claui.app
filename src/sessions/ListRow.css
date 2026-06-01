@@ -66,12 +66,12 @@
   color: var(--claui-fg);
 }
 .list-row-hint {
+  flex: none;
   margin-left: 6px;
-  padding: 0 4px;
-  border-radius: 3px;
+  padding: 1px 5px;
+  border-radius: 4px;
   font-size: 10px;
-  line-height: 1.5;
   color: var(--claui-fg-dim);
   background: var(--claui-active);
-  flex: none;
+  font-feature-settings: 'tnum' 1;
 }

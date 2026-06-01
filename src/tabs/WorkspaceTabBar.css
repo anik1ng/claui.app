@@ -28,8 +28,10 @@
   -webkit-app-region: no-drag;
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 0 12px;
+  gap: 8px;
+  /* Left inset (10px) spaces the icon off the edge; right inset (5px) keeps
+     the ×/badge off the tab's edge. The `gap` separates icon ↔ title ↔ tail. */
+  padding: 0 5px 0 10px;
   color: var(--claui-fg-dim);
   /* A 2px transparent top border balances the bottom accent border so the
      label centres symmetrically — without it `align-items: center` lands
@@ -38,7 +40,6 @@
   border-bottom: 2px solid transparent;
   cursor: pointer;
   white-space: nowrap;
-  max-width: 180px;
   transition: background 120ms ease, color 120ms ease;
 }
 .ws-tab:hover {
@@ -51,11 +52,11 @@
   background: var(--claui-hover);
 }
 .ws-tab-glyph {
+  flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--claui-fg-dim);
-  flex: none;
 }
 .ws-tab.active .ws-tab-glyph {
   color: var(--claui-accent);
@@ -63,25 +64,26 @@
 .ws-tab-title {
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 150px;
 }
-/* Fixed-width right slot shared by the close button and the shortcut badge,
-   so toggling the HUD never resizes or shifts a tab. The primary tab renders
-   an empty tail to reserve the same width. */
+/* Trailing slot: fixed width holds the × close button, the shortcut badge
+   (while a modifier is held), or nothing. Fixed so swapping ×↔badge never
+   shifts the title; the tab's right padding + the flex gap keep both off the
+   tab edge and off the title text. */
 .ws-tab-tail {
   flex: none;
-  width: 26px;
-  margin-left: 1px;
+  width: 24px;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
 }
 .ws-tab-hint {
-  padding: 0 4px;
-  border-radius: 3px;
+  padding: 1px 5px;
+  border-radius: 4px;
   font-size: 10px;
-  line-height: 1.4;
   color: var(--claui-fg-dim);
   background: var(--claui-active);
+  font-feature-settings: 'tnum' 1;
 }
 .ws-tab-close {
   display: inline-flex;
@@ -96,13 +98,13 @@
   font-size: 14px;
   line-height: 1;
   cursor: pointer;
-  opacity: 0;
-  transition: opacity 120ms ease, background 120ms ease;
-}
-.ws-tab:hover .ws-tab-close {
-  opacity: 1;
+  /* Always faintly visible (like the sidebar's +Add / +New), brightening on
+     hover — not hidden until the row is hovered. */
+  opacity: 0.45;
+  transition: opacity 120ms ease, background 120ms ease, color 120ms ease;
 }
 .ws-tab-close:hover {
+  opacity: 1;
   background: var(--claui-active);
   color: var(--claui-fg);
 }
