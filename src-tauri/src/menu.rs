@@ -1,4 +1,4 @@
-use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
+use tauri::menu::{AboutMetadataBuilder, MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::{App, Emitter};
 
 /// Build the application menu and wire its events.
@@ -13,9 +13,14 @@ use tauri::{App, Emitter};
 /// webview's keydown handler is NOT responsible for them — it just subscribes
 /// to the `menu:*` events emitted from `on_menu_event` below.
 ///
-/// The `claui` app submenu (leftmost on macOS) owns a "Check for Updates…"
-/// item above "About"; it has no accelerator and emits `menu:check-updates`,
-/// which the frontend's updater hook listens for to run an explicit check.
+/// The `claui` app submenu (leftmost on macOS) follows the macOS convention:
+/// "About claui" first, then "Check for Updates…" (no accelerator, emits
+/// `menu:check-updates` for the frontend's updater hook), then "Quit". The
+/// About panel's metadata is set explicitly so the macOS-native panel shows
+/// `Version <x.y.z> (<short git sha>)` — the parenthetical is the build slot,
+/// fed by `CLAUI_GIT_SHA` baked in at compile time by `build.rs`. Without this,
+/// Tauri's default duplicates the marketing version into the parenthetical
+/// (`0.2.0 (0.2.0)`).
 ///
 /// The Window submenu's default `.close_window()` predefined item is dropped
 /// because it bound ⌘W to "close the whole window", which would fight
@@ -29,10 +34,22 @@ use tauri::{App, Emitter};
 pub fn init(app: &App) -> tauri::Result<()> {
     let check_updates =
         MenuItemBuilder::with_id("check-updates", "Check for Updates…").build(app)?;
+    // `version` → the "Version X" line; `short_version` → the "(Y)" build slot,
+    // here the short git SHA. Omitting `short_version` (empty SHA on non-repo
+    // builds) drops the parenthetical entirely.
+    let git_sha = env!("CLAUI_GIT_SHA");
+    let about_metadata = AboutMetadataBuilder::new()
+        .version(Some(app.package_info().version.to_string()))
+        .short_version((!git_sha.is_empty()).then_some(git_sha))
+        .copyright(Some("© 2026 anik1ng"))
+        .credits(Some(
+            "A native desktop shell for Claude Code\nhttps://github.com/anik1ng/claui",
+        ))
+        .build();
     let app_menu = SubmenuBuilder::new(app, "claui")
-        .item(&check_updates)
+        .about(Some(about_metadata))
         .separator()
-        .about(None)
+        .item(&check_updates)
         .separator()
         .quit()
         .build()?;
