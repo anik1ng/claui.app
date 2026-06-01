@@ -43,7 +43,7 @@ export function TitleBar({ workspaceTabsRef, showTabActions, onOpenClaude, onOpe
             <button
               type="button"
               className="tb-icon"
-              title="New Claude tab (⌘T)"
+              title="New Claude tab (⌘⇧T)"
               onClick={onOpenClaude}
             >
               <IconClaudeMascot />
@@ -51,7 +51,7 @@ export function TitleBar({ workspaceTabsRef, showTabActions, onOpenClaude, onOpe
             <button
               type="button"
               className="tb-icon"
-              title="New terminal tab (⌘⇧T)"
+              title="New terminal tab (⌘T)"
               onClick={onOpenShell}
             >
               <IconTerminal />

@@ -44,10 +44,10 @@ pub fn init(app: &App) -> tauri::Result<()> {
         .accelerator("CmdOrCtrl+Shift+W")
         .build(app)?;
     let new_claude_tab = MenuItemBuilder::with_id("new-claude-tab", "New Claude Tab")
-        .accelerator("CmdOrCtrl+T")
+        .accelerator("CmdOrCtrl+Shift+T")
         .build(app)?;
     let new_shell_tab = MenuItemBuilder::with_id("new-shell-tab", "New Terminal Tab")
-        .accelerator("CmdOrCtrl+Shift+T")
+        .accelerator("CmdOrCtrl+T")
         .build(app)?;
     let close_tab = MenuItemBuilder::with_id("close-tab", "Close Tab")
         .accelerator("CmdOrCtrl+W")

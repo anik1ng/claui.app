@@ -81,8 +81,8 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   the same trick VSCode / Cursor / Warp use via the `shell-env` npm package
   to bridge launchd's minimal `.app` PATH to the user's terminal env.
 - `menu.rs` — builds the native macOS menu; the File submenu owns the
-  `Add Project (⌘⇧N)` / `Close Project (⌘⇧W)` / `New Claude Tab (⌘T)` /
-  `New Terminal Tab (⌘⇧T)` / `Close Tab (⌘W)` accelerators and emits
+  `Add Project (⌘⇧N)` / `Close Project (⌘⇧W)` / `New Claude Tab (⌘⇧T)` /
+  `New Terminal Tab (⌘T)` / `Close Tab (⌘W)` accelerators and emits
   `menu:add-project` / `menu:close-project` / `menu:new-claude-tab` /
   `menu:new-shell-tab` / `menu:close-tab` events.
 - `statusline.rs` — installs the wrapper script that captures `claude`'s
@@ -248,8 +248,8 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   requires a statusline command) but their wrapper invocations short-circuit
   out of the file-write branch because `CLAUI_PRIMARY` is unset.
 - The macOS File menu (`src-tauri/src/menu.rs`) owns the
-  `Cmd+Shift+N Add Project` / `Cmd+Shift+W Close Project` / `Cmd+T New Claude
-  Tab` / `Cmd+Shift+T New Terminal Tab` / `Cmd+W Close Tab` accelerators.
+  `Cmd+Shift+N Add Project` / `Cmd+Shift+W Close Project` / `Cmd+T New Terminal
+  Tab` / `Cmd+Shift+T New Claude Tab` / `Cmd+W Close Tab` accelerators.
   macOS intercepts menu shortcuts before the webview, so the webview doesn't
   (and must not) bind these in JS — it subscribes to the `menu:add-project`
   / `menu:close-project` / `menu:new-claude-tab` / `menu:new-shell-tab` /
