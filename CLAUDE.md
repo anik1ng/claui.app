@@ -130,7 +130,7 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   appending. `ProjectsSection` renders projects as `<ListRow>`s into the
   top of the right sidebar; it returns `null` when only one project is
   open (no choice to surface). `useProjectSwitchKeyboard` handles
-  `Cmd+Alt+1..9` for project switching at the App level.
+  `Cmd+1..9` for project switching at the App level.
 - `status/useStatusByProject.ts` — listens to `status:update` events with
   the `{ projectId, status }` shape, aggregates them into
   `Map<projectId, StatusPayload>`. `App` slices the map per project and
@@ -230,7 +230,7 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   `.claude/settings.local.json`; one file per project), the sessions sidebar,
   workspace tabs (`Cmd+T` / `Cmd+Shift+T` / `Ctrl+1..9` / `Cmd+W`), and
   multi-project tabs (`Cmd+Shift+N` Add Project / `Cmd+Shift+W` Close Project
-  / `Cmd+Alt+1..9` switch project). The sessions sidebar marks rows whose
+  / `Cmd+1..9` switch project). The sessions sidebar marks rows whose
   session is currently open in some tab. Open projects + the active one
   persist to `<app_config_dir>/window.json` and restore on next launch
   (workspace tabs inside a project do NOT persist; each restored project
@@ -260,7 +260,7 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   action on the primary returns the state unchanged. We removed the
   predefined `.close_window()` item from the Window submenu because its
   default `Cmd+W` would otherwise fight File → Close Tab; the red
-  traffic-light button remains the way to close the window. `Cmd+Alt+1..9`
+  traffic-light button remains the way to close the window. `Cmd+1..9`
   (project switch) is handled in `src/projects/useProjectSwitchKeyboard.ts`
   at the App level via a capture-phase keydown listener — nine items don't
   deserve menu entries.
