@@ -199,10 +199,10 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
 ## Conventions and non-obvious points
 
 - **`docs/superpowers/` is gitignored** — design specs and implementation plans
-  live there, local-only; never commit them. The v1 spec
-  `docs/superpowers/specs/2026-05-21-claui-v1-xterm-design.md` holds the
-  forward roadmap (tabs, split panes, dashboard sidebar, git panel); subsequent
-  per-phase specs sit alongside it.
+  live there, local-only; never commit them. Specs/plans for shipped phases are
+  pruned once implemented. The forward roadmap (split panes, dashboard sidebar,
+  git panel) is tracked here as the work is picked up; each phase gets its own
+  spec alongside.
 - An earlier version built the terminal from scratch on `libghostty-vt` (a Rust
   VT engine + a hand-written canvas renderer). It was abandoned for `xterm.js`
   and the repository was re-initialized. Do not re-introduce libghostty.
