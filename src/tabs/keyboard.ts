@@ -12,19 +12,19 @@ export type KeyboardIntent = { type: 'setActive'; uid: string };
  * Translate a KeyboardEvent into a tab-switching intent.
  * Returns null for events we don't handle.
  *
- * Bindings (Cmd on macOS):
- *  - Cmd+1..8 → setActive(tabs[N-1].uid); null if fewer tabs.
- *  - Cmd+9    → setActive(tabs[last].uid); null if only primary.
+ * Bindings (Ctrl):
+ *  - Ctrl+1..8 → setActive(tabs[N-1].uid); null if fewer tabs.
+ *  - Ctrl+9    → setActive(tabs[last].uid); null if only primary.
  *
- * Modifier guard: any extra modifier (Shift, Alt, Ctrl) returns null so
- * combos like ⌘⇧1 (which macOS sends as Shift+!) don't accidentally match.
+ * Modifier guard: any extra modifier (Shift, Alt, Cmd) returns null so
+ * combos like ⌃⇧1 (which macOS sends as Shift+!) don't accidentally match.
  */
 export function keyboardEventToAction(
   event: KeyboardEvent,
   tabs: Tab[],
 ): KeyboardIntent | null {
-  if (!event.metaKey) return null;
-  if (event.shiftKey || event.altKey || event.ctrlKey) return null;
+  if (!event.ctrlKey) return null;
+  if (event.shiftKey || event.altKey || event.metaKey) return null;
   const key = event.key;
 
   if (key === '9') {

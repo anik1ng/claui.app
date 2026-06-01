@@ -185,7 +185,7 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   `<IconTerminal>` SVG icons as the title-bar toolbar so the visual
   language is consistent.
 - `layout/useLayoutKeyboard.ts` — extracted keydown effect for the
-  drawer / sidebar toggles and the numeric tab switcher (`Cmd+1..9`).
+  drawer / sidebar toggles and the numeric tab switcher (`Ctrl+1..9`).
   `Cmd+T` / `Cmd+Shift+T` / `Cmd+W` are NOT here — they're owned by the
   macOS File menu (see `src-tauri/src/menu.rs`); `ProjectArea` subscribes
   to the corresponding `menu:*` events the Rust side emits on click. The
@@ -228,7 +228,7 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   status bar at the bottom of the window (model / context / cost / 5h+7d
   limits, captured via a `statusLine` wrapper claui writes into project-local
   `.claude/settings.local.json`; one file per project), the sessions sidebar,
-  workspace tabs (`Cmd+T` / `Cmd+Shift+T` / `Cmd+1..9` / `Cmd+W`), and
+  workspace tabs (`Cmd+T` / `Cmd+Shift+T` / `Ctrl+1..9` / `Cmd+W`), and
   multi-project tabs (`Cmd+Shift+N` Add Project / `Cmd+Shift+W` Close Project
   / `Cmd+Alt+1..9` switch project). The sessions sidebar marks rows whose
   session is currently open in some tab. Open projects + the active one
