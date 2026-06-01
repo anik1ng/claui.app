@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.3.0] — 2026-06-01
+
+### Added
+- "+ New" in the sessions list starts a fresh session in the current tab;
+  ⌘-click opens it in a new tab instead.
+- The title bar shows the active project's name (or "claui" when no project
+  is open) in place of the previously empty strip.
+
+### Changed
+- The application menu lists "About claui" before "Check for Updates…",
+  matching the macOS convention.
+
+### Fixed
+- The About panel no longer shows the version twice; it now reads
+  "Version 0.3.0 (commit)" with a copyright line.
+- The sessions list scrollbar is a thin bar revealed on hover, instead of a
+  wide, always-visible one.
+- Right-clicking no longer offers "Reload", which would have discarded every
+  open terminal.
+- Section headers, the +Add / +New buttons, and the status-bar metrics are no
+  longer accidentally text-selectable.
+
 ## [0.2.0] — 2026-06-01
 
 ### Added
