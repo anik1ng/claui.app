@@ -31,6 +31,10 @@
   gap: 7px;
   padding: 0 12px;
   color: var(--claui-fg-dim);
+  /* A 2px transparent top border balances the bottom accent border so the
+     label centres symmetrically — without it `align-items: center` lands
+     the text ~2px high (the bottom border eats into the content box). */
+  border-top: 2px solid transparent;
   border-bottom: 2px solid transparent;
   cursor: pointer;
   white-space: nowrap;

@@ -39,21 +39,25 @@ function IconShell({ children, ...props }: IconShellProps) {
 export function IconClaudeMascot() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      {/* Artwork spans y=5..19 (height 14) so it is vertically centred in the
+          0..24 viewBox — 5px clear top and bottom. (Was y=4..18, which left it
+          ~0.6px high at the 14px render and read as extra space below the icon
+          in the workspace tabs.) */}
       {/* Head: top row */}
-      <rect x="4" y="4" width="16" height="2" />
+      <rect x="4" y="5" width="16" height="2" />
       {/* Eye row — solid except two gaps for the eyes */}
-      <rect x="4" y="6" width="2" height="2" />
-      <rect x="8" y="6" width="8" height="2" />
-      <rect x="18" y="6" width="2" height="2" />
+      <rect x="4" y="7" width="2" height="2" />
+      <rect x="8" y="7" width="8" height="2" />
+      <rect x="18" y="7" width="2" height="2" />
       {/* Head: row below eyes */}
-      <rect x="4" y="8" width="16" height="2" />
+      <rect x="4" y="9" width="16" height="2" />
       {/* Body: wider, two rows tall */}
-      <rect x="2" y="10" width="20" height="4" />
+      <rect x="2" y="11" width="20" height="4" />
       {/* Four legs */}
-      <rect x="2" y="14" width="2" height="4" />
-      <rect x="6" y="14" width="2" height="4" />
-      <rect x="16" y="14" width="2" height="4" />
-      <rect x="20" y="14" width="2" height="4" />
+      <rect x="2" y="15" width="2" height="4" />
+      <rect x="6" y="15" width="2" height="4" />
+      <rect x="16" y="15" width="2" height="4" />
+      <rect x="20" y="15" width="2" height="4" />
     </svg>
   );
 }
