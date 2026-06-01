@@ -96,9 +96,9 @@ Workspace-tab visuals are unified with the toolbar: the `✦` / `$` text glyphs 
 
 **Context.** Tab switching was `Cmd+1..9` and project switching the awkward two-modifier `Cmd+Alt+1..9`. The user wanted each on a single modifier and discoverable.
 
-**Decision.** Tabs → `Ctrl+1..9` (`src/tabs/keyboard.ts`), projects → `Cmd+1..9` (new pure mapper `src/projects/projectSwitchKey.ts`, used by `useProjectSwitchKeyboard`). `9` keeps the Chrome "last" convention. The two are mutually exclusive (tabs require Ctrl and reject Cmd; projects the reverse). The `e.code` Option-transmutation workaround is dropped (no Option in the new binding). Separately, the New-Tab menu accelerators were swapped: `Cmd+T` now opens a terminal tab, `Cmd+Shift+T` a Claude tab.
+**Decision.** Tabs → `Cmd+1..9` (`src/tabs/keyboard.ts`) — matching the universal macOS/browser tab convention (Safari/Chrome/iTerm/Terminal) — and projects → `Ctrl+1..9` (new pure mapper `src/projects/projectSwitchKey.ts`, used by `useProjectSwitchKeyboard`). `9` keeps the Chrome "last" convention. The two are mutually exclusive (tabs require Cmd and reject Ctrl; projects the reverse). The `e.code` Option-transmutation workaround is dropped (no Option in the new binding). Separately, the New-Tab menu accelerators were swapped: `Cmd+T` now opens a terminal tab, `Cmd+Shift+T` a Claude tab.
 
-**Consequences.** `Ctrl+digit` no longer reaches the terminal (rarely-used control input), consistent with how `Cmd+digit` was already intercepted in capture phase. Holding `Ctrl`/`Cmd` ~350 ms surfaces hint badges (see `src/layout/useHeldModifier.ts`). `Ctrl+\`` and `Ctrl+B` are unaffected.
+**Consequences.** `Ctrl+digit` no longer reaches the terminal (rarely-used control input), consistent with how `Cmd+digit` was already intercepted in capture phase. Holding either `Cmd` or `Ctrl` ~350 ms surfaces the hint badges on both tabs (`⌘N`) and projects (`⌃N`) (see `src/layout/useHeldModifier.ts`). `Ctrl+\`` and `Ctrl+B` are unaffected.
 
 **References.** `src/tabs/keyboard.ts`, `src/projects/projectSwitchKey.ts`, `src/projects/useProjectSwitchKeyboard.ts`, `src-tauri/src/menu.rs`, `CLAUDE.md`. Spec: `docs/superpowers/specs/2026-06-01-numeric-switching-and-hud-design.md` (gitignored; local-only).
 

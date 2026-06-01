@@ -4,11 +4,11 @@ import type { ProjectEntry } from './types';
  * Pure mapper: which project id does a Cmd+digit keypress target?
  * Returns null for events we don't handle.
  *
- * Bindings (Cmd on macOS):
- *  - Cmd+1..8 → projects[N-1].id; null if fewer projects.
- *  - Cmd+9    → projects[last].id; null if fewer than 2 projects.
+ * Bindings (Ctrl):
+ *  - Ctrl+1..8 → projects[N-1].id; null if fewer projects.
+ *  - Ctrl+9    → projects[last].id; null if fewer than 2 projects.
  *
- * Requires Cmd alone — any of Ctrl/Alt/Shift returns null. Reads `e.key`
+ * Requires Ctrl alone — any of Cmd/Alt/Shift returns null. Reads `e.key`
  * for the digit: without Option held, macOS does not transmute the digit
  * character, so the previous `e.code` (Digit1..9) workaround is unneeded.
  */
@@ -16,8 +16,8 @@ export function projectSwitchTarget(
   event: KeyboardEvent,
   projects: ProjectEntry[],
 ): string | null {
-  if (!event.metaKey) return null;
-  if (event.ctrlKey || event.altKey || event.shiftKey) return null;
+  if (!event.ctrlKey) return null;
+  if (event.metaKey || event.altKey || event.shiftKey) return null;
   const key = event.key;
 
   if (key === '9') {
