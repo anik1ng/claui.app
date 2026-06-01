@@ -50,6 +50,33 @@
   overscroll-behavior: contain;
   padding-bottom: 4px;
 }
+/* Without an explicit `::-webkit-scrollbar`, WKWebView falls back to a wide,
+   opaque, always-visible system bar. Replace it with a thin overlay thumb
+   whose colours mirror the terminal's (TerminalView.css), but kept transparent
+   until the list is hovered — the sidebar is glanced at, not scrolled
+   constantly, so the bar stays out of the way until reached for. The 8px gutter
+   is always reserved (only the thumb fades in), so revealing it shifts nothing. */
+.sidebar-list::-webkit-scrollbar {
+  width: 8px;
+  background: transparent;
+}
+.sidebar-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-list::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.sidebar-list:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  background-clip: padding-box;
+}
+.sidebar-list:hover::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.32);
+  background-clip: padding-box;
+}
 /* The sessions list takes all remaining vertical space below the projects
    section (which sizes to content above the divider). `flex: 1 1 0` +
    `min-height: 0` turn it into a height-constrained scroll container so
