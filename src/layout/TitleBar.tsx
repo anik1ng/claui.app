@@ -17,6 +17,10 @@ interface Props {
   showTabActions: boolean;
   onOpenClaude: () => void;
   onOpenShell: () => void;
+  /** Title shown centered when no project is open (no `ProjectArea` is mounted
+   *  to portal its tabs/name into the slot). Once a project opens, its
+   *  `WorkspaceTabBar` fills the slot instead and this is undefined. */
+  emptyTitle?: string;
 }
 
 /**
@@ -32,11 +36,19 @@ interface Props {
  * cooperates (see TitleBar.css for the matching no-drag overrides on
  * buttons and the workspace tabs).
  */
-export function TitleBar({ workspaceTabsRef, showTabActions, onOpenClaude, onOpenShell }: Props) {
+export function TitleBar({
+  workspaceTabsRef,
+  showTabActions,
+  onOpenClaude,
+  onOpenShell,
+  emptyTitle,
+}: Props) {
   return (
     <div className="titlebar" data-tauri-drag-region="deep">
       <div className="titlebar-traffic-lights" aria-hidden />
-      <div ref={workspaceTabsRef} className="workspace-tabs-slot" />
+      <div ref={workspaceTabsRef} className="workspace-tabs-slot">
+        {emptyTitle && <div className="titlebar-heading">{emptyTitle}</div>}
+      </div>
       <div className="titlebar-toolbar" role="toolbar" aria-label="Window actions">
         {showTabActions && (
           <>

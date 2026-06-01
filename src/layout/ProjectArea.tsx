@@ -7,6 +7,7 @@ import { useSessionsPolling } from '../sessions/useSessionsPolling';
 import { WorkspaceTabBar } from '../tabs/WorkspaceTabBar';
 import { useTabs } from '../tabs/useTabs';
 import { openSessionIds } from '../tabs/openSessionIds';
+import { basename } from '../projects/basename';
 import { useLayoutKeyboard } from './useLayoutKeyboard';
 import { TabPane } from './TabPane';
 import { listen } from '@tauri-apps/api/event';
@@ -186,6 +187,7 @@ function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, set
           onPickTab={setActive}
           onCloseTab={closeTab}
           showShortcuts={showTabShortcuts}
+          projectName={basename(projectPath)}
         />,
         slots.workspaceTabs,
       )}

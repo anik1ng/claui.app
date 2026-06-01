@@ -63,6 +63,22 @@
   overflow: hidden;
 }
 
+/* The window title shown centered in the slot when there's no tab switcher —
+   either no project open (App's `emptyTitle`) or a single tab
+   (WorkspaceTabBar's fallback). `margin: auto` centers it within the flex
+   slot; the drag region is preserved so the title area still drags. */
+.titlebar-heading {
+  -webkit-app-region: drag;
+  margin: auto;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--claui-fg-dim);
+}
+
 .titlebar-toolbar {
   margin-left: auto;
   /* Toolbar wrapper itself opts OUT of the drag region — its no-drag

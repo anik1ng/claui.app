@@ -14,12 +14,16 @@ interface Props {
   onCloseTab: (uid: string) => void;
   /** When true (App: Ctrl held), show a `⌃N` hint badge on each tab. */
   showShortcuts: boolean;
+  /** Shown centered in the title bar when there's no tab switcher (a single
+   *  tab) — the active project's name, acting as the window title. */
+  projectName: string;
 }
 
 /**
- * 28px-tall workspace tab strip. Renders only when at least two tabs
- * exist — a single primary needs no switcher. The "new tab" toolbar
- * lives in `TitleBar` (always present), not here.
+ * 28px-tall workspace tab strip. The switcher only makes sense with at
+ * least two tabs; with a single tab it instead renders the active project's
+ * name centered, so the title bar reads as a window title rather than empty
+ * space. The "new tab" toolbar lives in `TitleBar` (always present), not here.
  *
  * Active tab styling: a 2px `--claui-accent` bottom border — same visual
  * language as the sessions sidebar's left-edge accent for active rows.
@@ -35,8 +39,11 @@ export function WorkspaceTabBar({
   onPickTab,
   onCloseTab,
   showShortcuts,
+  projectName,
 }: Props) {
-  if (tabs.length < 2) return null;
+  if (tabs.length < 2) {
+    return <div className="titlebar-heading">{projectName}</div>;
+  }
   const labels = hintLabels(tabs.length);
   return (
     <div className="ws-tab-bar">

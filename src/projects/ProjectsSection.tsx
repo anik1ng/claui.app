@@ -1,6 +1,7 @@
 import type { ProjectEntry } from '../ipc/commands';
 import { ListRow } from '../sessions/ListRow';
 import { hintLabels } from '../layout/hintLabels';
+import { basename } from './basename';
 
 interface Props {
   projects: ProjectEntry[];
@@ -10,14 +11,6 @@ interface Props {
   onAdd: () => void;
   /** When true (App: Cmd held), show a `⌘N` hint badge on each project row. */
   showShortcuts: boolean;
-}
-
-/** Last segment of an absolute path; falls back to the full string. */
-function basename(p: string): string {
-  if (!p) return p;
-  const trimmed = p.endsWith('/') ? p.slice(0, -1) : p;
-  const idx = trimmed.lastIndexOf('/');
-  return idx < 0 ? trimmed : trimmed.slice(idx + 1);
 }
 
 /**

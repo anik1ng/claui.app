@@ -124,6 +124,7 @@ export default function App() {
         showTabActions={projects.length > 0}
         onOpenClaude={() => void emit('menu:new-claude-tab')}
         onOpenShell={() => void emit('menu:new-shell-tab')}
+        emptyTitle={projects.length === 0 ? 'claui' : undefined}
       />
       {projects.length === 0 ? (
         <ProjectPicker onPick={(folder) => { addProject(folder); }} />
