@@ -2,6 +2,7 @@
 import type { Tab } from './types';
 import type { SessionInfo } from '../ipc/commands';
 import { IconClaudeMascot, IconTerminal } from '../layout/Icons';
+import { hintLabels } from '../layout/hintLabels';
 import { tabTitle } from './tabTitle';
 import './WorkspaceTabBar.css';
 
@@ -11,6 +12,8 @@ interface Props {
   sessions: SessionInfo[];
   onPickTab: (uid: string) => void;
   onCloseTab: (uid: string) => void;
+  /** When true (App: Ctrl held), show a `⌃N` hint badge on each tab. */
+  showShortcuts: boolean;
 }
 
 /**
@@ -31,12 +34,14 @@ export function WorkspaceTabBar({
   sessions,
   onPickTab,
   onCloseTab,
+  showShortcuts,
 }: Props) {
   if (tabs.length < 2) return null;
+  const labels = hintLabels(tabs.length);
   return (
     <div className="ws-tab-bar">
       <div className="ws-tab-list">
-        {tabs.map((tab) => {
+        {tabs.map((tab, i) => {
           const active = tab.uid === activeUid;
           return (
             <div
@@ -48,6 +53,9 @@ export function WorkspaceTabBar({
                 {tab.kind === 'claude' ? <IconClaudeMascot /> : <IconTerminal />}
               </span>
               <span className="ws-tab-title">{tabTitle(tab, sessions)}</span>
+              {showShortcuts && labels[i] != null && (
+                <span className="ws-tab-hint" aria-hidden>⌃{labels[i]}</span>
+              )}
               {!tab.isPrimary && (
                 <button
                   type="button"

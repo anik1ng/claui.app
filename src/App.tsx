@@ -8,6 +8,7 @@ import { Sidebar } from './sessions/Sidebar';
 import { ProjectsSection } from './projects/ProjectsSection';
 import { useProjects } from './projects/useProjects';
 import { useProjectSwitchKeyboard } from './projects/useProjectSwitchKeyboard';
+import { useHeldModifier } from './layout/useHeldModifier';
 import { useStatusByProject } from './status/useStatusByProject';
 import { useUpdaterCheck } from './updater/useUpdaterCheck';
 import { UpdateToast } from './updater/UpdateToast';
@@ -27,6 +28,7 @@ export default function App() {
   } = useUpdaterCheck();
   const [claudeMissing, setClaudeMissing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const heldModifier = useHeldModifier();
 
   // Portal slots — tracked via callback refs so when a slot's parent unmounts
   // (e.g. Sidebar toggled by Ctrl+B) and remounts, the new DOM node propagates
@@ -137,6 +139,7 @@ export default function App() {
                 isActive={p.id === activeId}
                 status={statuses.get(p.id) ?? null}
                 setSidebarOpen={setSidebarOpen}
+                showTabShortcuts={heldModifier === 'ctrl'}
                 slots={{
                   workspaceTabs: workspaceTabsSlot,
                   status: statusSlot,

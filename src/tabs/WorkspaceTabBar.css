@@ -64,6 +64,16 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.ws-tab-hint {
+  margin-left: 4px;
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--claui-accent);
+  background: var(--claui-active);
+  flex: none;
+}
 .ws-tab-close {
   display: inline-flex;
   align-items: center;

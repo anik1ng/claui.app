@@ -40,6 +40,8 @@ interface Props {
   setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
   /** DOM nodes the active project's chrome portals into. */
   slots: ProjectChromeSlots;
+  /** When true (App: Ctrl held), the workspace tab bar shows its Ctrl+N hints. */
+  showTabShortcuts: boolean;
 }
 
 /**
@@ -62,7 +64,7 @@ interface Props {
  * status reference changes via `statuses.get(projectId)`, so the active one
  * still re-renders correctly.
  */
-function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, setSidebarOpen, slots }: Props) {
+function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, setSidebarOpen, slots, showTabShortcuts }: Props) {
   const {
     tabs,
     activeUid,
@@ -166,6 +168,7 @@ function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, set
           sessions={sessions}
           onPickTab={setActive}
           onCloseTab={closeTab}
+          showShortcuts={showTabShortcuts}
         />,
         slots.workspaceTabs,
       )}
