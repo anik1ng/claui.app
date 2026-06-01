@@ -6,6 +6,8 @@ export interface XtermConfig {
   fontFamily: string;
   fontSize: number;
   cursorStyle: CursorStyle;
+  lineHeight: number;
+  letterSpacing: number;
 }
 
 /**
@@ -75,5 +77,7 @@ export function themeToXterm(theme: Theme): XtermConfig {
     fontFamily: fontFamilyChain(theme.fontFamily, theme.iconFontFamily),
     fontSize: theme.fontSize,
     cursorStyle: theme.cursorStyle,
+    lineHeight: theme.lineHeight,
+    letterSpacing: theme.letterSpacing,
   };
 }

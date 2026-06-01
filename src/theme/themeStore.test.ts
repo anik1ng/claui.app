@@ -20,6 +20,8 @@ const sample: Theme = {
   uiFontFamily: 'Geist, sans-serif',
   iconFontFamily: 'Monaspace Neon NF',
   fontSize: 13,
+  lineHeight: 1.25,
+  letterSpacing: 0,
 };
 
 describe('hex', () => {

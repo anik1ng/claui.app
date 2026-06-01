@@ -21,6 +21,8 @@ const sample: Theme = {
   uiFontFamily: 'Geist',
   iconFontFamily: 'Monaspace Neon NF',
   fontSize: 14,
+  lineHeight: 1.25,
+  letterSpacing: 0,
 };
 
 describe('themeToXterm', () => {
@@ -34,6 +36,16 @@ describe('themeToXterm', () => {
     expect(cfg.fontFamily).toBe('Menlo, "Monaspace Neon NF", Menlo, monospace');
     expect(cfg.fontSize).toBe(14);
     expect(cfg.cursorStyle).toBe('bar');
+  });
+
+  it('propagates line/letter spacing verbatim', () => {
+    const cfg = themeToXterm(sample);
+    expect(cfg.lineHeight).toBe(1.25);
+    expect(cfg.letterSpacing).toBe(0);
+
+    const tight = themeToXterm({ ...sample, lineHeight: 1.4, letterSpacing: 0.5 });
+    expect(tight.lineHeight).toBe(1.4);
+    expect(tight.letterSpacing).toBe(0.5);
   });
 
   it('inserts the icon family between the primary face and the rest of the chain', () => {

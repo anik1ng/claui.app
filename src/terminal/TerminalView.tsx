@@ -54,6 +54,8 @@ export function TerminalView({ theme, open, autoFocus, onSpawnFailed }: Props) {
       fontFamily: cfg.fontFamily,
       fontSize: cfg.fontSize,
       cursorStyle: cfg.cursorStyle,
+      lineHeight: cfg.lineHeight,
+      letterSpacing: cfg.letterSpacing,
       cursorBlink: true,
       scrollback: 5000,
     });

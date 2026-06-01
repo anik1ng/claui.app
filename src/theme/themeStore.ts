@@ -72,6 +72,17 @@ export interface Theme {
    */
   iconFontFamily: string;
   fontSize: number;
+  /**
+   * Terminal line height as a multiple of the font size (xterm.js
+   * `lineHeight`). > 1 adds vertical breathing room between rows.
+   */
+  lineHeight: number;
+  /**
+   * Extra horizontal space between glyphs in px (xterm.js `letterSpacing`).
+   * Keep at 0 by default: the DOM renderer can leave gaps in the box-drawing
+   * glyphs claude uses for borders once this is non-zero.
+   */
+  letterSpacing: number;
 }
 
 /**
@@ -115,6 +126,8 @@ export const defaultTheme: Theme = {
     "Geist, -apple-system, 'SF Pro Text', 'Inter', system-ui, sans-serif",
   iconFontFamily: 'Monaspace Neon NF',
   fontSize: 13,
+  lineHeight: 1.25,
+  letterSpacing: 0,
 };
 
 /**
