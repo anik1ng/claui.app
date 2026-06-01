@@ -21,6 +21,8 @@ interface Props {
   onClose?: () => void;
   /** Tooltip text (e.g. full path for project rows). */
   title?: string;
+  /** Optional shortcut pill shown on the right (e.g. "⌘1"). */
+  hint?: string;
 }
 
 /**
@@ -32,7 +34,7 @@ interface Props {
  * `<button>` can live inside it without invalid nesting (interactive elements
  * inside a button are not allowed).
  */
-export function ListRow({ label, meta, badge, isActive, onClick, onClose, title }: Props) {
+export function ListRow({ label, meta, badge, isActive, onClick, onClose, title, hint }: Props) {
   return (
     <div
       className={isActive ? 'list-row active' : 'list-row'}
@@ -54,6 +56,9 @@ export function ListRow({ label, meta, badge, isActive, onClick, onClose, title 
         </span>
       )}
       {meta && <span className="list-row-meta">{meta}</span>}
+      {hint && (
+        <span className="list-row-hint" aria-hidden>{hint}</span>
+      )}
       {onClose && (
         <button
           type="button"

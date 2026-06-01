@@ -1,5 +1,6 @@
 import type { ProjectEntry } from '../ipc/commands';
 import { ListRow } from '../sessions/ListRow';
+import { hintLabels } from '../layout/hintLabels';
 
 interface Props {
   projects: ProjectEntry[];
@@ -7,6 +8,8 @@ interface Props {
   onPick: (id: string) => void;
   onClose: (id: string) => void;
   onAdd: () => void;
+  /** When true (App: Cmd held), show a `⌘N` hint badge on each project row. */
+  showShortcuts: boolean;
 }
 
 /** Last segment of an absolute path; falls back to the full string. */
@@ -23,8 +26,9 @@ function basename(p: string): string {
  * `<ListRow>` as the sessions section below so the two read as one unified
  * navigation panel.
  */
-export function ProjectsSection({ projects, activeId, onPick, onClose, onAdd }: Props) {
+export function ProjectsSection({ projects, activeId, onPick, onClose, onAdd, showShortcuts }: Props) {
   if (projects.length < 2) return null;
+  const labels = hintLabels(projects.length);
   return (
     <>
       <div className="sidebar-header">
@@ -34,7 +38,7 @@ export function ProjectsSection({ projects, activeId, onPick, onClose, onAdd }: 
         </button>
       </div>
       <div className="sidebar-list">
-        {projects.map((p) => (
+        {projects.map((p, i) => (
           <ListRow
             key={p.id}
             label={basename(p.path)}
@@ -42,6 +46,7 @@ export function ProjectsSection({ projects, activeId, onPick, onClose, onAdd }: 
             title={p.path}
             onClick={() => onPick(p.id)}
             onClose={() => onClose(p.id)}
+            hint={showShortcuts && labels[i] != null ? `⌘${labels[i]}` : undefined}
           />
         ))}
       </div>

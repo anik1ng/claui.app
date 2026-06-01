@@ -156,6 +156,7 @@ export default function App() {
                 onPick={setActive}
                 onClose={handleCloseProject}
                 onAdd={requestAddProject}
+                showShortcuts={heldModifier === 'meta'}
               />
               {/* Portal target — the active ProjectArea renders SessionsSection
                   into this slot via createPortal. */}

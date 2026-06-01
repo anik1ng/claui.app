@@ -65,3 +65,13 @@
   background: var(--claui-active);
   color: var(--claui-fg);
 }
+.list-row-hint {
+  margin-left: 6px;
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--claui-accent);
+  background: var(--claui-active);
+  flex: none;
+}
