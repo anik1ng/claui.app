@@ -73,6 +73,7 @@ function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, set
     closeTab,
     setActive,
     setTabResume,
+    newSessionInTab,
   } = useTabs(projectPath, projectId);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -138,6 +139,22 @@ function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, set
     [tabs, activeUid, setActive, openClaudeTab, setTabResume],
   );
 
+  // "+ New" in the sidebar. Mirrors `pickSession`'s intent model: a plain
+  // click reuses the active claude tab (restarting it on a fresh session),
+  // Cmd-click (`newTab`) opens a new tab. If the active tab isn't a claude
+  // tab, there's nothing to reuse, so fall back to a new tab.
+  const startNewSession = useCallback(
+    (newTab: boolean) => {
+      const activeTab = tabs.find((t) => t.uid === activeUid);
+      if (newTab || activeTab?.kind !== 'claude') {
+        openClaudeTab();
+        return;
+      }
+      newSessionInTab(activeTab.uid);
+    },
+    [tabs, activeUid, openClaudeTab, newSessionInTab],
+  );
+
   const startDrag = (e: React.MouseEvent) => {
     e.preventDefault();
     const startY = e.clientY;
@@ -179,7 +196,7 @@ function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, set
           activeSessionId={status?.sessionId ?? null}
           openSessionIds={sessionIdsOpen}
           onPick={pickSession}
-          onNew={() => openClaudeTab()}
+          onNew={startNewSession}
         />,
         slots.sessions,
       )}

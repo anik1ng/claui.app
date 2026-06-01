@@ -25,6 +25,14 @@ export interface Tab {
    * non-primary tabs (a known 3a limitation — see spec §2).
    */
   sessionId: string | null;
+  /**
+   * Bumped to force `TerminalView` to respawn the tab's PTY even when no other
+   * spawn-relevant field changed. Used by `newSessionInTab` to start a fresh
+   * claude in the active tab (`resumeId` stays null, so changing it can't be
+   * the respawn trigger — see `TabPane`'s `open` dependency set). Absent until
+   * the first reset; treated as 0.
+   */
+  spawnNonce?: number;
 }
 
 export interface TabsState {

@@ -20,7 +20,9 @@ interface Props {
   /** Set of sessionIds currently held by some workspace tab. */
   openSessionIds: Set<string>;
   onPick: (id: string, intent: SessionPickIntent) => void;
-  onNew: () => void;
+  /** Start a fresh session. `newTab` (Cmd-click) opens it in a new tab;
+   *  otherwise it reuses the active claude tab — mirroring `onPick`'s intent. */
+  onNew: (newTab: boolean) => void;
 }
 
 /**
@@ -40,7 +42,11 @@ export function SessionsSection({
     <>
       <div className="sidebar-header">
         <span>SESSIONS</span>
-        <button type="button" className="sidebar-new" onClick={onNew}>
+        <button
+          type="button"
+          className="sidebar-new"
+          onClick={(e) => onNew(e.metaKey)}
+        >
           + New
         </button>
       </div>

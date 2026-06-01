@@ -108,6 +108,49 @@ describe('tabsReducer / updatePrimarySessionId', () => {
   });
 });
 
+describe('tabsReducer / newSessionInTab', () => {
+  it('clears resumeId and sessionId and bumps spawnNonce on the matching tab', () => {
+    const s0: TabsState = {
+      tabs: [primary({ resumeId: 'old', sessionId: 'old' })],
+      activeUid: 'tab-1',
+    };
+    const s = tabsReducer(s0, { type: 'newSessionInTab', uid: 'tab-1' });
+    expect(s.tabs[0].resumeId).toBe(null);
+    expect(s.tabs[0].sessionId).toBe(null);
+    expect(s.tabs[0].spawnNonce).toBe(1);
+  });
+
+  it('bumps spawnNonce even when the tab was already fresh (forces a respawn)', () => {
+    const s0: TabsState = { tabs: [primary()], activeUid: 'tab-1' };
+    const s1 = tabsReducer(s0, { type: 'newSessionInTab', uid: 'tab-1' });
+    const s2 = tabsReducer(s1, { type: 'newSessionInTab', uid: 'tab-1' });
+    expect(s1.tabs[0].spawnNonce).toBe(1);
+    expect(s2.tabs[0].spawnNonce).toBe(2);
+  });
+
+  it('preserves isPrimary when applied to the primary tab', () => {
+    const s0: TabsState = { tabs: [primary()], activeUid: 'tab-1' };
+    const s = tabsReducer(s0, { type: 'newSessionInTab', uid: 'tab-1' });
+    expect(s.tabs[0].isPrimary).toBe(true);
+  });
+
+  it('does not touch other tabs', () => {
+    const s0: TabsState = {
+      tabs: [primary({ resumeId: 'one', sessionId: 'one' }), sub('tab-2')],
+      activeUid: 'tab-1',
+    };
+    const s = tabsReducer(s0, { type: 'newSessionInTab', uid: 'tab-2' });
+    expect(s.tabs[0].resumeId).toBe('one');
+    expect(s.tabs[0].sessionId).toBe('one');
+  });
+
+  it('is a no-op for an unknown uid', () => {
+    const s0: TabsState = { tabs: [primary()], activeUid: 'tab-1' };
+    const s = tabsReducer(s0, { type: 'newSessionInTab', uid: 'nope' });
+    expect(s).toEqual(s0);
+  });
+});
+
 describe('tabsReducer / setTabResume', () => {
   it('replaces both resumeId and sessionId on the matching tab', () => {
     const s0: TabsState = {

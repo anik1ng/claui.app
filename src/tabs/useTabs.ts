@@ -28,6 +28,9 @@ export interface UseTabs {
    *  when the user picks a session in the sidebar and the active tab is
    *  already a claude tab. */
   setTabResume: (uid: string, resumeId: string) => void;
+  /** Restart `uid` on a fresh claude session (no `--resume`) — used by the
+   *  sidebar's "+ New" when reusing the active claude tab. */
+  newSessionInTab: (uid: string) => void;
 }
 
 // Auto-creates the primary claude tab when the list is empty.
@@ -124,6 +127,10 @@ export function useTabs(projectPath: string, projectId: string): UseTabs {
     dispatch({ type: 'setTabResume', uid, resumeId });
   }, []);
 
+  const newSessionInTab = useCallback((uid: string) => {
+    dispatch({ type: 'newSessionInTab', uid });
+  }, []);
+
   return {
     tabs: state.tabs,
     activeUid: state.activeUid,
@@ -132,5 +139,6 @@ export function useTabs(projectPath: string, projectId: string): UseTabs {
     closeTab,
     setActive,
     setTabResume,
+    newSessionInTab,
   };
 }

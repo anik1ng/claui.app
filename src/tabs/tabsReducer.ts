@@ -6,7 +6,8 @@ export type TabsAction =
   | { type: 'setActive'; uid: string }
   | { type: 'closeTab'; uid: string }
   | { type: 'updatePrimarySessionId'; sessionId: string }
-  | { type: 'setTabResume'; uid: string; resumeId: string };
+  | { type: 'setTabResume'; uid: string; resumeId: string }
+  | { type: 'newSessionInTab'; uid: string };
 
 export const initialState: TabsState = { tabs: [], activeUid: null };
 
@@ -56,6 +57,24 @@ export function tabsReducer(state: TabsState, action: TabsAction): TabsState {
       if (idx < 0) return state;
       const tabs = [...state.tabs];
       tabs[idx] = { ...tabs[idx], resumeId: action.resumeId, sessionId: action.resumeId };
+      return { ...state, tabs };
+    }
+
+    case 'newSessionInTab': {
+      // Restart this tab on a brand-new claude session: drop the resume/session
+      // ids so the next spawn omits `--resume`, and bump `spawnNonce` so the
+      // respawn fires even when `resumeId` was already null (a fresh primary).
+      // `isPrimary` is preserved — the pinned primary stays pinned, only its
+      // hosted session changes.
+      const idx = state.tabs.findIndex((t) => t.uid === action.uid);
+      if (idx < 0) return state;
+      const tabs = [...state.tabs];
+      tabs[idx] = {
+        ...tabs[idx],
+        resumeId: null,
+        sessionId: null,
+        spawnNonce: (tabs[idx].spawnNonce ?? 0) + 1,
+      };
       return { ...state, tabs };
     }
   }

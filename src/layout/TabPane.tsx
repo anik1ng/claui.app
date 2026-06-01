@@ -23,7 +23,9 @@ interface Props {
  * `<TerminalView>` so the PTY is spawned once per tab and not re-spawned
  * when unrelated ProjectArea state (e.g. `status:update` ticks, drawer drag)
  * changes. The dependency set on the callback is the minimum that affects
- * the spawn: projectId, projectPath, tab.kind, tab.resumeId, tab.isPrimary.
+ * the spawn: projectId, projectPath, tab.kind, tab.resumeId, tab.isPrimary,
+ * tab.spawnNonce (bumped by `newSessionInTab` to force a fresh-session respawn
+ * when `resumeId` is unchanged).
  *
  * Why this is a separate component: `useCallback` cannot be called inside
  * `ProjectArea`'s `tabs.map(...)` loop (hooks must be at the top level of a
@@ -46,7 +48,12 @@ export function TabPane({ tab, projectId, projectPath, theme, isActive, onSpawnF
       }
       return openCommandTerminal(projectPath, ch, cols, rows);
     },
-    [projectId, projectPath, tab.kind, tab.resumeId, tab.isPrimary],
+    // `tab.spawnNonce` is in the list though the body never reads it: bumping it
+    // (via `newSessionInTab`) changes this callback's identity, which re-runs
+    // `TerminalView`'s spawn effect and starts a fresh claude — the same
+    // nonce-forces-respawn trick `TerminalView` uses with `restartKey`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [projectId, projectPath, tab.kind, tab.resumeId, tab.isPrimary, tab.spawnNonce],
   );
 
   return (
