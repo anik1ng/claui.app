@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { listen, emit } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ProjectPicker } from './project/ProjectPicker';
@@ -8,8 +8,12 @@ import { Sidebar } from './sessions/Sidebar';
 import { ProjectsSection } from './projects/ProjectsSection';
 import { useProjects } from './projects/useProjects';
 import { useProjectSwitchKeyboard } from './projects/useProjectSwitchKeyboard';
+import { basename } from './projects/basename';
 import { useHeldModifier } from './layout/useHeldModifier';
 import { useStatusByProject } from './status/useStatusByProject';
+import { useNotifyByProject } from './notify/useNotifyByProject';
+import { useWindowFocus } from './notify/useWindowFocus';
+import { projectAggregate, type NotifyKind } from './notify/notifyStore';
 import { useUpdaterCheck } from './updater/useUpdaterCheck';
 import { UpdateToast } from './updater/UpdateToast';
 import { pickProjectFolder } from './project/pickProjectFolder';
@@ -17,9 +21,18 @@ import { cleanupProjectStatus } from './ipc/commands';
 import { defaultTheme, setTheme } from './theme/themeStore';
 import './App.css';
 
+const EMPTY_NOTIFY: ReadonlyMap<string, NotifyKind> = new Map();
+
 export default function App() {
   const { projects, activeId, addProject, closeProject, setActive, isHydrating } = useProjects();
   const statuses = useStatusByProject();
+  const getProjectName = useCallback(
+    (id: string) => { const p = projects.find((x) => x.id === id); return p ? basename(p.path) : id; },
+    [projects],
+  );
+  const { byProject: notifyByProject, markViewed, clear: clearNotify, onFocus, onBlur } =
+    useNotifyByProject(getProjectName);
+  const projectDots = useMemo(() => projectAggregate(notifyByProject), [notifyByProject]);
   const {
     toast: updateToast,
     checkForUpdates,
@@ -41,12 +54,16 @@ export default function App() {
     setTheme(defaultTheme);
   }, []);
 
+  useWindowFocus(onFocus, onBlur);
+
   useEffect(() => {
-    const unlisten = listen('claude:not-found', () => setClaudeMissing(true));
-    return () => {
-      void unlisten.then((fn) => fn());
-    };
-  }, []);
+    const unNotFound = listen('claude:not-found', () => setClaudeMissing(true));
+    // When the user clicks an OS notification banner, Rust focuses the window
+    // and emits `notify:activate`. Switch to the target project here; the
+    // matching ProjectArea's own listener (not gated on isActive) selects the tab.
+    const unActivate = listen<{ projectId: string; tabId: string }>('notify:activate', (e) => { setActive(e.payload.projectId); });
+    return () => { void unNotFound.then((fn) => fn()); void unActivate.then((fn) => fn()); };
+  }, [setActive]);
 
   // The "Check for Updates…" menu item (src-tauri/src/menu.rs) emits this.
   // `checkForUpdates` is a stable callback, so this listener attaches once.
@@ -139,6 +156,9 @@ export default function App() {
                 projectPath={p.path}
                 isActive={p.id === activeId}
                 status={statuses.get(p.id) ?? null}
+                notifyTabs={notifyByProject.get(p.id) ?? EMPTY_NOTIFY}
+                onViewActiveTab={markViewed}
+                onClearTabNotify={clearNotify}
                 setSidebarOpen={setSidebarOpen}
                 showTabShortcuts={heldModifier !== null}
                 slots={{
@@ -158,6 +178,7 @@ export default function App() {
                 onClose={handleCloseProject}
                 onAdd={requestAddProject}
                 showShortcuts={heldModifier !== null}
+                indicators={projectDots}
               />
               {/* Portal target — the active ProjectArea renders SessionsSection
                   into this slot via createPortal. */}

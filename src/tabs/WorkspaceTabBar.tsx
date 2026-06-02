@@ -4,6 +4,7 @@ import type { SessionInfo } from '../ipc/commands';
 import { IconClaudeMascot, IconTerminal } from '../layout/Icons';
 import { hintLabels } from '../layout/hintLabels';
 import { tabTitle } from './tabTitle';
+import type { NotifyKind } from '../notify/notifyStore';
 import './WorkspaceTabBar.css';
 
 interface Props {
@@ -17,6 +18,8 @@ interface Props {
   /** Shown centered in the title bar when there's no tab switcher (a single
    *  tab) — the active project's name, acting as the window title. */
   projectName: string;
+  /** tabId → kind for this project's tabs. */
+  notify: ReadonlyMap<string, NotifyKind>;
 }
 
 /**
@@ -25,8 +28,9 @@ interface Props {
  * name centered, so the title bar reads as a window title rather than empty
  * space. The "new tab" toolbar lives in `TitleBar` (always present), not here.
  *
- * Active tab styling: a 2px `--claui-accent` bottom border — same visual
- * language as the sessions sidebar's left-edge accent for active rows.
+ * Active tab styling: background highlight only (no accent border).
+ * Every tab has an always-present 2px bottom underline that transitions
+ * through rest → done → attention → error colours via CSS `::after`.
  * The `×` close button on non-primary tabs is revealed on per-tab hover
  * (CSS rule on `.ws-tab:hover .ws-tab-close`). The primary tab does NOT
  * render a `×` and ⌘W (via the File menu) is a no-op on it — both
@@ -40,9 +44,16 @@ export function WorkspaceTabBar({
   onCloseTab,
   showShortcuts,
   projectName,
+  notify,
 }: Props) {
   if (tabs.length < 2) {
-    return <div className="titlebar-heading">{projectName}</div>;
+    const soleKind = tabs[0] ? notify.get(tabs[0].uid) : undefined;
+    return (
+      <div className="titlebar-heading">
+        {soleKind && <span className={`ws-heading-bar notify-${soleKind}`} aria-hidden />}
+        {projectName}
+      </div>
+    );
   }
   const labels = hintLabels(tabs.length);
   return (
@@ -50,12 +61,10 @@ export function WorkspaceTabBar({
       <div className="ws-tab-list">
         {tabs.map((tab, i) => {
           const active = tab.uid === activeUid;
+          const kind = notify.get(tab.uid);
+          const cls = `ws-tab${active ? ' active' : ''}${kind ? ` notify-${kind}` : ''}`;
           return (
-            <div
-              key={tab.uid}
-              className={active ? 'ws-tab active' : 'ws-tab'}
-              onClick={() => onPickTab(tab.uid)}
-            >
+            <div key={tab.uid} className={cls} onClick={() => onPickTab(tab.uid)}>
               <span className="ws-tab-glyph" aria-hidden>
                 {tab.kind === 'claude' ? <IconClaudeMascot /> : <IconTerminal />}
               </span>

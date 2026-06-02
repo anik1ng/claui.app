@@ -1,4 +1,5 @@
 import type { ProjectEntry } from '../ipc/commands';
+import type { NotifyKind } from '../notify/notifyStore';
 import { ListRow } from '../sessions/ListRow';
 import { hintLabels } from '../layout/hintLabels';
 import { basename } from './basename';
@@ -11,6 +12,8 @@ interface Props {
   onAdd: () => void;
   /** When true (App: Cmd held), show a `⌘N` hint badge on each project row. */
   showShortcuts: boolean;
+  /** projectId → worst kind, for the row dot. */
+  indicators: Map<string, NotifyKind>;
 }
 
 /**
@@ -19,7 +22,7 @@ interface Props {
  * `<ListRow>` as the sessions section below so the two read as one unified
  * navigation panel.
  */
-export function ProjectsSection({ projects, activeId, onPick, onClose, onAdd, showShortcuts }: Props) {
+export function ProjectsSection({ projects, activeId, onPick, onClose, onAdd, showShortcuts, indicators }: Props) {
   if (projects.length < 2) return null;
   const labels = hintLabels(projects.length);
   return (
@@ -37,6 +40,7 @@ export function ProjectsSection({ projects, activeId, onPick, onClose, onAdd, sh
             label={basename(p.path)}
             isActive={p.id === activeId}
             title={p.path}
+            indicator={indicators.get(p.id) ?? 'none'}
             onClick={() => onPick(p.id)}
             onClose={() => onClose(p.id)}
             hint={showShortcuts && labels[i] != null ? `⌃${labels[i]}` : undefined}

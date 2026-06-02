@@ -1,9 +1,11 @@
 import { invoke, Channel } from '@tauri-apps/api/core';
+import type { NotifyKind } from '../notify/notifyStore';
 
 // Re-export the Channel type so terminal components can annotate their
 // output callbacks without importing @tauri-apps/api/core directly —
 // eslint.config.js restricts that import to this file, the single IPC funnel.
 export type { Channel } from '@tauri-apps/api/core';
+export type { NotifyKind } from '../notify/notifyStore';
 
 export interface ProjectEntry {
   id: string;
@@ -24,6 +26,28 @@ export const saveWindowState = (state: WindowState) =>
 export const cleanupProjectStatus = (projectId: string) =>
   invoke<void>('cleanup_project_status', { projectId });
 
+/** Shape of `notify:update` events — routes a kind to its project + tab. */
+export interface NotifyUpdate {
+  projectId: string;
+  tabId: string;
+  kind: NotifyKind;
+}
+
+export const cleanupTabNotify = (tabId: string) =>
+  invoke<void>('cleanup_tab_notify', { tabId });
+
+/** Stash the project/tab the user should land on when they click an OS
+ *  notification. Registered in Task 5; safe to call before then — the
+ *  Rust side will reject it and the caller swallows the error. */
+export const stashPendingActivation = (projectId: string, tabId: string) =>
+  invoke<void>('stash_pending_activation', { projectId, tabId });
+
+/** Bring the main window to front and emit `notify:activate` with the
+ *  stashed project/tab so the webview can deep-link to it. */
+export function activatePending(): Promise<void> {
+  return invoke('activate_pending');
+}
+
 export const openProject = (
   path: string,
   onOutput: Channel<ArrayBuffer>,
@@ -32,6 +56,7 @@ export const openProject = (
   resumeSessionId: string | undefined,
   isPrimary: boolean,
   projectId: string,
+  tabUid: string,
 ) =>
   invoke<number>('open_project', {
     path,
@@ -41,6 +66,7 @@ export const openProject = (
     resumeSessionId,
     isPrimary,
     projectId,
+    tabId: tabUid,
   });
 
 export const openCommandTerminal = (

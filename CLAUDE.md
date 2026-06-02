@@ -90,6 +90,19 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   (one per primary claude), and emits one `status:update` per project with
   payload `{ projectId, status }`. `filename_to_project_id` is a pure helper
   for extracting the id from the filename.
+- `notify.rs` — the notification pipeline's Rust half. Pure helpers
+  (`notify_file_path`, `filename_to_tab_id`, `parse`, `is_safe_tab_id`);
+  `merge_hooks` idempotently injects claui's Claude `Notification` /
+  `StopFailure` hooks into a project's `.claude/settings.local.json`
+  (`Notification`+`idle_prompt` → `done`, `Notification`+`permission_prompt`
+  → `attention`, `StopFailure` → `error`; the kind is the script's CLI arg);
+  `install_script` writes `/tmp/claui/claui-notify.sh`; `purge_stale_files`
+  wipes leftovers at startup. Each claude tab's hook writes
+  `/tmp/claui/notify-<tabId>.json` = `{ projectId, kind }`. The
+  `statusline.rs` watcher also calls `process_path`, which reads one file and
+  emits `notify:update` with payload `{ projectId, tabId, kind }`. Unlike the
+  statusline wrapper this does NOT gate on `CLAUI_PRIMARY` — every claude tab
+  signals for itself.
 - `sessions.rs` — reads a project's `claude` session files from
   `~/.claude/projects/<encoded>/` for the sessions sidebar.
 - `claude.rs` — locates the `claude` binary on `$PATH` and common install dirs.
@@ -234,8 +247,10 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   session is currently open in some tab. Open projects + the active one
   persist to `<app_config_dir>/window.json` and restore on next launch
   (workspace tabs inside a project do NOT persist; each restored project
-  boots with one fresh primary claude). Split panes, the dashboard, and a
-  git panel are later phases.
+  boots with one fresh primary claude). Notifications surface Claude events
+  as per-tab and per-project indicators (done / attention / error dots, plus
+  an urgent bottom strip on non-active tabs). Split panes, the dashboard, and
+  a git panel are later phases.
 - The primary claude of each open project gets `CLAUI_PRIMARY=1` AND
   `CLAUI_STATUS_FILE=/tmp/claui/status-<projectId>.json` in its env, in
   addition to `CLAUI_ACTIVE=1` (see `src-tauri/src/ipc.rs::build_spawn_env`).
@@ -247,6 +262,41 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   keyed by projectId. Non-primary claudes still run the wrapper (claude
   requires a statusline command) but their wrapper invocations short-circuit
   out of the file-write branch because `CLAUI_PRIMARY` is unset.
+- Notifications surface Claude events via a **single strip channel** — no dots.
+  The pipeline: claui merges `Notification` / `StopFailure` hooks into each
+  project's `.claude/settings.local.json` (`notify::merge_hooks`); when claude
+  fires one, `claui-notify.sh <kind>` writes `/tmp/claui/notify-<tabId>.json` =
+  `{ projectId, kind }` (env `CLAUI_NOTIFY_FILE` / `CLAUI_PROJECT_ID` /
+  `CLAUI_TAB_ID` come from `build_spawn_env`); the `/tmp/claui` watcher emits
+  `notify:update` with `{ projectId, tabId, kind }`; `useNotifyByProject`
+  aggregates into `Map<projectId, Map<tabId, kind>>`. Three kinds: `done`
+  (`--claui-notify-done` #0070F3, static), `attention` (`--claui-notify-attention`
+  #FF990A, `claui-pulse-soft` 1.8 s), `error` (`--claui-notify-error` #DA3036,
+  `claui-pulse-hard` 0.9 s); the channel is transparent (invisible) when idle —
+  only a real signal paints it. `prefers-reduced-motion` disables the pulse. The channel is: the
+  left-edge strip on sidebar rows (`ListRow.css`), the bottom underline on
+  workspace tabs (`WorkspaceTabBar.css`), and a small colour bar beside the
+  project name in the single-tab title-bar heading. **Colour = notification
+  semantics only.** Active/selected state is shown by background highlight, not
+  colour — `--claui-accent` (blue) is removed from all active-state styling and
+  reserved exclusively for `done`. Per-project channel colour = worst kind across
+  tabs (`worstKind`). In-app suppression: the strip is suppressed only for the
+  exact tab being viewed while the window is focused; the signal is cleared on
+  view via `markViewed`; closing a tab clears its entry and removes its temp file
+  (`cleanup_tab_notify`, which whitelists the tab id charset to block path
+  traversal). **System (OS) notifications** fire via `tauri-plugin-notification`
+  only when the claui window is NOT focused, and only for `attention` and `error`
+  (`done` is always silent). One notification per state-entry per project; a
+  transition to a higher severity (attention → error) counts as a new entry;
+  cleared on view. Click deep-link: JS `onAction` → Rust `activate_pending`
+  (`show()` + `set_focus()` the main window, emit `notify:activate
+  {projectId, tabId}`); App switches project, `useNotifyActivateTab` selects the
+  tab. The pending target is stashed by `stash_pending_activation` before the
+  banner shows (last-one-wins if multiple fire before a click). If OS permission
+  is denied, claui degrades to in-app-only. `done` fires on `Notification`+
+  `idle_prompt` (~60 s after turn end) — this is intentional: it means the user
+  actually stepped away, not merely clicked Stop. Sound and preferences UI are
+  deferred (no settings infra yet).
 - The macOS File menu (`src-tauri/src/menu.rs`) owns the
   `Cmd+Shift+N Add Project` / `Cmd+Shift+W Close Project` / `Cmd+T New Terminal
   Tab` / `Cmd+Shift+T New Claude Tab` / `Cmd+W Close Tab` accelerators.

@@ -56,8 +56,11 @@ fn augment_path(home: &Path, existing: &str) -> String {
 
 /// Build the env tuple passed to the spawned claude. Owned strings because
 /// `CLAUI_STATUS_FILE` carries a per-project path generated at runtime — it
-/// can't be a `&'static str`. `project_id` is only consulted when
-/// `is_primary` is true; non-primary spawns get just `CLAUI_ACTIVE=1`.
+/// can't be a `&'static str`. `project_id` is consulted unconditionally (for
+/// `CLAUI_PROJECT_ID` and, when `is_primary`, for the status-file path).
+/// Every spawn gets `CLAUI_ACTIVE=1`, `CLAUI_PROJECT_ID`, `CLAUI_TAB_ID`,
+/// and `CLAUI_NOTIFY_FILE`; `is_primary` additionally adds `CLAUI_PRIMARY=1`
+/// and `CLAUI_STATUS_FILE`.
 ///
 /// `CLAUI_ACTIVE=1` tells the statusline wrapper it's running inside claui
 /// (suppresses the chain to the user's real statusline command).
@@ -77,15 +80,19 @@ fn augment_path(home: &Path, existing: &str) -> String {
 ///      shell-PATH-or-launchd-PATH (whichever's available), deduplicating.
 ///      This is the safety net for users whose `.zshrc` doesn't add
 ///      Homebrew etc.
-///   3. CLAUI overlays — `CLAUI_ACTIVE`, and optionally `CLAUI_PRIMARY`
-///      with `CLAUI_STATUS_FILE`. Overlays come last so they win over any
+///   3. CLAUI overlays — `CLAUI_ACTIVE`, `CLAUI_PROJECT_ID`, `CLAUI_TAB_ID`,
+///      and `CLAUI_NOTIFY_FILE` (the per-tab signal file the hook script reads
+///      to identify which tab triggered a notification; `CLAUI_TAB_ID`
+///      identifies the tab itself), and optionally `CLAUI_PRIMARY` with
+///      `CLAUI_STATUS_FILE`. Overlays come last so they win over any
 ///      same-keyed entry the captured shell happened to set.
 pub(crate) fn build_spawn_env(
     captured: &ShellEnv,
     is_primary: bool,
     project_id: &str,
+    tab_id: &str,
 ) -> Vec<(String, String)> {
-    let mut env: Vec<(String, String)> = Vec::with_capacity(captured.len() + 4);
+    let mut env: Vec<(String, String)> = Vec::with_capacity(captured.len() + 7);
     // Carry over every captured shell-env entry; PATH gets re-augmented
     // separately below so the extras prepend logic stays in one place.
     for (k, v) in captured {
@@ -108,6 +115,14 @@ pub(crate) fn build_spawn_env(
         env.push(("PATH".into(), base_path));
     }
     env.push(("CLAUI_ACTIVE".into(), "1".into()));
+    env.push(("CLAUI_PROJECT_ID".into(), project_id.to_owned()));
+    env.push(("CLAUI_TAB_ID".into(), tab_id.to_owned()));
+    env.push((
+        "CLAUI_NOTIFY_FILE".into(),
+        crate::notify::notify_file_path(tab_id)
+            .to_string_lossy()
+            .into_owned(),
+    ));
     if is_primary {
         env.push(("CLAUI_PRIMARY".into(), "1".into()));
         env.push((
@@ -136,7 +151,15 @@ pub fn open_project(
     resume_session_id: Option<String>,
     is_primary: bool,
     project_id: String,
+    tab_id: String,
 ) -> Result<u32, String> {
+    // `tab_id` becomes a filename fragment in `CLAUI_NOTIFY_FILE`
+    // (`build_spawn_env` → `notify::notify_file_path`); reject anything that
+    // isn't a safe identifier so a malformed IPC caller can't traverse out of
+    // `/tmp/claui/`. Real tab uids are `tab-<uuid>`, which pass.
+    if !crate::notify::is_safe_tab_id(&tab_id) {
+        return Err("invalid tab id".into());
+    }
     let Some(claude) = crate::claude::locate() else {
         let _ = app.emit("claude:not-found", ());
         return Err("claude binary not found".into());
@@ -156,7 +179,7 @@ pub fn open_project(
         args.push(sid.as_str());
     }
 
-    let env = build_spawn_env(crate::shell_env::get(), is_primary, &project_id);
+    let env = build_spawn_env(crate::shell_env::get(), is_primary, &project_id, &tab_id);
 
     let claude = claude.to_string_lossy();
     spawn_terminal(
@@ -286,6 +309,44 @@ pub fn cleanup_project_status(project_id: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Remove a tab's notify file from `/tmp/claui/` when the tab closes.
+/// Idempotent — succeeds if the file does not exist.
+#[tauri::command]
+pub fn cleanup_tab_notify(tab_id: String) -> Result<(), String> {
+    if !crate::notify::is_safe_tab_id(&tab_id) {
+        return Err("invalid tab id".into());
+    }
+    let path = crate::notify::notify_file_path(&tab_id);
+    if path.exists() {
+        std::fs::remove_file(&path).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+/// Stash the project/tab the user should land on when they click the
+/// OS notification banner. Called from the webview just before `sendNotification`
+/// so a fast click always finds the target. Overwrites any previous stash.
+#[tauri::command]
+pub fn stash_pending_activation(state: State<'_, AppState>, project_id: String, tab_id: String) {
+    *state.pending_activation.lock().unwrap() = Some((project_id, tab_id));
+}
+
+/// Bring the main window to front and emit `notify:activate` with the stashed
+/// project/tab so the webview can deep-link to it. Clears the stash.
+#[tauri::command]
+pub fn activate_pending(app: AppHandle, state: State<'_, AppState>) {
+    if let Some(win) = app.get_webview_window("main") {
+        let _ = win.show();
+        let _ = win.set_focus();
+    }
+    if let Some((project_id, tab_id)) = state.pending_activation.lock().unwrap().take() {
+        let _ = app.emit(
+            "notify:activate",
+            serde_json::json!({ "projectId": project_id, "tabId": tab_id }),
+        );
+    }
+}
+
 /// Path of the `window.json` state file inside the app config directory.
 fn window_state_file(app: &AppHandle) -> Option<PathBuf> {
     app.path()
@@ -302,18 +363,24 @@ mod tests {
 
     #[test]
     fn build_spawn_env_marks_primary_with_status_file() {
-        let env = build_spawn_env(&ShellEnv::new(), true, "abc-123");
+        let env = build_spawn_env(&ShellEnv::new(), true, "abc-123", "tab-1");
         assert!(env.iter().any(|(k, v)| k == "CLAUI_ACTIVE" && v == "1"));
         assert!(env.iter().any(|(k, v)| k == "CLAUI_PRIMARY" && v == "1"));
+        assert!(env.iter().any(|(k, v)| k == "CLAUI_PROJECT_ID" && v == "abc-123"));
+        assert!(env.iter().any(|(k, v)| k == "CLAUI_TAB_ID" && v == "tab-1"));
+        let notify = env.iter().find(|(k, _)| k == "CLAUI_NOTIFY_FILE");
+        assert!(notify.unwrap().1.ends_with("notify-tab-1.json"));
         let status = env.iter().find(|(k, _)| k == "CLAUI_STATUS_FILE");
-        assert!(status.is_some());
         assert!(status.unwrap().1.ends_with("status-abc-123.json"));
     }
 
     #[test]
     fn build_spawn_env_skips_primary_and_status_file_for_non_primary() {
-        let env = build_spawn_env(&ShellEnv::new(), false, "abc-123");
+        let env = build_spawn_env(&ShellEnv::new(), false, "abc-123", "tab-1");
         assert!(env.iter().any(|(k, _)| k == "CLAUI_ACTIVE"));
+        assert!(env.iter().any(|(k, v)| k == "CLAUI_PROJECT_ID" && v == "abc-123"));
+        assert!(env.iter().any(|(k, v)| k == "CLAUI_TAB_ID" && v == "tab-1"));
+        assert!(env.iter().any(|(k, _)| k == "CLAUI_NOTIFY_FILE"));
         assert!(!env.iter().any(|(k, _)| k == "CLAUI_PRIMARY"));
         assert!(!env.iter().any(|(k, _)| k == "CLAUI_STATUS_FILE"));
     }
@@ -324,7 +391,7 @@ mod tests {
         captured.insert("FNM_DIR".into(), "/Users/u/.fnm".into());
         captured.insert("NVM_DIR".into(), "/Users/u/.nvm".into());
         captured.insert("EDITOR".into(), "nvim".into());
-        let env = build_spawn_env(&captured, false, "p");
+        let env = build_spawn_env(&captured, false, "p", "tab-1");
         assert!(env
             .iter()
             .any(|(k, v)| k == "FNM_DIR" && v == "/Users/u/.fnm"));
@@ -345,7 +412,7 @@ mod tests {
             "PATH".into(),
             format!("{fnm_path}:/opt/homebrew/bin:/usr/bin"),
         );
-        let env = build_spawn_env(&captured, false, "p");
+        let env = build_spawn_env(&captured, false, "p", "tab-1");
         let (_, path) = env.iter().find(|(k, _)| k == "PATH").unwrap();
         assert!(path.contains(fnm_path), "fnm symlink dropped: {path}");
         // Extras are still prepended for safety.
@@ -365,7 +432,7 @@ mod tests {
         // single-entry.
         let mut captured = ShellEnv::new();
         captured.insert("PATH".into(), "/usr/bin:/bin".into());
-        let env = build_spawn_env(&captured, false, "p");
+        let env = build_spawn_env(&captured, false, "p", "tab-1");
         let path_count = env.iter().filter(|(k, _)| k == "PATH").count();
         assert_eq!(path_count, 1, "expected exactly one PATH entry");
     }

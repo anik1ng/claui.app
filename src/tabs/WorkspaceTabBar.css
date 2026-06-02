@@ -26,6 +26,7 @@
      dragging the window. Buttons inside (the × close) are auto-handled
      by `.titlebar button` no-drag rule. */
   -webkit-app-region: no-drag;
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -48,8 +49,7 @@
 }
 .ws-tab.active {
   color: var(--claui-fg);
-  border-bottom-color: var(--claui-accent);
-  background: var(--claui-hover);
+  background: var(--claui-active);
 }
 .ws-tab-glyph {
   flex: none;
@@ -57,9 +57,6 @@
   align-items: center;
   justify-content: center;
   color: var(--claui-fg-dim);
-}
-.ws-tab.active .ws-tab-glyph {
-  color: var(--claui-accent);
 }
 .ws-tab-title {
   overflow: hidden;
@@ -107,4 +104,30 @@
   opacity: 1;
   background: var(--claui-active);
   color: var(--claui-fg);
+}
+/* Bottom underline channel. Transparent at rest — only a notification kind
+   paints it (coloured/pulsing). The active tab reads from its background, not
+   this underline (no accent border). */
+.ws-tab::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* -2px compensates for the 2px transparent bottom border on .ws-tab,
+     aligning the underline with the tab's true visual bottom edge. */
+  bottom: -2px;
+  height: 2px;
+  background: var(--claui-ch, transparent);
+  animation: var(--claui-ch-anim, none);
+}
+/* Single-tab heading: a small colour bar before the project name. Static —
+   no pulse (heading bar is decorative, not urgent). */
+.ws-heading-bar {
+  display: inline-block;
+  width: 14px;
+  height: 2px;
+  border-radius: 2px;
+  margin-right: 8px;
+  vertical-align: middle;
+  background: var(--claui-ch);
 }

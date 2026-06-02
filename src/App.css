@@ -96,6 +96,9 @@
   --claui-active: #ffffff1a;
   --claui-accent: #0070f3;
   --claui-accent-fg: #ffffff;
+  --claui-notify-done: #0070f3;
+  --claui-notify-attention: #ff990a;
+  --claui-notify-error: #da3036;
   --claui-font-ui: Geist, -apple-system, 'SF Pro Text', 'Inter', system-ui, sans-serif;
   --claui-font-mono: 'Monaspace Neon', Menlo, monospace;
   --claui-font-size: 13px;
@@ -178,4 +181,24 @@ body {
 }
 .claui-banner a {
   color: var(--claui-accent);
+}
+
+/* Notification indicators — shared across the tab bar and the project list. */
+@keyframes claui-pulse-soft {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+@keyframes claui-pulse-hard {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+/* Per-kind channel tokens. Elements that carry a notify-* class inherit
+   --claui-ch (colour) and --claui-ch-anim (animation), consumed by their
+   ::before / ::after pseudo-elements and the ws-heading-bar span. */
+.notify-done      { --claui-ch: var(--claui-notify-done); }
+.notify-attention { --claui-ch: var(--claui-notify-attention); --claui-ch-anim: claui-pulse-soft 1.8s ease-in-out infinite; }
+.notify-error     { --claui-ch: var(--claui-notify-error);     --claui-ch-anim: claui-pulse-hard 0.9s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .notify-attention,
+  .notify-error { --claui-ch-anim: none; }
 }

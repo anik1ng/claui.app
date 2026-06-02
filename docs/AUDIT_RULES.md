@@ -97,6 +97,8 @@ The following functions exceed R1.5's 50-line body limit and are permitted to.
 
 - `src-tauri/src/menu.rs::init` (64 lines) — linear macOS menu construction: five `MenuItemBuilder` declarations, four `SubmenuBuilder` assemblies, the `MenuBuilder` itself, and the `on_menu_event` dispatch. Splitting fragments a single declarative menu definition with no cohesive domain seams to cut on. Re-evaluate when the menu grows beyond 80 lines.
 
+- `src-tauri/src/lib.rs::run` — the single app-setup / bootstrap function: window build, plugin registration, shell-env warm, statusline + notify install, and the full command handler list. These concerns are each a few lines but must all live in the one entry-point; there is no cohesive domain seam to cut on. Suppressed via `#[allow(clippy::too_many_lines)]`.
+
 ## 10. How this file is maintained
 
 **When to update.** AUDIT_RULES.md must be updated alongside any accepted architectural change in the same PR. A rule that no longer reflects the codebase is worse than no rule — it teaches AI edits to chase a stale target.

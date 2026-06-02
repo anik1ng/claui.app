@@ -7,6 +7,11 @@ use crate::pty::PtySession;
 /// and a monotonic id counter.
 pub struct AppState {
     inner: Mutex<Inner>,
+    /// Project + tab the user should land on when they click an OS
+    /// notification. Written by `stash_pending_activation` just before the
+    /// banner is shown; consumed (and cleared) by `activate_pending` when the
+    /// window comes to front.
+    pub pending_activation: Mutex<Option<(String, String)>>,
 }
 
 struct Inner {
@@ -21,6 +26,7 @@ impl AppState {
                 terminals: HashMap::new(),
                 next_id: 1,
             }),
+            pending_activation: Mutex::new(None),
         }
     }
 

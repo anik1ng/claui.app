@@ -9,7 +9,6 @@
   font-size: 12px;
   cursor: pointer;
   position: relative;
-  border-left: 2px solid transparent;
   transition: background 120ms ease, color 120ms ease;
   user-select: none;
   outline: none;
@@ -23,7 +22,19 @@
      row reads as distinct even when an inactive row is being hovered. */
   background: var(--claui-active);
   color: var(--claui-fg);
-  border-left-color: var(--claui-accent);
+}
+/* Left-edge notification channel. Transparent at rest (no clutter on the long
+   session list) — only a real signal paints it. Active state reads from the
+   row background, not this strip. */
+.list-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--claui-ch, transparent);
+  animation: var(--claui-ch-anim, none);
 }
 .list-row-label {
   flex: 1;

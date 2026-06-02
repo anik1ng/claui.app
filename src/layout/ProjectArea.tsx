@@ -16,6 +16,8 @@ import {
   openCommandTerminal,
   type StatusPayload,
 } from '../ipc/commands';
+import { useNotifyActivateTab, useTabNotify } from '../notify/useTabNotify';
+import type { NotifyKind } from '../notify/notifyStore';
 import type { Theme } from '../theme/themeStore';
 import './ProjectArea.css';
 
@@ -43,6 +45,12 @@ interface Props {
   slots: ProjectChromeSlots;
   /** When true (App: Ctrl held), the workspace tab bar shows its Ctrl+N hints. */
   showTabShortcuts: boolean;
+  /** This project's tab signals (tabId → kind), sliced by App. */
+  notifyTabs: ReadonlyMap<string, NotifyKind>;
+  /** Report the active tab as viewed (clears its signal). */
+  onViewActiveTab: (projectId: string, tabId: string) => void;
+  /** Drop a tab's signal when it closes. */
+  onClearTabNotify: (projectId: string, tabId: string) => void;
 }
 
 /**
@@ -65,17 +73,23 @@ interface Props {
  * status reference changes via `statuses.get(projectId)`, so the active one
  * still re-renders correctly.
  */
-function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, setSidebarOpen, slots, showTabShortcuts }: Props) {
+function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, setSidebarOpen, slots, showTabShortcuts, notifyTabs, onViewActiveTab, onClearTabNotify }: Props) {
   const {
     tabs,
     activeUid,
     openClaudeTab,
     openShellTab,
     closeTab,
-    setActive,
+    setActive: setActiveTab,
     setTabResume,
     newSessionInTab,
   } = useTabs(projectPath, projectId);
+
+  const closeTabAndClear = useTabNotify({
+    projectId, isActive, activeUid, closeTab, onViewActiveTab, onClearTabNotify,
+  });
+
+  useNotifyActivateTab(projectId, setActiveTab);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerEverOpened, setDrawerEverOpened] = useState(false);
@@ -94,18 +108,18 @@ function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, set
     const unlistenShell = listen('menu:new-shell-tab', () => openShellTab());
     const unlistenClose = listen('menu:close-tab', () => {
       const uid = activeUidRef.current;
-      if (uid) closeTab(uid);
+      if (uid) closeTabAndClear(uid);
     });
     return () => {
       void unlistenNew.then((fn) => fn());
       void unlistenShell.then((fn) => fn());
       void unlistenClose.then((fn) => fn());
     };
-  }, [isActive, openClaudeTab, openShellTab, closeTab]);
+  }, [isActive, openClaudeTab, openShellTab, closeTabAndClear]);
 
   useLayoutKeyboard({
     tabs,
-    setActive,
+    setActive: setActiveTab,
     drawerOpen,
     setDrawerOpen,
     setDrawerEverOpened,
@@ -123,7 +137,7 @@ function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, set
     (id: string, intent: 'default' | 'newTab') => {
       const existing = tabs.find((t) => t.kind === 'claude' && t.sessionId === id);
       if (existing) {
-        setActive(existing.uid);
+        setActiveTab(existing.uid);
         return;
       }
       if (intent === 'newTab') {
@@ -137,7 +151,7 @@ function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, set
         openClaudeTab(id);
       }
     },
-    [tabs, activeUid, setActive, openClaudeTab, setTabResume],
+    [tabs, activeUid, setActiveTab, openClaudeTab, setTabResume],
   );
 
   // "+ New" in the sidebar. Mirrors `pickSession`'s intent model: a plain
@@ -184,8 +198,9 @@ function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, set
           tabs={tabs}
           activeUid={activeUid}
           sessions={sessions}
-          onPickTab={setActive}
-          onCloseTab={closeTab}
+          onPickTab={setActiveTab}
+          onCloseTab={closeTabAndClear}
+          notify={notifyTabs}
           showShortcuts={showTabShortcuts}
           projectName={basename(projectPath)}
         />,
@@ -212,7 +227,7 @@ function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, set
               projectPath={projectPath}
               theme={theme}
               isActive={tab.uid === activeUid}
-              onSpawnFailed={tab.isPrimary ? undefined : () => closeTab(tab.uid)}
+              onSpawnFailed={tab.isPrimary ? undefined : () => closeTabAndClear(tab.uid)}
             />
           ))}
         </div>

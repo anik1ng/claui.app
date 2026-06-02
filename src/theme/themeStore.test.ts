@@ -11,6 +11,9 @@ const sample: Theme = {
   active: { r: 255, g: 255, b: 255, a: 26 },
   accent: { r: 0, g: 112, b: 243 },
   accentForeground: { r: 255, g: 255, b: 255 },
+  notifyDone: { r: 0x00, g: 0x70, b: 0xf3 },
+  notifyAttention: { r: 0xff, g: 0x99, b: 0x0a },
+  notifyError: { r: 0xda, g: 0x30, b: 0x36 },
   palette: Array.from({ length: 16 }, (_, i) => ({ r: i, g: i, b: i })),
   cursorColor: { r: 10, g: 20, b: 30 },
   cursorStyle: 'block',
@@ -50,6 +53,9 @@ describe('themeToCssVars', () => {
     expect(vars['--claui-active']).toBe('#ffffff1a');
     expect(vars['--claui-accent']).toBe('#0070f3');
     expect(vars['--claui-accent-fg']).toBe('#ffffff');
+    expect(vars['--claui-notify-done']).toBe('#0070f3');
+    expect(vars['--claui-notify-attention']).toBe('#ff990a');
+    expect(vars['--claui-notify-error']).toBe('#da3036');
     expect(vars['--claui-font-mono']).toBe("'Monaspace Neon', Menlo, monospace");
     expect(vars['--claui-font-ui']).toBe('Geist, sans-serif');
     expect(vars['--claui-font-size']).toBe('13px');

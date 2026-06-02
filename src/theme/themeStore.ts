@@ -43,6 +43,10 @@ export interface Theme {
    * future themes that use a light accent must override this.
    */
   accentForeground: Color;
+  /** Notification indicator colours (done / attention / error dots + strips). */
+  notifyDone: Color;
+  notifyAttention: Color;
+  notifyError: Color;
   /** 16-colour ANSI palette for the terminal. */
   palette: Color[];
   cursorColor: Color;
@@ -104,6 +108,9 @@ export const defaultTheme: Theme = {
   active: { r: 0xff, g: 0xff, b: 0xff, a: 0x1a },
   accent: { r: 0x00, g: 0x70, b: 0xf3 },
   accentForeground: { r: 0xff, g: 0xff, b: 0xff },
+  notifyDone: { r: 0x00, g: 0x70, b: 0xf3 },
+  notifyAttention: { r: 0xff, g: 0x99, b: 0x0a },
+  notifyError: { r: 0xda, g: 0x30, b: 0x36 },
   // Vesper ANSI palette (by raunofreiberg) — designed for the same pitch-
   // black chrome we use, with softly saturated accents that don't compete
   // with the white text for attention.
@@ -157,6 +164,9 @@ export function themeToCssVars(theme: Theme): Record<string, string> {
     '--claui-active': hex(theme.active),
     '--claui-accent': hex(theme.accent),
     '--claui-accent-fg': hex(theme.accentForeground),
+    '--claui-notify-done': hex(theme.notifyDone),
+    '--claui-notify-attention': hex(theme.notifyAttention),
+    '--claui-notify-error': hex(theme.notifyError),
     '--claui-font-ui': theme.uiFontFamily,
     '--claui-font-mono': theme.fontFamily,
     '--claui-font-size': `${theme.fontSize}px`,

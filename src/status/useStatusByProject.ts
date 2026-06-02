@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { listen } from '@tauri-apps/api/event';
+import { useState } from 'react';
 import type { StatusPayload, StatusUpdate } from '../ipc/commands';
+import { useListen } from '../notify/useListen';
 
 function statusEqual(a: StatusPayload, b: StatusPayload): boolean {
   return (
@@ -28,22 +28,17 @@ function statusEqual(a: StatusPayload, b: StatusPayload): boolean {
 export function useStatusByProject(): Map<string, StatusPayload> {
   const [statuses, setStatuses] = useState<Map<string, StatusPayload>>(new Map());
 
-  useEffect(() => {
-    const unlisten = listen<StatusUpdate>('status:update', (e) => {
-      setStatuses((prev) => {
-        const existing = prev.get(e.payload.projectId);
-        if (existing && statusEqual(existing, e.payload.status)) {
-          return prev;
-        }
-        const next = new Map(prev);
-        next.set(e.payload.projectId, e.payload.status);
-        return next;
-      });
+  useListen<StatusUpdate>('status:update', (e) => {
+    setStatuses((prev) => {
+      const existing = prev.get(e.payload.projectId);
+      if (existing && statusEqual(existing, e.payload.status)) {
+        return prev;
+      }
+      const next = new Map(prev);
+      next.set(e.payload.projectId, e.payload.status);
+      return next;
     });
-    return () => {
-      void unlisten.then((fn) => fn());
-    };
-  }, []);
+  });
 
   return statuses;
 }

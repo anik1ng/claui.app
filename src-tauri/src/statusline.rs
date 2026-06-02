@@ -100,7 +100,7 @@ pub fn parse(json: &str) -> StatusPayload {
 /// Co-locating the wrapper and the status file in a small, dedicated directory
 /// also makes the file watcher's job trivial: `FSEvents` on macOS is noticeably
 /// flakier under `~/Library/Application Support/` than under `/var/folders/`.
-fn claui_temp_dir() -> PathBuf {
+pub(crate) fn claui_temp_dir() -> PathBuf {
     std::env::temp_dir().join("claui")
 }
 
@@ -120,9 +120,7 @@ pub fn project_status_file_path(project_id: &str) -> PathBuf {
 /// `status-.json` — an empty project id has no consumer and would just
 /// pollute the webview's status Map.
 pub fn filename_to_project_id(name: &str) -> Option<&str> {
-    let stripped = name.strip_prefix("status-")?;
-    let id = stripped.strip_suffix(".json")?;
-    if id.is_empty() { None } else { Some(id) }
+    crate::util::strip_id(name, "status-")
 }
 
 /// Write the statusline wrapper script. The script captures `claude`'s
@@ -180,6 +178,7 @@ pub fn install_project_settings(project_path: &Path) -> std::io::Result<()> {
             "command": wrapper_path().to_string_lossy(),
         }),
     );
+    crate::notify::merge_hooks(&mut root, &crate::notify::script_path().to_string_lossy());
     let pretty = serde_json::to_string_pretty(&serde_json::Value::Object(root))?;
     std::fs::write(&path, format!("{pretty}\n"))?;
     Ok(())
@@ -193,14 +192,9 @@ pub fn install_project_settings(project_path: &Path) -> std::io::Result<()> {
 /// claudes spawning under the freshly-installed wrapper will write fresh
 /// files within their first render — at most a sub-second blank bar.
 pub fn purge_stale_status_files() {
-    let dir = claui_temp_dir();
-    let Ok(entries) = std::fs::read_dir(&dir) else { return };
-    for entry in entries.flatten() {
-        let Some(name) = entry.file_name().to_str().map(str::to_owned) else { continue };
-        if filename_to_project_id(&name).is_some() {
-            let _ = std::fs::remove_file(entry.path());
-        }
-    }
+    crate::util::purge_matching(&claui_temp_dir(), |name| {
+        filename_to_project_id(name).is_some()
+    });
 }
 
 /// Watch the wrapper's directory and emit `status:update` to the webview on
@@ -234,6 +228,7 @@ pub fn start_watcher(app: AppHandle) -> notify::Result<()> {
             let Ok(event) = result else { continue };
             for path in &event.paths {
                 process_path(path, &app);
+                crate::notify::process_path(path, &app);
             }
         }
     });
@@ -246,14 +241,13 @@ pub fn start_watcher(app: AppHandle) -> notify::Result<()> {
 /// deleted). The webview deduplicates content-identical payloads on the JS
 /// side (see `useStatusByProject`), so we do not need a Rust-side cache.
 fn process_path(path: &Path, app: &AppHandle) {
-    let Some(name) = path.file_name().and_then(|n| n.to_str()) else { return };
-    let Some(project_id) = filename_to_project_id(name) else { return };
-    let Ok(text) = std::fs::read_to_string(path) else { return };
-    let status = parse(&text);
-    let _ = app.emit(
-        "status:update",
-        StatusUpdate { project_id: project_id.to_owned(), status },
-    );
+    crate::util::process_claui_file(path, filename_to_project_id, |project_id, text| {
+        let status = parse(&text);
+        let _ = app.emit(
+            "status:update",
+            StatusUpdate { project_id: project_id.to_owned(), status },
+        );
+    });
 }
 
 #[cfg(test)]

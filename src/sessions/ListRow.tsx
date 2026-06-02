@@ -1,4 +1,5 @@
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
+import type { NotifyKind } from '../notify/notifyStore';
 import './ListRow.css';
 
 /**
@@ -23,6 +24,9 @@ interface Props {
   title?: string;
   /** Optional shortcut pill shown on the right (e.g. "⌘1"). */
   hint?: string;
+  /** Optional notification dot on the left (project aggregate). `'none'`
+   *  renders a resting grey dot; omit entirely to render no dot (session rows). */
+  indicator?: NotifyKind | 'none';
 }
 
 /**
@@ -34,10 +38,11 @@ interface Props {
  * `<button>` can live inside it without invalid nesting (interactive elements
  * inside a button are not allowed).
  */
-export function ListRow({ label, meta, badge, isActive, onClick, onClose, title, hint }: Props) {
+export function ListRow({ label, meta, badge, isActive, onClick, onClose, title, hint, indicator }: Props) {
+  const notifyClass = indicator && indicator !== 'none' ? ` notify-${indicator}` : '';
   return (
     <div
-      className={isActive ? 'list-row active' : 'list-row'}
+      className={`list-row${isActive ? ' active' : ''}${notifyClass}`}
       onClick={onClick}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {

@@ -1,11 +1,13 @@
 mod claude;
 mod ipc;
 mod menu;
+mod notify;
 mod pty;
 mod sessions;
 mod shell_env;
 mod state;
 mod statusline;
+mod util;
 mod window_state;
 
 use state::AppState;
@@ -29,6 +31,7 @@ const INIT_SCRIPT: &str = "(function(){var apply=function(){var r=document.docum
 // the app is fatal and unrecoverable — there is no UI left to report it to.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[allow(clippy::expect_used)]
+#[allow(clippy::too_many_lines)]
 pub fn run() {
     tauri::Builder::default()
         // tauri-plugin-window-state restores the main window's last
@@ -41,6 +44,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_notification::init())
         .manage(AppState::new())
         .setup(|app| {
             // The main window is built programmatically (NOT auto-created
@@ -95,6 +99,10 @@ pub fn run() {
             // `status:update` events for projectIds the new window state
             // doesn't know about, and would never be cleaned up.
             statusline::purge_stale_status_files();
+            if let Err(e) = notify::install_script() {
+                eprintln!("claui: failed to install the notify hook script: {e}");
+            }
+            notify::purge_stale_files();
             if let Err(e) = statusline::start_watcher(app.handle().clone()) {
                 eprintln!("claui: statusline watcher failed to start: {e}");
             }
@@ -110,6 +118,9 @@ pub fn run() {
             ipc::get_window_state,
             ipc::save_window_state,
             ipc::cleanup_project_status,
+            ipc::cleanup_tab_notify,
+            ipc::stash_pending_activation,
+            ipc::activate_pending,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

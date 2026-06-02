@@ -44,6 +44,7 @@ export function TabPane({ tab, projectId, projectPath, theme, isActive, onSpawnF
           tab.resumeId ?? undefined,
           tab.isPrimary,
           projectId,
+          tab.uid,
         );
       }
       return openCommandTerminal(projectPath, ch, cols, rows);
@@ -53,7 +54,7 @@ export function TabPane({ tab, projectId, projectPath, theme, isActive, onSpawnF
     // `TerminalView`'s spawn effect and starts a fresh claude — the same
     // nonce-forces-respawn trick `TerminalView` uses with `restartKey`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [projectId, projectPath, tab.kind, tab.resumeId, tab.isPrimary, tab.spawnNonce],
+    [projectId, projectPath, tab.kind, tab.resumeId, tab.isPrimary, tab.spawnNonce, tab.uid],
   );
 
   return (
