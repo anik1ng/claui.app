@@ -27,6 +27,13 @@
      by `.titlebar button` no-drag rule. */
   -webkit-app-region: no-drag;
   position: relative;
+  /* Equal-width tabs: each shares the strip width, floors at 0 so many tabs
+     compress (the title ellipsises) and caps so two tabs don't stretch
+     absurdly wide. The glyph and the fixed 24px tail stay put; only the
+     title flexes. */
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 140px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -61,7 +68,7 @@
 .ws-tab-title {
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 150px;
+  flex: 1 1 auto;
 }
 /* Trailing slot: fixed width holds the × close button, the shortcut badge
    (while a modifier is held), or nothing. Fixed so swapping ×↔badge never
