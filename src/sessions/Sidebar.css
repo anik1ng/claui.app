@@ -8,6 +8,9 @@
   color: var(--claui-fg);
   font-family: var(--claui-font-ui);
   overflow: hidden;
+  /* Positioned so each list's overlay scrollbar thumb (mounted here by
+     useOverlayScrollbar) can be absolutely placed over its list. */
+  position: relative;
   /* Chrome, not content: the section headers and +Add/+New buttons shouldn't
      be text-selectable. Rows already opt out in ListRow.css; this covers the
      headers too. The terminal lives outside .sidebar and keeps its selection. */
@@ -55,32 +58,12 @@
   overscroll-behavior: contain;
   padding-bottom: 4px;
 }
-/* Without an explicit `::-webkit-scrollbar`, WKWebView falls back to a wide,
-   opaque, always-visible system bar. Replace it with a thin overlay thumb
-   whose colours mirror the terminal's (TerminalView.css), but kept transparent
-   until the list is hovered — the sidebar is glanced at, not scrolled
-   constantly, so the bar stays out of the way until reached for. The 8px gutter
-   is always reserved (only the thumb fades in), so revealing it shifts nothing. */
+/* The native scrollbar is hidden; claui draws its own macOS-style overlay
+   scrollbar over the list (useOverlayScrollbar → createOverlayScrollbar), so the
+   terminal and the sidebar share one scrollbar look + behaviour. Hiding a
+   `::-webkit-scrollbar` does not disable scrolling. */
 .sidebar-list::-webkit-scrollbar {
-  width: 8px;
-  background: transparent;
-}
-.sidebar-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-.sidebar-list::-webkit-scrollbar-thumb {
-  background: transparent;
-  border-radius: 4px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-.sidebar-list:hover::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.18);
-  background-clip: padding-box;
-}
-.sidebar-list:hover::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.32);
-  background-clip: padding-box;
+  display: none;
 }
 /* The sessions list takes all remaining vertical space below the projects
    section (which sizes to content above the divider). `flex: 1 1 0` +

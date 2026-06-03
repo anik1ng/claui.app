@@ -1,0 +1,31 @@
+/* macOS-style overlay scrollbar thumb. Rendered by createOverlayScrollbar into
+   a positioned container (the terminal view / the sidebar). Invisible at rest;
+   `.is-visible` is toggled by the controller on scroll / edge-hover / drag.
+   The track is never drawn and the thumb only intercepts pointer events while
+   visible, so the content underneath is never blocked when the bar is hidden. */
+.overlay-scrollbar-thumb {
+  position: absolute;
+  width: 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.3);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 240ms ease, width 120ms ease, background 120ms ease;
+  z-index: 20;
+}
+.overlay-scrollbar-thumb.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+/* Grow + brighten on hover/drag, like a native macOS thumb. */
+.overlay-scrollbar-thumb.is-visible:hover,
+.overlay-scrollbar-thumb.is-dragging {
+  width: 9px;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay-scrollbar-thumb {
+    transition: opacity 0ms, width 0ms, background 0ms;
+  }
+}

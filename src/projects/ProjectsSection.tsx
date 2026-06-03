@@ -2,6 +2,7 @@ import type { ProjectEntry } from '../ipc/commands';
 import type { NotifyKind } from '../notify/notifyStore';
 import { ListRow } from '../sessions/ListRow';
 import { hintLabels } from '../layout/hintLabels';
+import { useOverlayScrollbar } from '../scroll/useOverlayScrollbar';
 import { basename } from './basename';
 
 interface Props {
@@ -23,6 +24,7 @@ interface Props {
  * navigation panel.
  */
 export function ProjectsSection({ projects, activeId, onPick, onClose, onAdd, showShortcuts, indicators }: Props) {
+  const listRef = useOverlayScrollbar(projects.length);
   if (projects.length < 2) return null;
   const labels = hintLabels(projects.length);
   return (
@@ -33,7 +35,7 @@ export function ProjectsSection({ projects, activeId, onPick, onClose, onAdd, sh
           + Add
         </button>
       </div>
-      <div className="sidebar-list">
+      <div className="sidebar-list" ref={listRef}>
         {projects.map((p, i) => (
           <ListRow
             key={p.id}

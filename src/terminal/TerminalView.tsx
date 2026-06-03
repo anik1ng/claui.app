@@ -8,6 +8,8 @@ import { themeToXterm } from './xtermTheme';
 import { isShiftEnterTrigger } from './keyHandler';
 import { type Channel, makeOutputChannel, ptyClose, ptyInput, ptyResize } from '../ipc/commands';
 import { useActivePty } from './activePty';
+import { createOverlayScrollbar, type OverlayScrollbar } from '../scroll/createOverlayScrollbar';
+import { xtermScrollSource } from '../scroll/scrollSources';
 import type { Theme } from '../theme/themeStore';
 import './TerminalView.css';
 
@@ -34,6 +36,23 @@ interface Props {
    * doesn't keep occupying a sessionId in the open-tabs set forever.
    */
   onSpawnFailed?: () => void;
+}
+
+/**
+ * Mount claui's overlay scrollbar over a terminal. xterm 6 draws a VSCode-style
+ * scrollbar that reveals whenever the mouse is anywhere over the terminal (not
+ * macOS-like); it's hidden in TerminalView.css and this is rendered instead —
+ * invisible at rest, shown on scroll / near the right edge, faded when idle.
+ * Driven by xterm's public scroll API; mounted into `.terminal-view`.
+ */
+function attachOverlayScrollbar(term: Terminal, host: HTMLElement): OverlayScrollbar | null {
+  const viewport = host.querySelector<HTMLElement>('.xterm-viewport');
+  if (!viewport || !host.parentElement) return null;
+  return createOverlayScrollbar({
+    container: host.parentElement,
+    scrollEl: viewport,
+    source: xtermScrollSource(term),
+  });
 }
 
 export function TerminalView({ theme, open, autoFocus, isActiveTerminal = false, onSpawnFailed }: Props) {
@@ -88,6 +107,8 @@ export function TerminalView({ theme, open, autoFocus, isActiveTerminal = false,
     fit.fit();
     termRef.current = term;
     if (autoFocus) term.focus();
+
+    const scrollbar = attachOverlayScrollbar(term, host);
 
     let id: number | null = null;
     let cancelled = false;
@@ -270,6 +291,7 @@ export function TerminalView({ theme, open, autoFocus, isActiveTerminal = false,
 
     return () => {
       cancelled = true;
+      scrollbar?.dispose();
       observer.disconnect();
       window.clearTimeout(resizeTimer);
       if (pendingFit) cancelAnimationFrame(pendingFit);

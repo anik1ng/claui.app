@@ -121,6 +121,18 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   canvas blank for ~500ms in WKWebView. xterm's default DOM renderer reflows
   as plain DOM nodes and is invisible on resize.
 - `terminal/xtermTheme.ts` — pure: claui `Theme` → `xterm.js` options.
+- `scroll/*` — one macOS-style overlay scrollbar shared by the terminal and the
+  sessions/projects sidebar. `overlayScrollbarGeometry.ts` is the pure (tested)
+  thumb math; `scrollSources.ts` adapts a native scroll element
+  (`domScrollSource`) or an xterm `Terminal` (`xtermScrollSource`, via the public
+  `onScroll`/`buffer.active`/`scrollToLine` API) to a common interface;
+  `createOverlayScrollbar.ts` renders the thumb — invisible at rest, fades in on
+  scroll or near the right edge, fades out when idle, stays up while hovered or
+  dragged; the track is never drawn and never blocks the content.
+  `useOverlayScrollbar.ts` is the sidebar's callback-ref hook. xterm 6 ships its
+  own VSCode-style scrollbar that reveals on ANY mouse-over of the terminal — it
+  and the native viewport scrollbar are hidden in `TerminalView.css` so only this
+  overlay shows.
 - `terminal/dropPaths.ts`, `terminal/activePty.ts`, `terminal/useFileDrop.ts`
   — file/image drag-and-drop. `useFileDrop` (called once in `App`) listens for
   the window-global `tauri://drag-drop` event and types the dropped paths into

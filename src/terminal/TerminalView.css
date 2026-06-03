@@ -14,26 +14,22 @@
 .terminal-view .xterm-viewport {
   overscroll-behavior: contain;
 }
-/* xterm.css forces `overflow-y: scroll` on .xterm-viewport, which in
-   WKWebView renders a wide, opaque, always-visible system scrollbar — very
-   un-macOS. Override with an overlay-style thin scrollbar that matches
-   native Terminal.app / iTerm2 conventions. */
+/* claui renders its own macOS-style overlay scrollbar (createOverlayScrollbar +
+   xtermScrollSource, wired up in TerminalView.tsx). Hide BOTH scrollbars xterm
+   would otherwise show so only ours is visible:
+   (1) xterm 6's VSCode-style scrollbar, which reveals on ANY mouse-over of the
+       terminal — exactly the un-macOS behaviour we're replacing. Neutralised
+       with opacity/pointer-events (not `display:none`) so xterm's own scroll
+       measurements stay intact.
+   (2) the native scrollbar on the `overflow-y: scroll` viewport, which WKWebView
+       would paint (fat + always-on under the "Always show scroll bars" macOS
+       setting). Hiding a `::-webkit-scrollbar` does not affect scrolling. */
+.terminal-view .xterm-scrollable-element > .scrollbar {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
 .terminal-view .xterm-viewport::-webkit-scrollbar {
-  width: 8px;
-  background: transparent;
-}
-.terminal-view .xterm-viewport::-webkit-scrollbar-track {
-  background: transparent;
-}
-.terminal-view .xterm-viewport::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.18);
-  border-radius: 4px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-.terminal-view .xterm-viewport::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.32);
-  background-clip: padding-box;
+  display: none !important;
 }
 .terminal-exited {
   position: absolute;

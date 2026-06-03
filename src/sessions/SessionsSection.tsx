@@ -1,5 +1,6 @@
 import type { SessionInfo } from '../ipc/commands';
 import { ListRow } from './ListRow';
+import { useOverlayScrollbar } from '../scroll/useOverlayScrollbar';
 import { relativeTime } from './relativeTime';
 
 /**
@@ -38,6 +39,7 @@ export function SessionsSection({
   onPick,
   onNew,
 }: Props) {
+  const listRef = useOverlayScrollbar(sessions.length);
   return (
     <>
       <div className="sidebar-header">
@@ -50,7 +52,7 @@ export function SessionsSection({
           + New
         </button>
       </div>
-      <div className="sidebar-list">
+      <div className="sidebar-list" ref={listRef}>
         {sessions.map((s) => {
           const isActive = s.id === activeSessionId;
           const isOpen = openSessionIds.has(s.id);
