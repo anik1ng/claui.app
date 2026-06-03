@@ -430,6 +430,118 @@ kbd {
 .footer-fine { margin: 0 0 0 auto; }
 
 /* ============================================================
+   NOTIFICATIONS — tab strip channel + floating OS toast
+   Mirrors the app: colour = notification semantics only.
+   done #0070f3 (static) · attention #ff990a (soft pulse 1.8s)
+   · error #da3036 (hard pulse 0.9s). Active state stays a
+   background highlight, never a colour.
+   ============================================================ */
+.tab.notify-done    { --notify: #0070f3; }
+.tab.notify-attention { --notify: #ff990a; }
+.tab.notify-error   { --notify: #da3036; }
+/* The tab must be its own positioning context so the strip pseudo-element
+   anchors UNDER the tab — not the whole window. */
+.tab { position: relative; }
+.tab.notify-done::after,
+.tab.notify-attention::after,
+.tab.notify-error::after {
+  content: '';
+  position: absolute;
+  left: 9px; right: 9px; bottom: 2px;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--notify);
+}
+/* attention/error tabs softly glow in their colour, in sync with the
+   matching sidebar row (peak at 50%). The strip itself stays solid. */
+.tab.notify-attention { color: var(--fg); animation: tabAttn 1.8s ease-in-out infinite; }
+.tab.notify-error { color: var(--fg); animation: tabErr 0.9s ease-in-out infinite; }
+@keyframes tabAttn { 0%, 100% { background: var(--bg-elev2); } 50% { background: rgba(255, 153, 10, 0.22); } }
+@keyframes tabErr { 0%, 100% { background: var(--bg-elev2); } 50% { background: rgba(218, 48, 54, 0.24); } }
+
+/* Sidebar project row — the same strip channel as a left edge marker. */
+.side-row.notify-attention { color: var(--fg); animation: rowAttn 1.8s ease-in-out infinite; }
+.side-row.notify-attention::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 6px; bottom: 6px;
+  width: 2px;
+  border-radius: 2px;
+  background: #ff990a;
+}
+@keyframes rowAttn { 0%, 100% { background: transparent; } 50% { background: rgba(255, 153, 10, 0.10); } }
+
+/* The frame anchors the floating native-notification banner, which sits
+   ABOVE the window (top-right) like a real macOS corner notification. */
+.frame { position: relative; }
+.os-toast {
+  position: absolute;
+  top: -90px;
+  right: -52px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: min(300px, 78%);
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(28, 28, 30, 0.72);
+  border: 1px solid var(--line-strong);
+  backdrop-filter: saturate(160%) blur(20px);
+  box-shadow: 0 22px 55px rgba(0, 0, 0, 0.55);
+  animation: toastIn 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: 0.35s;
+}
+.os-toast img { border-radius: 8px; flex: none; }
+.os-toast-body { display: flex; flex-direction: column; line-height: 1.35; min-width: 0; }
+.os-toast-title { font-size: 13px; font-weight: 600; }
+.os-toast-text {
+  font-size: 12.5px;
+  color: var(--fg-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@keyframes toastIn { from { opacity: 0; transform: translateY(-10px) scale(0.96); } }
+
+/* ============================================================
+   MORE — compact grid of supporting features
+   ============================================================ */
+.more {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: clamp(40px, 8vh, 96px) clamp(24px, 6vw, 64px) clamp(16px, 3vh, 32px);
+  text-align: center;
+}
+.more-title { font-size: clamp(26px, 4vw, 42px); font-weight: 700; margin-bottom: clamp(34px, 5vh, 56px); }
+.more-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  text-align: left;
+}
+.more-card {
+  padding: 26px 26px 28px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--bg-elev);
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+.more-card:hover { border-color: var(--line-strong); background: var(--bg-elev2); transform: translateY(-2px); }
+.more-card svg {
+  width: 24px; height: 24px;
+  color: var(--accent);
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.more-card h3 { margin: 14px 0 6px; font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
+.more-card p { margin: 0; color: var(--fg-dim); font-size: 15.5px; line-height: 1.5; }
+.more-card kbd { font-size: 0.78em; }
+
+/* ============================================================
    RESPONSIVE
    ============================================================ */
 @media (max-width: 820px) {
@@ -445,6 +557,8 @@ kbd {
   .feature:nth-child(even) .feature-stage { direction: ltr; }
   .win-body { grid-template-columns: 1fr; }
   .sidebar { display: none; }
+  .more-grid { grid-template-columns: 1fr; }
+  .os-toast { top: -58px; right: 4px; }
   .footer-fine { margin: 0; flex-basis: 100%; }
 }
 
@@ -463,4 +577,7 @@ kbd {
   .hero-copy, .window-wrap, .glow { transform: none !important; opacity: 1 !important; }
   .t-line, .reveal, .tab, .sess { opacity: 1 !important; transform: none !important; animation: none !important; }
   .caret { animation: none; }
+  .os-toast { animation: none !important; opacity: 1; transform: none; }
+  .tab.notify-attention, .tab.notify-error,
+  .side-row.notify-attention { animation: none !important; }
 }
