@@ -62,8 +62,10 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   keyed by id, plus an id counter.
 - `ipc.rs` — the Tauri commands (`open_project`, `open_command_terminal`,
   `pty_input`, `pty_resize`, `pty_close`, `list_sessions`, `get_window_state`,
-  `save_window_state`, `cleanup_project_status`) and the `claude:not-found` /
-  `terminal:exit` / `status:update` events. `build_spawn_env(captured,
+  `save_window_state`, `cleanup_project_status`, `cleanup_tab_notify`,
+  `stash_pending_activation`, `activate_pending`) and the `claude:not-found` /
+  `terminal:exit` / `status:update` / `notify:update` / `notify:activate`
+  events. `build_spawn_env(captured,
   is_primary, project_id)` layers three sources for the spawned claude's env:
   (1) every variable from `shell_env::get()` (the interactive-shell snapshot —
   this is what brings `FNM_DIR` / `NVM_DIR` / `ASDF_*` / `MISE_*` and the
@@ -119,6 +121,27 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   canvas blank for ~500ms in WKWebView. xterm's default DOM renderer reflows
   as plain DOM nodes and is invisible on resize.
 - `terminal/xtermTheme.ts` — pure: claui `Theme` → `xterm.js` options.
+- `terminal/dropPaths.ts`, `terminal/activePty.ts`, `terminal/useFileDrop.ts`
+  — file/image drag-and-drop. `useFileDrop` (called once in `App`) listens for
+  the window-global `tauri://drag-drop` event and types the dropped paths into
+  the active terminal's PTY. `dropPaths.formatDroppedPaths` POSIX-single-quote-
+  escapes each path (so spaces and shell metacharacters are inert) and rejects
+  any path with control characters (a raw newline is a tty line submission no
+  quoting can neutralize). `activePty` is a module-level registry of the active
+  terminal's PTY id; `TerminalView` registers via the `useActivePty` hook keyed
+  on *activation* (active project × active tab), NOT DOM focus — a project
+  switch never refocuses the new terminal, so focus-based routing would send
+  drops to the previously-focused (hidden) terminal. The Tauri drag-drop
+  handler is left ENABLED in `lib.rs` for this; it also suppresses WKWebView's
+  default "navigate to the dropped file" behaviour.
+- `notify/*` — the notification pipeline's webview half: `notifyStore.ts`
+  (kinds, per-project worst-kind aggregation, OS-notify decision logic),
+  `useNotifyByProject.ts`, `useWindowFocus.ts`, `useTabNotify.ts` (deep-link
+  tab activation), `osNotification.ts`, `useListen.ts`. See the strip-channel
+  notes under "Conventions" below.
+- `updater/useUpdaterCheck.ts` + `updater/UpdateToast.tsx` — the auto-updater
+  check and its toast. `project/ProjectPicker.tsx` + `project/pickProjectFolder.ts`
+  — the empty-state folder picker.
 - `theme/themeStore.ts` — the `Theme` TypeScript types, the built-in
   `defaultTheme`, and applying the theme to the app chrome via CSS variables.
 - `layout/ProjectArea.tsx` — one project's terminal stack (workspace
@@ -165,8 +188,9 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
 - `sessions/ListRow.tsx` — the unified row used by both
   `ProjectsSection` and `SessionsSection`. One visual contract: label
   on the left (truncated with ellipsis), optional meta on the right,
-  hover-revealed `×` close button when `onClose` is provided, accent
-  strip on the left edge when active.
+  hover-revealed `×` close button when `onClose` is provided. Active state
+  is a background highlight; the left-edge strip carries notification
+  status (see the strip channel below), NOT active state.
 - `ipc/commands.ts` — typed `invoke` wrappers and the output-`Channel`
   helper. Hosts the `ProjectEntry` / `WindowState` / `StatusUpdate` types
   the webview shares with Rust.
@@ -230,6 +254,13 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   `documentElement.style.colorScheme = 'dark'` so canvas/scrollbar/form-control
   defaults stay dark too. Tauri's `backgroundColor` config field is documented
   as "Not implemented for the webview layer" on macOS / iOS and does NOT help.
+- The Tauri drag-drop handler is intentionally **enabled** (we do NOT call
+  `.disable_drag_drop_handler()`): it is the only source of a dropped file's
+  absolute path and it suppresses WKWebView's default "navigate to the dropped
+  file" behaviour. An old comment claimed disabling it was REQUIRED for the
+  title-bar `-webkit-app-region: drag`; a 2026-06-02 spike disproved that on the
+  current Tauri — window drag and file-drop no longer conflict. Don't re-disable
+  it (see `docs/DECISIONS.md` and the `terminal/` drag-drop modules above).
 - The webview resolves fonts differently from a native terminal.
   `xtermTheme.ts` builds a font-family chain shaped
   `<configured>, "<iconFontFamily>", Menlo, monospace`. The configured
@@ -248,9 +279,13 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   persist to `<app_config_dir>/window.json` and restore on next launch
   (workspace tabs inside a project do NOT persist; each restored project
   boots with one fresh primary claude). Notifications surface Claude events
-  as per-tab and per-project indicators (done / attention / error dots, plus
-  an urgent bottom strip on non-active tabs). Split panes, the dashboard, and
-  a git panel are later phases.
+  through a single strip channel (done / attention / error) on workspace tabs,
+  sidebar rows, and the single-tab title-bar heading, plus focus-aware system
+  notifications (see the strip-channel notes below). Workspace tabs share the
+  title-bar width equally. Dropping a file or image onto the window inserts its
+  path into the active terminal (and no longer lets WKWebView open the file in
+  place of the app). Split panes, the dashboard, and a git panel are later
+  phases.
 - The primary claude of each open project gets `CLAUI_PRIMARY=1` AND
   `CLAUI_STATUS_FILE=/tmp/claui/status-<projectId>.json` in its env, in
   addition to `CLAUI_ACTIVE=1` (see `src-tauri/src/ipc.rs::build_spawn_env`).
