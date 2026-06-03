@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>claui — a native macOS shell for Claude Code</title>
-  <meta name="description" content="claui hosts the real Claude Code CLI inside a native macOS app — workspace tabs, multiple projects, a live status bar, and native shortcuts. Free and open." />
+  <meta name="description" content="claui hosts the real Claude Code CLI inside a native macOS app — workspace tabs, multiple projects, a live status bar, notifications when Claude needs you, and native shortcuts. Free and open." />
   <meta name="theme-color" content="#0a0a0a" />
   <link rel="icon" href="assets/icon.png" />
 
@@ -12,7 +12,7 @@
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://claui.app" />
   <meta property="og:title" content="claui — a native macOS shell for Claude Code" />
-  <meta property="og:description" content="The real Claude Code CLI in a native macOS app. Tabs, multiple projects, a live status bar, native shortcuts." />
+  <meta property="og:description" content="The real Claude Code CLI in a native macOS app. Tabs, multiple projects, a live status bar, notifications, native shortcuts." />
   <meta property="og:image" content="https://claui.app/assets/icon.png" />
   <meta name="twitter:card" content="summary_large_image" />
 
@@ -42,7 +42,7 @@
         <div class="hero-copy">
           <h1 class="hero-title">claui</h1>
           <p class="hero-tagline">A native macOS shell for Claude&nbsp;Code.</p>
-          <p class="hero-sub">The real <code>claude</code> CLI, wrapped in a proper Mac app — tabs, projects, a live status bar, and native shortcuts.</p>
+          <p class="hero-sub">The real <code>claude</code> CLI, wrapped in a proper Mac app — tabs, projects, a live status bar, and a nudge when Claude needs you.</p>
           <div class="hero-cta">
             <a class="btn btn-lg" href="https://github.com/anik1ng/claui.app/releases/latest/download/claui-universal.dmg">
               Download for macOS
@@ -194,6 +194,59 @@
       </div>
     </section>
 
+    <!-- ===== FEATURE: notifications ===== -->
+    <section class="feature" data-scrub>
+      <div class="feature-stage">
+        <div class="feature-copy reveal">
+          <span class="kicker">Notifications</span>
+          <h2>Know the moment Claude needs you.</h2>
+          <p>claui watches every tab and marks it with a calm strip — done, waiting on you, or errored. Step away while the window isn’t focused and a native notification brings you back — click it to land on the exact tab.</p>
+        </div>
+        <div class="frame" aria-hidden="true">
+          <!-- floating native notification — sits OUTSIDE the window, top-right -->
+          <div class="os-toast">
+            <img src="assets/icon.png" alt="" width="34" height="34" />
+            <div class="os-toast-body">
+              <span class="os-toast-title">claui</span>
+              <span class="os-toast-text">blog · Claude needs your permission</span>
+            </div>
+          </div>
+          <div class="claui-window">
+            <div class="win-titlebar">
+              <span class="lights"><i></i><i></i><i></i></span>
+              <span class="tabstrip tabstrip-static">
+                <span class="tab tab-claude is-active">◆ acme</span>
+                <span class="tab tab-claude notify-attention">◆ blog</span>
+                <span class="tab tab-shell">› shell</span>
+              </span>
+            </div>
+            <div class="win-body">
+              <div class="terminal">
+                <div class="term-feed">
+                  <p class="t-line"><span class="t-prompt">›</span> run the test suite</p>
+                  <p class="t-line t-green">✔ 48 passed in 6.2s</p>
+                  <p class="t-line"><span class="t-prompt">›</span> <span class="caret"></span></p>
+                </div>
+              </div>
+              <aside class="sidebar">
+                <div class="side-section">
+                  <div class="side-head">PROJECTS <span class="side-add">+ Add</span></div>
+                  <div class="side-row is-active">acme</div>
+                  <div class="side-row notify-attention">blog</div>
+                  <div class="side-row">claui</div>
+                </div>
+              </aside>
+            </div>
+            <div class="win-statusbar">
+              <span class="sb-ctx"><span class="sb-label">Context</span>
+                <span class="sb-bar"><span class="sb-fill" style="--w:52%"></span></span> 52%</span>
+              <span class="sb-right"><span class="sb-cost">$2.40</span><span class="sb-model">Opus 4.8</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ===== FEATURE: sessions ===== -->
     <section class="feature" data-scrub>
       <div class="feature-stage">
@@ -229,6 +282,33 @@
               <span class="sb-right"><span class="sb-cost">$0.80</span><span class="sb-model">Opus 4.8</span></span>
             </div>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== MORE: compact feature grid ===== -->
+    <section class="more reveal">
+      <h2 class="more-title">…and the comforts you’d expect.</h2>
+      <div class="more-grid">
+        <div class="more-card">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 15a7.5 7.5 0 0 1 15 0"/><path d="M12 15l3.5-2.5"/><path d="M4.5 15h0M19.5 15h0"/></svg>
+          <h3>Live status bar</h3>
+          <p>Model, context, cost, and your 5-hour and 7-day limits — always in view, straight from Claude Code.</p>
+        </div>
+        <div class="more-card">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3s6 6.4 6 10a6 6 0 0 1-12 0c0-3.6 6-10 6-10Z"/></svg>
+          <h3>Drag &amp; drop</h3>
+          <p>Drop a file or image onto the window; its path lands in the active terminal, safely quoted.</p>
+        </div>
+        <div class="more-card">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M8 14h8"/></svg>
+          <h3>Native menus &amp; shortcuts</h3>
+          <p>A real macOS menu bar and the keys you’d reach for — <kbd>⌘T</kbd>, <kbd>⌘W</kbd>, <kbd>⌘⇧N</kbd>.</p>
+        </div>
+        <div class="more-card">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-.5 4"/><path d="M20 4v6h-6"/></svg>
+          <h3>Auto-updates</h3>
+          <p>claui keeps itself current — new versions arrive with a quiet toast, never a download hunt.</p>
         </div>
       </div>
     </section>
