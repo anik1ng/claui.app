@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.0] — 2026-06-03
+
+### Added
+- Claude notifications: each tab and project shows a coloured indicator when a
+  session finishes (blue), needs your input (orange), or errors (red). When the
+  claui window isn't focused, attention/error events also raise a system
+  notification you can click to jump straight to that session.
+- Drag a file or image onto the window to insert its path into the active
+  terminal — no more accidentally replacing the app with the dropped file.
+
+### Changed
+- Workspace tabs now share the available width equally instead of sizing to
+  their titles.
+
 ## [0.3.0] — 2026-06-01
 
 ### Added
