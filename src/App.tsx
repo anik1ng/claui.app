@@ -14,6 +14,7 @@ import { useStatusByProject } from './status/useStatusByProject';
 import { useNotifyByProject } from './notify/useNotifyByProject';
 import { useWindowFocus } from './notify/useWindowFocus';
 import { projectAggregate, type NotifyKind } from './notify/notifyStore';
+import { useFileDrop } from './terminal/useFileDrop';
 import { useUpdaterCheck } from './updater/useUpdaterCheck';
 import { UpdateToast } from './updater/UpdateToast';
 import { pickProjectFolder } from './project/pickProjectFolder';
@@ -55,6 +56,10 @@ export default function App() {
   }, []);
 
   useWindowFocus(onFocus, onBlur);
+
+  // Dropping a file onto the window inserts its path into the focused
+  // terminal's prompt (Tauri's drag-drop handler is enabled in lib.rs).
+  useFileDrop();
 
   useEffect(() => {
     const unNotFound = listen('claude:not-found', () => setClaudeMissing(true));

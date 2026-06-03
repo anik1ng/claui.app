@@ -7,6 +7,7 @@ import '@xterm/xterm/css/xterm.css';
 import { themeToXterm } from './xtermTheme';
 import { isShiftEnterTrigger } from './keyHandler';
 import { type Channel, makeOutputChannel, ptyClose, ptyInput, ptyResize } from '../ipc/commands';
+import { useActivePty } from './activePty';
 import type { Theme } from '../theme/themeStore';
 import './TerminalView.css';
 
@@ -20,6 +21,14 @@ interface Props {
   open: (onOutput: Channel<ArrayBuffer>, cols: number, rows: number) => Promise<number>;
   autoFocus?: boolean;
   /**
+   * True when this is the window's active terminal (active project × active
+   * tab). Drives the `activePty` registry that `useFileDrop` routes dropped
+   * paths to. Tracked by activation — NOT by DOM focus — so a project switch
+   * (which doesn't refocus the new terminal) still points drops at the
+   * visible terminal rather than the previously-focused one.
+   */
+  isActiveTerminal?: boolean;
+  /**
    * Called when `open()` rejects (PTY spawn failed — claude binary missing,
    * cwd vanished, etc.). The host can use this to remove the dead tab so it
    * doesn't keep occupying a sessionId in the open-tabs set forever.
@@ -27,7 +36,7 @@ interface Props {
   onSpawnFailed?: () => void;
 }
 
-export function TerminalView({ theme, open, autoFocus, onSpawnFailed }: Props) {
+export function TerminalView({ theme, open, autoFocus, isActiveTerminal = false, onSpawnFailed }: Props) {
   // Latest onSpawnFailed via ref so the main effect doesn't re-run when the
   // callback identity changes (it's an inline arrow at the call site).
   const onSpawnFailedRef = useRef(onSpawnFailed);
@@ -37,6 +46,10 @@ export function TerminalView({ theme, open, autoFocus, onSpawnFailed }: Props) {
   // call .focus() when the tab becomes active without tearing down the term.
   const termRef = useRef<Terminal | null>(null);
   const [exited, setExited] = useState(false);
+  // This terminal's live PTY id, surfaced as state so the activation effect
+  // (below) can register it in the activePty file-drop registry. null until
+  // the PTY spawns / after it exits.
+  const [ptyId, setPtyId] = useState<number | null>(null);
   // Bumped to force the effect to re-run — a fresh terminal and a freshly
   // spawned process. Driven by both the auto-restart and the manual button.
   const [restartKey, setRestartKey] = useState(0);
@@ -103,6 +116,7 @@ export function TerminalView({ theme, open, autoFocus, onSpawnFailed }: Props) {
           void ptyClose(tid);
         } else {
           id = tid;
+          setPtyId(tid);
           startedAtRef.current = Date.now();
           // Race fix: `document.fonts.ready` may have resolved and refit
           // `term.cols/rows` between the `open()` call and this `.then()`
@@ -280,6 +294,10 @@ export function TerminalView({ theme, open, autoFocus, onSpawnFailed }: Props) {
   useEffect(() => {
     if (autoFocus) termRef.current?.focus();
   }, [autoFocus]);
+
+  // Register this terminal as the file-drop target while it's the active
+  // terminal with a live PTY (see useActivePty for why activation, not focus).
+  useActivePty(isActiveTerminal, ptyId);
 
   return (
     <div className="terminal-view">

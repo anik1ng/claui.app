@@ -226,7 +226,7 @@ function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, set
               projectId={projectId}
               projectPath={projectPath}
               theme={theme}
-              isActive={tab.uid === activeUid}
+              isActive={tab.uid === activeUid} projectIsActive={isActive}
               onSpawnFailed={tab.isPrimary ? undefined : () => closeTabAndClear(tab.uid)}
             />
           ))}

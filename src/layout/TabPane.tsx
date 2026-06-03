@@ -10,6 +10,10 @@ interface Props {
   projectPath: string;
   theme: Theme;
   isActive: boolean;
+  /** True when this tab's PROJECT is the active one. Combined with `isActive`
+   *  (this tab is its project's active tab) it identifies the window's single
+   *  active terminal — the file-drop target. */
+  projectIsActive: boolean;
   /**
    * Called when the tab's PTY spawn fails — host should remove the tab so a
    * never-running tab doesn't keep its `sessionId` reserved in the sidebar's
@@ -32,7 +36,7 @@ interface Props {
  * component). Hoisting each tab into its own component scope gives each tab
  * its own stable callback whose identity tracks only the spawn-relevant props.
  */
-export function TabPane({ tab, projectId, projectPath, theme, isActive, onSpawnFailed }: Props) {
+export function TabPane({ tab, projectId, projectPath, theme, isActive, projectIsActive, onSpawnFailed }: Props) {
   const open = useCallback(
     (ch: Channel<ArrayBuffer>, cols: number, rows: number) => {
       if (tab.kind === 'claude') {
@@ -63,6 +67,7 @@ export function TabPane({ tab, projectId, projectPath, theme, isActive, onSpawnF
         theme={theme}
         open={open}
         autoFocus={isActive}
+        isActiveTerminal={projectIsActive && isActive}
         onSpawnFailed={onSpawnFailed}
       />
     </div>

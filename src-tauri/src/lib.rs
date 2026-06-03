@@ -73,12 +73,15 @@ pub fn run() {
             .initialization_script(INIT_SCRIPT)
             .title_bar_style(tauri::TitleBarStyle::Overlay)
             .hidden_title(true)
-            // `disable_drag_drop_handler` is REQUIRED for `data-tauri-drag-region`
-            // to actually move the window. Tauri's default drag-drop handler
-            // intercepts pointer events for file-drop detection before the
-            // drag-region check can fire; turning it off frees the drag.
-            // (Discovered the hard way; copying the working setup from Diary.)
-            .disable_drag_drop_handler()
+            // The Tauri drag-drop handler is left ENABLED (not disabled) so
+            // dropped files surface their absolute paths via the
+            // `tauri://drag-drop` event — the webview side (useFileDrop) types
+            // them into the focused terminal, and the handler also suppresses
+            // WKWebView's default "navigate to the dropped file" behaviour.
+            // An older comment here claimed disabling it was REQUIRED for the
+            // title-bar `-webkit-app-region: drag` to move the window; a spike
+            // (2026-06-02) disproved that on the current Tauri — window drag and
+            // file-drop no longer conflict. See docs/DECISIONS.md.
             .build()?;
 
             // Warm the interactive-shell env snapshot in the background so

@@ -128,6 +128,18 @@ Workspace-tab visuals are unified with the toolbar: the `✦` / `$` text glyphs 
 
 ---
 
+### 2026-06-02 — Enable the Tauri drag-drop handler for file drops
+
+**Context.** Dropping a file onto the window made WKWebView navigate to it (`file://…`), replacing the app UI with no way back. claui called `.disable_drag_drop_handler()` in `lib.rs`, whose comment claimed disabling was REQUIRED for the title-bar `-webkit-app-region: drag` to move the window (Tauri's handler was said to intercept pointer events before the drag-region check). That handler is also the only source of a dropped file's absolute path, so the claim, if true, would force a temp-file workaround.
+
+**Decision.** A spike re-enabled the handler and verified, on the current Tauri, that the window still drags from the title bar AND the file no longer hijacks the UI — the old conflict no longer exists. So the handler stays ENABLED. Dropping files emits `tauri://drag-drop` with absolute paths; the webview-side `useFileDrop` hook formats them (`formatDroppedPaths`: each path POSIX single-quote-escaped so spaces and shell metacharacters like `$(...)`/backticks are inert, space-joined, trailing space; paths containing control characters are rejected because a raw newline is a tty line submission no quoting can neutralize) and types them into the focused terminal's PTY via `pty_input`. The target PTY is tracked by a tiny module-level registry (`src/terminal/activePty.ts`, via the `useActivePty` hook) keyed on the window's ACTIVE terminal — active project × active tab — NOT on DOM focus, because the drag-drop event is window-global with no DOM target and a project switch never refocuses the new terminal. Insertion targets the visible active tab's terminal and works for both claude and shell tabs (it is just text). The drawer command terminal is not a drop target.
+
+**Consequences.** Files dropped anywhere on disk insert their real path — no temp copies, no path loss. The navigation bug is fixed for free (the handler suppresses WKWebView's default). The obsolete `disable_drag_drop_handler` invariant in `lib.rs` is removed and replaced with the enabled-handler rationale. Trade-off accepted: routing by focus (not drop coordinates) means a drop lands in the terminal that "has the cursor"; if no terminal is focused the drop is a no-op. Image-from-clipboard paste (Cmd+V) remains the path for in-memory images.
+
+**References.** `src-tauri/src/lib.rs` (handler enabled), `src/terminal/dropPaths.ts` + `.test.ts` (pure helper, TDD), `src/terminal/activePty.ts` (registry + `useActivePty`), `src/terminal/useFileDrop.ts`, `src/terminal/TerminalView.tsx` (surfaces its PTY id + calls `useActivePty`), `src/layout/TabPane.tsx` + `src/layout/ProjectArea.tsx` (thread `isActiveTerminal`), `src/App.tsx` (`useFileDrop()`). Spec: `docs/superpowers/specs/2026-06-02-tabs-and-dnd-design.md`; plan: `docs/superpowers/plans/2026-06-02-tabs-and-dnd.md` (both gitignored; local-only).
+
+---
+
 ## Template (do not delete)
 
 ### YYYY-MM-DD — Short title
