@@ -24,8 +24,8 @@ export const getWindowState = () => invoke<WindowState | null>('get_window_state
 export const saveWindowState = (state: WindowState) =>
   invoke<void>('save_window_state', { state });
 
-export const cleanupProjectStatus = (projectId: string) =>
-  invoke<void>('cleanup_project_status', { projectId });
+export const cleanupTabStatus = (tabId: string) =>
+  invoke<void>('cleanup_tab_status', { tabId });
 
 /** Shape of `notify:update` events — routes a kind to its project + tab. */
 export interface NotifyUpdate {
@@ -55,7 +55,6 @@ export const openProject = (
   cols: number,
   rows: number,
   resumeSessionId: string | undefined,
-  isPrimary: boolean,
   projectId: string,
   tabUid: string,
 ) =>
@@ -65,7 +64,6 @@ export const openProject = (
     cols,
     rows,
     resumeSessionId,
-    isPrimary,
     projectId,
     tabId: tabUid,
   });
@@ -101,12 +99,13 @@ export interface StatusPayload {
 }
 
 /**
- * The shape of `status:update` events. Wraps the per-project payload with
- * its `projectId` so the webview can route updates to the matching
- * ProjectArea.
+ * The shape of `status:update` events. Wraps the per-tab payload with its
+ * `projectId` and `tabId` so the webview can route updates to the matching
+ * tab in the matching ProjectArea.
  */
 export interface StatusUpdate {
   projectId: string;
+  tabId: string;
   status: StatusPayload;
 }
 

@@ -62,18 +62,20 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   keyed by id, plus an id counter.
 - `ipc.rs` — the Tauri commands (`open_project`, `open_command_terminal`,
   `pty_input`, `pty_resize`, `pty_close`, `list_sessions`, `get_window_state`,
-  `save_window_state`, `cleanup_project_status`, `cleanup_tab_notify`,
+  `save_window_state`, `cleanup_tab_status`, `cleanup_tab_notify`,
   `stash_pending_activation`, `activate_pending`) and the `claude:not-found` /
   `terminal:exit` / `status:update` / `notify:update` / `notify:activate`
-  events. `build_spawn_env(captured,
-  is_primary, project_id)` layers three sources for the spawned claude's env:
+  events. `build_spawn_env(captured, project_id, tab_id)` layers three sources
+  for the spawned claude's env:
   (1) every variable from `shell_env::get()` (the interactive-shell snapshot —
   this is what brings `FNM_DIR` / `NVM_DIR` / `ASDF_*` / `MISE_*` and the
   shell's PATH, which is the only place fnm's per-shell node symlink ever
   appears); (2) `augment_path` prepends `extra_path_dirs` (Homebrew /
   `~/.local/bin` / `~/.cargo/bin` / ...) to that PATH as a safety net for
   users whose `.zshrc` doesn't set them up; (3) the `CLAUI_*` overlays
-  (`CLAUI_ACTIVE`, `CLAUI_PRIMARY`, `CLAUI_STATUS_FILE`).
+  (`CLAUI_ACTIVE`, `CLAUI_PROJECT_ID`, `CLAUI_TAB_ID`, `CLAUI_NOTIFY_FILE`,
+  `CLAUI_STATUS_FILE`). Every claude tab gets its own
+  `CLAUI_STATUS_FILE=status-<tabId>.json`; there is no `CLAUI_PRIMARY`.
 - `shell_env.rs` — captures the user's `$SHELL -ilc 'env'` snapshot once at
   app start, parses it between sentinels (chatter-tolerant, NUL-separated),
   caches it in a `OnceLock`. `warm()` spawns the capture on a bg thread from
@@ -88,10 +90,13 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   `menu:add-project` / `menu:close-project` / `menu:new-claude-tab` /
   `menu:new-shell-tab` / `menu:close-tab` events.
 - `statusline.rs` — installs the wrapper script that captures `claude`'s
-  statusline JSON, watches `/tmp/claui/` for `status-<projectId>.json` files
-  (one per primary claude), and emits one `status:update` per project with
-  payload `{ projectId, status }`. `filename_to_project_id` is a pure helper
-  for extracting the id from the filename.
+  statusline JSON, watches `/tmp/claui/` for `status-<tabId>.json` files
+  (one per claude tab), and emits one `status:update` per tab with payload
+  `{ projectId, tabId, status }`. The wrapper writes a
+  `{"projectId":…,"payload":<claude's verbatim JSON>}` envelope gated on
+  `CLAUI_STATUS_FILE` + non-empty input — every in-claui claude tab writes
+  its own file; there is no `CLAUI_PRIMARY` gate. `filename_to_tab_id` is a
+  pure helper for extracting the tab id from the filename.
 - `notify.rs` — the notification pipeline's Rust half. Pure helpers
   (`notify_file_path`, `filename_to_tab_id`, `parse`, `is_safe_tab_id`);
   `merge_hooks` idempotently injects claui's Claude `Notification` /
@@ -102,9 +107,9 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   wipes leftovers at startup. Each claude tab's hook writes
   `/tmp/claui/notify-<tabId>.json` = `{ projectId, kind }`. The
   `statusline.rs` watcher also calls `process_path`, which reads one file and
-  emits `notify:update` with payload `{ projectId, tabId, kind }`. Unlike the
-  statusline wrapper this does NOT gate on `CLAUI_PRIMARY` — every claude tab
-  signals for itself.
+  emits `notify:update` with payload `{ projectId, tabId, kind }`. Like the
+  statusline wrapper, the notify script does not gate on `CLAUI_PRIMARY` (which
+  no longer exists) — every claude tab signals for itself.
 - `sessions.rs` — reads a project's `claude` session files from
   `~/.claude/projects/<encoded>/` for the sessions sidebar.
 - `capabilities.rs` — read-only snapshot for the capabilities sidebar:
@@ -191,11 +196,13 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   open (no choice to surface). `useProjectSwitchKeyboard` handles
   `Ctrl+1..9` for project switching at the App level.
 - `status/useStatusByProject.ts` — listens to `status:update` events with
-  the `{ projectId, status }` shape, aggregates them into
-  `Map<projectId, StatusPayload>`. `App` slices the map per project and
-  passes the active entry into each `ProjectArea`. Belt-and-suspenders
-  content-dedupe (field-by-field equality) keeps identical payloads from
-  flipping Map identity and forcing unnecessary re-renders.
+  the `{ projectId, tabId, status }` shape, aggregates them into a nested
+  `Map<projectId, Map<tabId, StatusPayload>>` via a pure `aggregateStatus`.
+  `App` slices the outer map per project and passes the inner map into each
+  `ProjectArea`; `ProjectArea` selects the active tab's payload for the
+  StatusBar. Referential stability (only the touched project's inner map gets
+  a new reference; sibling projects keep identity) and field-by-field
+  content-dedupe keep React.memo effective across per-tab status ticks.
 - `status/StatusBar.tsx` — the bottom status bar (model, context, cost,
   limits), fed by the active project's status slice. Portaled into
   `#status-slot` at App-level by the active `ProjectArea`.
@@ -233,8 +240,9 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   `TerminalView` retains PTY ownership; `useTabs` only manages tab
   descriptors. The first claude tab of each open project is pinned —
   `closeTab` on it returns the state unchanged. `useTabs` is keyed by
-  `projectId` so each project's `status:update` events bind to its own
-  primary tab (cross-project status bleed is filtered out).
+  `projectId` so each project's `status:update` events are filtered by
+  `projectId` and routed to the tab named by the event's `tabId`
+  (cross-project status bleed is filtered out).
 - `layout/TitleBar.tsx`, `layout/Icons.tsx` — the 32px strip claui draws
   at the very top of the window, replacing the native macOS title bar
   (which is hidden via `TitleBarStyle::Overlay` in `lib.rs`). Left ~78px
@@ -303,7 +311,7 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
 - Shipped today: the terminal core, the macOS menu / project switching, the
   status bar at the bottom of the window (model / context / cost / 5h+7d
   limits, captured via a `statusLine` wrapper claui writes into project-local
-  `.claude/settings.local.json`; one file per project), the sessions sidebar,
+  `.claude/settings.local.json`; one file per tab), the sessions sidebar,
   workspace tabs (`Cmd+T` / `Cmd+Shift+T` / `Cmd+1..9` / `Cmd+W`), and
   multi-project tabs (`Cmd+Shift+N` Add Project / `Cmd+Shift+W` Close Project
   / `Ctrl+1..9` switch project). The sessions sidebar marks rows whose
@@ -318,17 +326,21 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   path into the active terminal (and no longer lets WKWebView open the file in
   place of the app). Split panes, the dashboard, and a git panel are later
   phases.
-- The primary claude of each open project gets `CLAUI_PRIMARY=1` AND
-  `CLAUI_STATUS_FILE=/tmp/claui/status-<projectId>.json` in its env, in
-  addition to `CLAUI_ACTIVE=1` (see `src-tauri/src/ipc.rs::build_spawn_env`).
-  The statusline wrapper reads `$CLAUI_STATUS_FILE` and writes there only
-  when `CLAUI_PRIMARY` is set, so each project's primary writes to its own
-  file. The Rust watcher iterates `/tmp/claui/status-*.json` on every FS
-  event and emits one `status:update` per file with payload `{ projectId,
-  status }`; the webview's `useStatusByProject` aggregates them into a Map
-  keyed by projectId. Non-primary claudes still run the wrapper (claude
-  requires a statusline command) but their wrapper invocations short-circuit
-  out of the file-write branch because `CLAUI_PRIMARY` is unset.
+- Every claude tab gets `CLAUI_ACTIVE=1`, `CLAUI_PROJECT_ID`, `CLAUI_TAB_ID`,
+  `CLAUI_NOTIFY_FILE`, and its own
+  `CLAUI_STATUS_FILE=/tmp/claui/status-<tabId>.json` in its env (see
+  `src-tauri/src/ipc.rs::build_spawn_env`). The statusline wrapper writes a
+  `{"projectId":…,"payload":<claude's verbatim JSON>}` envelope to
+  `$CLAUI_STATUS_FILE` whenever the file is set and the input is non-empty —
+  there is no `CLAUI_PRIMARY` gate; every claude tab self-reports its own
+  status. The Rust watcher iterates `/tmp/claui/status-*.json` on every FS
+  event and emits one `status:update` per file with payload
+  `{ projectId, tabId, status }`; the webview's `useStatusByProject`
+  aggregates them into `Map<projectId, Map<tabId, StatusPayload>>`. The
+  bottom StatusBar and sidebar highlight follow the ACTIVE tab's payload
+  (`ProjectArea` selects `statusByTab.get(activeUid)`). The tab "primary"
+  flag survives only as the pinned/unclosable first tab in `tabsReducer` —
+  it has no status-pipeline role.
 - Notifications surface Claude events via a **single strip channel** — no dots.
   The pipeline: claui merges `Notification` / `StopFailure` hooks into each
   project's `.claude/settings.local.json` (`notify::merge_hooks`); when claude

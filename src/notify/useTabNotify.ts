@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react';
-import { cleanupTabNotify } from '../ipc/commands';
+import { cleanupTabNotify, cleanupTabStatus } from '../ipc/commands';
 import { useListen } from './useListen';
 
 interface Params {
@@ -26,8 +26,8 @@ export function useNotifyActivateTab(
 /**
  * Per-project notification wiring for a ProjectArea: reports the active tab as
  * "viewed" (clearing its signal) whenever this project/tab is shown, and
- * returns a `closeTab` wrapper that also drops the closed tab's signal +
- * removes its temp file. Extracted to keep ProjectArea under the lint limit.
+ * returns a `closeTab` wrapper that also drops the closed tab's notify and
+ * status temp files. Extracted to keep ProjectArea under the lint limit.
  */
 export function useTabNotify({
   projectId,
@@ -46,6 +46,7 @@ export function useTabNotify({
       closeTab(uid);
       onClearTabNotify(projectId, uid);
       void cleanupTabNotify(uid);
+      void cleanupTabStatus(uid);
     },
     [closeTab, onClearTabNotify, projectId],
   );

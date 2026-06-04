@@ -12,6 +12,7 @@ import { basename } from './projects/basename';
 import { useHeldModifier } from './layout/useHeldModifier';
 import { useChromeSlots } from './layout/useChromeSlots';
 import { useStatusByProject } from './status/useStatusByProject';
+import { useGlobalRateLimits } from './status/useGlobalRateLimits';
 import { useNotifyByProject } from './notify/useNotifyByProject';
 import { useWindowFocus } from './notify/useWindowFocus';
 import { projectAggregate, type NotifyKind } from './notify/notifyStore';
@@ -19,15 +20,17 @@ import { useFileDrop } from './terminal/useFileDrop';
 import { useUpdaterCheck } from './updater/useUpdaterCheck';
 import { UpdateToast } from './updater/UpdateToast';
 import { pickProjectFolder } from './project/pickProjectFolder';
-import { cleanupProjectStatus } from './ipc/commands';
+import type { StatusPayload } from './ipc/commands';
 import { defaultTheme, setTheme } from './theme/themeStore';
 import './App.css';
 
 const EMPTY_NOTIFY: ReadonlyMap<string, NotifyKind> = new Map();
+const EMPTY_STATUS: ReadonlyMap<string, StatusPayload> = new Map();
 
 export default function App() {
   const { projects, activeId, addProject, closeProject, setActive, isHydrating } = useProjects();
   const statuses = useStatusByProject();
+  const globalRateLimits = useGlobalRateLimits();
   const getProjectName = useCallback(
     (id: string) => { const p = projects.find((x) => x.id === id); return p ? basename(p.path) : id; },
     [projects],
@@ -86,7 +89,6 @@ export default function App() {
   const handleCloseProject = useCallback(
     (id: string) => {
       closeProject(id);
-      void cleanupProjectStatus(id);
     },
     [closeProject],
   );
@@ -157,7 +159,8 @@ export default function App() {
                 projectId={p.id}
                 projectPath={p.path}
                 isActive={p.id === activeId}
-                status={statuses.get(p.id) ?? null}
+                statusByTab={statuses.get(p.id) ?? EMPTY_STATUS}
+                globalRateLimits={globalRateLimits}
                 notifyTabs={notifyByProject.get(p.id) ?? EMPTY_NOTIFY}
                 onViewActiveTab={markViewed}
                 onClearTabNotify={clearNotify}

@@ -20,6 +20,14 @@ const sub = (uid: string, overrides: Partial<Tab> = {}): Tab => ({
   ...overrides,
 });
 
+const base = (): TabsState => ({
+  tabs: [
+    { uid: 'a', kind: 'claude', isPrimary: true, resumeId: null, sessionId: null },
+    { uid: 'b', kind: 'claude', isPrimary: false, resumeId: null, sessionId: 's-old' },
+  ],
+  activeUid: 'a',
+});
+
 describe('tabsReducer / add', () => {
   it('adds a tab to an empty state and activates it', () => {
     const s = tabsReducer(initialState, { type: 'add', tab: primary() });
@@ -90,20 +98,20 @@ describe('tabsReducer / closeTab', () => {
   });
 });
 
-describe('tabsReducer / updatePrimarySessionId', () => {
-  it('updatePrimarySessionId sets sessionId only on the primary tab', () => {
+describe('tabsReducer / updateTabSessionId (primary)', () => {
+  it('updateTabSessionId sets sessionId only on the targeted tab', () => {
     const s0: TabsState = {
       tabs: [primary(), sub('tab-2')],
       activeUid: 'tab-1',
     };
-    const s = tabsReducer(s0, { type: 'updatePrimarySessionId', sessionId: 'abc' });
+    const s = tabsReducer(s0, { type: 'updateTabSessionId', tabId: 'tab-1', sessionId: 'abc' });
     expect(s.tabs[0].sessionId).toBe('abc');
     expect(s.tabs[1].sessionId).toBe(null);
   });
 
-  it('updatePrimarySessionId is a no-op when no primary exists', () => {
+  it('updateTabSessionId is a no-op when no matching tab exists', () => {
     const s0: TabsState = { tabs: [], activeUid: null };
-    const s = tabsReducer(s0, { type: 'updatePrimarySessionId', sessionId: 'abc' });
+    const s = tabsReducer(s0, { type: 'updateTabSessionId', tabId: 'nope', sessionId: 'abc' });
     expect(s).toEqual(s0);
   });
 });
@@ -148,6 +156,25 @@ describe('tabsReducer / newSessionInTab', () => {
     const s0: TabsState = { tabs: [primary()], activeUid: 'tab-1' };
     const s = tabsReducer(s0, { type: 'newSessionInTab', uid: 'nope' });
     expect(s).toEqual(s0);
+  });
+});
+
+describe('updateTabSessionId', () => {
+  it('updates the matched tab by uid', () => {
+    const next = tabsReducer(base(), { type: 'updateTabSessionId', tabId: 'b', sessionId: 's-new' });
+    expect(next.tabs.find((t) => t.uid === 'b')?.sessionId).toBe('s-new');
+    expect(next.tabs.find((t) => t.uid === 'a')?.sessionId).toBe(null);
+  });
+
+  it('is a no-op (same state reference) when the session id is unchanged', () => {
+    const s = base();
+    const next = tabsReducer(s, { type: 'updateTabSessionId', tabId: 'b', sessionId: 's-old' });
+    expect(next).toBe(s); // change-guard: prevents re-render churn
+  });
+
+  it('is a no-op for an unknown tab id', () => {
+    const s = base();
+    expect(tabsReducer(s, { type: 'updateTabSessionId', tabId: 'zzz', sessionId: 'x' })).toBe(s);
   });
 });
 

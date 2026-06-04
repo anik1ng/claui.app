@@ -55,15 +55,17 @@ function useAutoCreatePrimary(
   }, [dispatch, tabs.length, projectPath]);
 }
 
-// Subscribes to status:update and forwards sessionId to the primary tab.
-// Filters by projectId so sibling projects' status events are ignored —
-// each ProjectArea mounts its own useTabs instance and must not cross-update.
+// Subscribes to status:update and forwards each event's sessionId to the
+// matching tab. Filters by projectId so sibling projects' events are ignored;
+// routes by tabId so non-primary tabs learn their own session id.
 function useStatusListener(dispatch: Dispatch, projectId: string): void {
   useEffect(() => {
     const unlisten = listen<StatusUpdate>('status:update', (e) => {
       if (e.payload.projectId !== projectId) return;
       const sid = e.payload.status.sessionId;
-      if (sid) dispatch({ type: 'updatePrimarySessionId', sessionId: sid });
+      if (sid) {
+        dispatch({ type: 'updateTabSessionId', tabId: e.payload.tabId, sessionId: sid });
+      }
     });
     return () => {
       void unlisten.then((fn) => fn());
@@ -81,8 +83,8 @@ function useStatusListener(dispatch: Dispatch, projectId: string): void {
  *
  * Side effects:
  *  - Subscribes to `status:update` and propagates each event's sessionId to
- *    the primary tab via `useStatusListener`, filtered by `projectId` so
- *    concurrent ProjectAreas don't bleed status into each other.
+ *    the tab named by the event's `tabId` via `useStatusListener`, filtered
+ *    by `projectId` so concurrent ProjectAreas don't bleed status into each other.
  *
  * The hook does NOT directly call PTY IPC. `TerminalView` retains its
  * spawn-on-mount / close-on-unmount pattern; adding a Tab causes a new

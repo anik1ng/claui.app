@@ -5,7 +5,7 @@ export type TabsAction =
   | { type: 'add'; tab: Tab }
   | { type: 'setActive'; uid: string }
   | { type: 'closeTab'; uid: string }
-  | { type: 'updatePrimarySessionId'; sessionId: string }
+  | { type: 'updateTabSessionId'; tabId: string; sessionId: string }
   | { type: 'setTabResume'; uid: string; resumeId: string }
   | { type: 'newSessionInTab'; uid: string };
 
@@ -38,9 +38,12 @@ export function tabsReducer(state: TabsState, action: TabsAction): TabsState {
       return { tabs, activeUid };
     }
 
-    case 'updatePrimarySessionId': {
-      const idx = state.tabs.findIndex((t) => t.isPrimary);
-      if (idx < 0) return state;
+    case 'updateTabSessionId': {
+      const idx = state.tabs.findIndex((t) => t.uid === action.tabId);
+      // Change-guard: routine statusline ticks rewrite the file but rarely
+      // change the session id. Returning `state` unchanged keeps the tabs
+      // array referentially stable so ProjectArea doesn't re-render per tick.
+      if (idx < 0 || state.tabs[idx].sessionId === action.sessionId) return state;
       const tabs = [...state.tabs];
       tabs[idx] = { ...tabs[idx], sessionId: action.sessionId };
       return { ...state, tabs };

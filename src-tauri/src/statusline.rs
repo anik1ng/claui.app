@@ -20,12 +20,14 @@ pub struct StatusPayload {
     pub seven_day_resets_at: Option<u64>,
 }
 
-/// Per-project wrapper around `StatusPayload`, emitted as the `status:update`
-/// event payload so the webview can route the update to the right project area.
+/// Per-tab wrapper around `StatusPayload`, emitted as the `status:update`
+/// event payload so the webview can route the update to the right project
+/// area and tab.
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StatusUpdate {
     pub project_id: String,
+    pub tab_id: String,
     pub status: StatusPayload,
 }
 
@@ -60,11 +62,17 @@ struct RawWindow {
     resets_at: Option<u64>,
 }
 
-/// Parse the statusline JSON into a `StatusPayload`. Tolerant by design — a
-/// document that fails to parse, or is missing fields, yields a payload with
-/// those fields `None` rather than an error.
-pub fn parse(json: &str) -> StatusPayload {
-    let Ok(raw) = serde_json::from_str::<Raw>(json) else {
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Envelope {
+    project_id: Option<String>,
+    payload: Option<serde_json::Value>,
+}
+
+/// Build a `StatusPayload` from claude's already-parsed statusline JSON value.
+/// Tolerant: a value that doesn't fit `Raw` yields a default payload.
+fn parse_payload(value: serde_json::Value) -> StatusPayload {
+    let Ok(raw) = serde_json::from_value::<Raw>(value) else {
         return StatusPayload::default();
     };
     let (five, seven) = match raw.rate_limits {
@@ -91,6 +99,16 @@ pub fn parse(json: &str) -> StatusPayload {
     }
 }
 
+/// Parse the per-tab wrapper envelope `{"projectId":…,"payload":<claude json>}`.
+/// Returns `(projectId, StatusPayload)`, or `None` when `projectId` is
+/// absent/empty. A missing/malformed `payload` degrades to a default payload.
+pub fn parse_envelope(json: &str) -> Option<(String, StatusPayload)> {
+    let env = serde_json::from_str::<Envelope>(json).ok()?;
+    let project_id = env.project_id.filter(|p| !p.is_empty())?;
+    let status = env.payload.map_or_else(StatusPayload::default, parse_payload);
+    Some((project_id, status))
+}
+
 /// claui's own subdirectory inside the user's temp dir. Holds the wrapper
 /// script and the status JSON. INVARIANT: this path must contain no characters
 /// that need shell escaping — `claude` runs the statusline `command` string
@@ -109,40 +127,38 @@ fn wrapper_path() -> PathBuf {
     claui_temp_dir().join("claui-statusline.sh")
 }
 
-/// Absolute path of the per-project statusline file. The watcher iterates
-/// `/tmp/claui/status-*.json` and extracts the project id from the file name.
-pub fn project_status_file_path(project_id: &str) -> PathBuf {
-    claui_temp_dir().join(format!("status-{project_id}.json"))
+/// Absolute path of the per-tab statusline file. The watcher iterates
+/// `status-*.json` and extracts the tab id from the file name.
+pub fn tab_status_file_path(tab_id: &str) -> PathBuf {
+    claui_temp_dir().join(format!("status-{tab_id}.json"))
 }
 
 /// Extract `<id>` from a `status-<id>.json` filename. Returns `None` for
-/// anything that doesn't match the pattern, including the empty-id form
-/// `status-.json` — an empty project id has no consumer and would just
-/// pollute the webview's status Map.
-pub fn filename_to_project_id(name: &str) -> Option<&str> {
+/// anything that doesn't match, including the empty-id form `status-.json`.
+pub fn filename_to_tab_id(name: &str) -> Option<&str> {
     crate::util::strip_id(name, "status-")
 }
 
-/// Write the statusline wrapper script. The script captures `claude`'s
-/// statusline JSON (delivered on stdin) into the file claui watches when
-/// the spawned claude is the primary one (`CLAUI_PRIMARY=1`) — that gate
-/// keeps the status file single-sourced per project even when multiple claude
-/// tabs are alive. The destination path is passed via `$CLAUI_STATUS_FILE` so
-/// each primary claude writes to its own `status-<projectId>.json` rather than
-/// a single global file. Inside claui (`CLAUI_ACTIVE=1`) it prints nothing —
-/// claui renders the metrics in its native bar. Outside claui (neither env
-/// set), it chains to the user's real statusline command (read from
-/// `~/.claude/settings.json` via `jq`) and forwards its output, so plain
-/// `claude` in this project still renders the user's strip.
+/// Write the statusline wrapper script. Every in-claui claude writes its own
+/// per-tab file (`$CLAUI_STATUS_FILE` = `status-<tabId>.json`) whose body is
+/// an envelope `{"projectId":"…","payload":<claude's verbatim statusline JSON>}`
+/// — `projectId` is added here because claude's own JSON doesn't carry it.
+/// `CLAUI_PRIMARY` is no longer consulted; every tab self-reports. Inside claui
+/// (`CLAUI_ACTIVE=1`) no output is printed — claui renders the metrics in its
+/// native bar. Outside claui (when neither env var is set), it chains to the
+/// user's real statusline command (read from `~/.claude/settings.json` via
+/// `jq`) and forwards its output, so plain `claude` in this project still
+/// renders the user's strip.
 pub fn install_wrapper() -> std::io::Result<()> {
     std::fs::create_dir_all(claui_temp_dir())?;
     let script = "#!/bin/sh\n\
         # claui — capture claude's statusline JSON. Written by claui; do not edit.\n\
         input=$(cat)\n\
-        if [ -n \"$CLAUI_PRIMARY\" ] && [ -n \"$CLAUI_STATUS_FILE\" ]; then\n\
+        if [ -n \"$CLAUI_STATUS_FILE\" ] && [ -n \"$input\" ]; then\n\
           # Concurrent-safe temp suffix: shell PID + per-invocation $RANDOM.\n\
           tmp=\"$CLAUI_STATUS_FILE.tmp.$$.${RANDOM}\"\n\
-          printf '%s' \"$input\" > \"$tmp\" && mv -f \"$tmp\" \"$CLAUI_STATUS_FILE\"\n\
+          printf '{\"projectId\":\"%s\",\"payload\":%s}' \"$CLAUI_PROJECT_ID\" \"$input\" > \"$tmp\" \\\n\
+            && mv -f \"$tmp\" \"$CLAUI_STATUS_FILE\"\n\
         fi\n\
         if [ -z \"$CLAUI_ACTIVE\" ]; then\n\
           user_settings=\"$HOME/.claude/settings.json\"\n\
@@ -193,7 +209,7 @@ pub fn install_project_settings(project_path: &Path) -> std::io::Result<()> {
 /// files within their first render — at most a sub-second blank bar.
 pub fn purge_stale_status_files() {
     crate::util::purge_matching(&claui_temp_dir(), |name| {
-        filename_to_project_id(name).is_some()
+        filename_to_tab_id(name).is_some()
     });
 }
 
@@ -241,12 +257,13 @@ pub fn start_watcher(app: AppHandle) -> notify::Result<()> {
 /// deleted). The webview deduplicates content-identical payloads on the JS
 /// side (see `useStatusByProject`), so we do not need a Rust-side cache.
 fn process_path(path: &Path, app: &AppHandle) {
-    crate::util::process_claui_file(path, filename_to_project_id, |project_id, text| {
-        let status = parse(&text);
-        let _ = app.emit(
-            "status:update",
-            StatusUpdate { project_id: project_id.to_owned(), status },
-        );
+    crate::util::process_claui_file(path, filename_to_tab_id, |tab_id, text| {
+        if let Some((project_id, status)) = parse_envelope(&text) {
+            let _ = app.emit(
+                "status:update",
+                StatusUpdate { project_id, tab_id: tab_id.to_owned(), status },
+            );
+        }
     });
 }
 
@@ -266,7 +283,7 @@ mod tests {
                 "seven_day": { "used_percentage": 35.0, "resets_at": 1780059600 }
             }
         }"#;
-        let p = parse(json);
+        let p = parse_payload(serde_json::from_str(json).unwrap());
         assert_eq!(p.session_id, Some("abc-123".to_string()));
         assert_eq!(p.model, Some("Opus 4.7".to_string()));
         assert_eq!(p.context_pct, Some(12.5));
@@ -285,7 +302,7 @@ mod tests {
                 "seven_day": { "used_percentage": 35.0 }
             }
         }"#;
-        let p = parse(json);
+        let p = parse_payload(serde_json::from_str(json).unwrap());
         assert_eq!(p.five_hour_pct, Some(15.0));
         assert_eq!(p.five_hour_resets_at, None);
         assert_eq!(p.seven_day_resets_at, None);
@@ -293,7 +310,7 @@ mod tests {
 
     #[test]
     fn missing_fields_become_none() {
-        let p = parse(r#"{ "session_id": "x", "cost": { "total_cost_usd": 1.0 } }"#);
+        let p = parse_payload(serde_json::from_str(r#"{ "session_id": "x", "cost": { "total_cost_usd": 1.0 } }"#).unwrap());
         assert_eq!(p.session_id, Some("x".to_string()));
         assert_eq!(p.cost_usd, Some(1.0));
         assert_eq!(p.context_pct, None);
@@ -302,29 +319,53 @@ mod tests {
     }
 
     #[test]
-    fn malformed_json_yields_an_empty_payload() {
-        let p = parse("not json at all");
+    fn parse_payload_degrades_a_non_object_value() {
+        let p = parse_payload(serde_json::Value::String("nope".into()));
         assert_eq!(p.session_id, None);
         assert_eq!(p.context_pct, None);
     }
 
     #[test]
-    fn filename_to_project_id_happy_path() {
-        assert_eq!(filename_to_project_id("status-abc-123.json"), Some("abc-123"));
+    fn parse_envelope_extracts_project_and_payload() {
+        let json = r#"{"projectId":"p1","payload":{"session_id":"abc","cost":{"total_cost_usd":1.5}}}"#;
+        let (project_id, status) = parse_envelope(json).unwrap();
+        assert_eq!(project_id, "p1");
+        assert_eq!(status.session_id, Some("abc".to_string()));
+        assert_eq!(status.cost_usd, Some(1.5));
     }
 
     #[test]
-    fn filename_to_project_id_wrong_prefix() {
-        assert_eq!(filename_to_project_id("claui-statusline.json"), None);
+    fn parse_envelope_rejects_missing_or_empty_project() {
+        assert!(parse_envelope(r#"{"payload":{"session_id":"x"}}"#).is_none());
+        assert!(parse_envelope(r#"{"projectId":"","payload":{}}"#).is_none());
     }
 
     #[test]
-    fn filename_to_project_id_wrong_extension() {
-        assert_eq!(filename_to_project_id("status-abc-123.txt"), None);
+    fn parse_envelope_degrades_bad_payload_to_default() {
+        // projectId present, payload missing → empty StatusPayload, not an error.
+        let (project_id, status) = parse_envelope(r#"{"projectId":"p1"}"#).unwrap();
+        assert_eq!(project_id, "p1");
+        assert_eq!(status.session_id, None);
+        assert_eq!(status.model, None);
     }
 
     #[test]
-    fn filename_to_project_id_rejects_empty_id() {
-        assert_eq!(filename_to_project_id("status-.json"), None);
+    fn filename_to_tab_id_happy_path() {
+        assert_eq!(filename_to_tab_id("status-tab-abc.json"), Some("tab-abc"));
+    }
+
+    #[test]
+    fn filename_to_tab_id_wrong_prefix() {
+        assert_eq!(filename_to_tab_id("claui-statusline.json"), None);
+    }
+
+    #[test]
+    fn filename_to_tab_id_wrong_extension() {
+        assert_eq!(filename_to_tab_id("status-abc-123.txt"), None);
+    }
+
+    #[test]
+    fn filename_to_tab_id_rejects_empty_id() {
+        assert_eq!(filename_to_tab_id("status-.json"), None);
     }
 }

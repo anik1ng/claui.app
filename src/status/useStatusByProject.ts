@@ -2,6 +2,9 @@ import { useState } from 'react';
 import type { StatusPayload, StatusUpdate } from '../ipc/commands';
 import { useListen } from '../notify/useListen';
 
+/** projectId → (tabId → payload). */
+export type StatusByProject = Map<string, Map<string, StatusPayload>>;
+
 function statusEqual(a: StatusPayload, b: StatusPayload): boolean {
   return (
     a.sessionId === b.sessionId &&
@@ -16,29 +19,33 @@ function statusEqual(a: StatusPayload, b: StatusPayload): boolean {
 }
 
 /**
- * Aggregates per-project statusline payloads delivered via the global
- * `status:update` event into a Map keyed by projectId. Each `ProjectArea`
- * reads its own slice from the returned map; the Rust watcher emits one
- * event per primary claude's status-<id>.json file.
- *
- * Belt-and-suspenders dedupe: even if Rust emits a payload whose fields
- * exactly match the previous one for the same project, we keep the existing
- * Map identity so React.memo can skip the entire ProjectArea sub-tree.
+ * Fold one `status:update` into the nested map. Returns the SAME map reference
+ * when the payload is content-identical to what's already stored for that
+ * (project, tab) — so React.memo can skip. On a real change, only the touched
+ * project's inner map gets a new reference; sibling projects keep identity.
  */
-export function useStatusByProject(): Map<string, StatusPayload> {
-  const [statuses, setStatuses] = useState<Map<string, StatusPayload>>(new Map());
+export function aggregateStatus(prev: StatusByProject, u: StatusUpdate): StatusByProject {
+  const inner = prev.get(u.projectId);
+  const existing = inner?.get(u.tabId);
+  if (existing && statusEqual(existing, u.status)) return prev;
+  const next = new Map(prev);
+  const nextInner = new Map(inner ?? []);
+  nextInner.set(u.tabId, u.status);
+  next.set(u.projectId, nextInner);
+  return next;
+}
 
+/**
+ * Aggregates per-tab statusline payloads delivered via the global
+ * `status:update` event into `Map<projectId, Map<tabId, StatusPayload>>`.
+ * Each `ProjectArea` reads its project's inner map and selects the active
+ * tab's payload. Referential stability (see `aggregateStatus`) keeps React.memo
+ * effective so one tab's tick never re-renders unrelated projects.
+ */
+export function useStatusByProject(): StatusByProject {
+  const [statuses, setStatuses] = useState<StatusByProject>(new Map());
   useListen<StatusUpdate>('status:update', (e) => {
-    setStatuses((prev) => {
-      const existing = prev.get(e.payload.projectId);
-      if (existing && statusEqual(existing, e.payload.status)) {
-        return prev;
-      }
-      const next = new Map(prev);
-      next.set(e.payload.projectId, e.payload.status);
-      return next;
-    });
+    setStatuses((prev) => aggregateStatus(prev, e.payload));
   });
-
   return statuses;
 }

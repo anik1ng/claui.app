@@ -122,7 +122,7 @@ pub fn run() {
             ipc::get_capabilities,
             ipc::get_window_state,
             ipc::save_window_state,
-            ipc::cleanup_project_status,
+            ipc::cleanup_tab_status,
             ipc::cleanup_tab_notify,
             ipc::stash_pending_activation,
             ipc::activate_pending,

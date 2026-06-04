@@ -16,6 +16,8 @@ import {
 import { useNotifyActivateTab, useTabNotify } from '../notify/useTabNotify';
 import type { NotifyKind } from '../notify/notifyStore';
 import type { Theme } from '../theme/themeStore';
+import { withGlobalLimits, type RateLimits } from '../status/rateLimits';
+import { useProjectCloseCleanup } from './useProjectCloseCleanup';
 import './ProjectArea.css';
 
 /** App-owned portal targets for the active project's chrome. App tracks each
@@ -34,8 +36,8 @@ interface Props {
   projectId: string;
   projectPath: string;
   isActive: boolean;
-  /** Status payload for THIS project, sliced by App from useStatusByProject. */
-  status: StatusPayload | null;
+  /** This project's per-tab status payloads, sliced by App. */
+  statusByTab: ReadonlyMap<string, StatusPayload>;
   /** Window-level sidebar visibility setter (App owns the state; `Ctrl+B`
    *  inside the active ProjectArea toggles the shared sidebar). */
   setSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -43,6 +45,8 @@ interface Props {
   slots: ProjectChromeSlots;
   /** When true (App: Ctrl held), the workspace tab bar shows its Ctrl+N hints. */
   showTabShortcuts: boolean;
+  /** Account-global 5h/7d rate limits, sourced window-wide by App. */
+  globalRateLimits: RateLimits | null;
   /** This project's tab signals (tabId → kind), sliced by App. */
   notifyTabs: ReadonlyMap<string, NotifyKind>;
   /** Report the active tab as viewed (clears its signal). */
@@ -68,10 +72,11 @@ interface Props {
  * `React.memo` wraps the component because App re-renders on every
  * `status:update` from any project; without memo, all N ProjectAreas
  * re-render for every statusline tick of every project. The active project's
- * status reference changes via `statuses.get(projectId)`, so the active one
- * still re-renders correctly.
+ * `statusByTab` slice changes identity (via `aggregateStatus`'s per-project
+ * inner map) only when one of its tabs ticks, so the active project
+ * re-renders while siblings are skipped.
  */
-function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, setSidebarOpen, slots, showTabShortcuts, notifyTabs, onViewActiveTab, onClearTabNotify }: Props) {
+function ProjectAreaInner({ theme, projectId, projectPath, isActive, statusByTab, globalRateLimits, setSidebarOpen, slots, showTabShortcuts, notifyTabs, onViewActiveTab, onClearTabNotify }: Props) {
   const {
     tabs,
     activeUid,
@@ -82,6 +87,9 @@ function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, set
     setTabResume,
     newSessionInTab,
   } = useTabs(projectPath, projectId);
+  useProjectCloseCleanup(tabs);
+
+  const status = withGlobalLimits((activeUid && statusByTab.get(activeUid)) || null, globalRateLimits);
 
   const closeTabAndClear = useTabNotify({
     projectId, isActive, activeUid, closeTab, onViewActiveTab, onClearTabNotify,
@@ -186,8 +194,7 @@ function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, set
   const openShell = useCallback(
     (ch: Channel<ArrayBuffer>, cols: number, rows: number) =>
       openCommandTerminal(projectPath, ch, cols, rows),
-    [projectPath],
-  );
+    [projectPath]);
 
   return (
     <>

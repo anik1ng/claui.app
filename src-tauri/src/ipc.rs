@@ -55,19 +55,14 @@ fn augment_path(home: &Path, existing: &str) -> String {
 }
 
 /// Build the env tuple passed to the spawned claude. Owned strings because
-/// `CLAUI_STATUS_FILE` carries a per-project path generated at runtime — it
-/// can't be a `&'static str`. `project_id` is consulted unconditionally (for
-/// `CLAUI_PROJECT_ID` and, when `is_primary`, for the status-file path).
-/// Every spawn gets `CLAUI_ACTIVE=1`, `CLAUI_PROJECT_ID`, `CLAUI_TAB_ID`,
-/// and `CLAUI_NOTIFY_FILE`; `is_primary` additionally adds `CLAUI_PRIMARY=1`
-/// and `CLAUI_STATUS_FILE`.
+/// `CLAUI_STATUS_FILE` carries a per-tab path generated at runtime — it
+/// can't be a `&'static str`. Every spawn gets `CLAUI_ACTIVE=1`,
+/// `CLAUI_PROJECT_ID`, `CLAUI_TAB_ID`, `CLAUI_NOTIFY_FILE`, and its own
+/// `CLAUI_STATUS_FILE` (`status-<tabId>.json`) — every claude tab
+/// self-reports its own statusline state.
 ///
 /// `CLAUI_ACTIVE=1` tells the statusline wrapper it's running inside claui
 /// (suppresses the chain to the user's real statusline command).
-/// `CLAUI_PRIMARY=1` is set only on the primary claude of an open project —
-/// the statusline wrapper writes the per-project status file for that PTY
-/// only, so claui's status bar tracks a single source of truth per project
-/// even with multiple claude tabs alive.
 ///
 /// Three layers stack into the result:
 ///
@@ -81,14 +76,10 @@ fn augment_path(home: &Path, existing: &str) -> String {
 ///      This is the safety net for users whose `.zshrc` doesn't add
 ///      Homebrew etc.
 ///   3. CLAUI overlays — `CLAUI_ACTIVE`, `CLAUI_PROJECT_ID`, `CLAUI_TAB_ID`,
-///      and `CLAUI_NOTIFY_FILE` (the per-tab signal file the hook script reads
-///      to identify which tab triggered a notification; `CLAUI_TAB_ID`
-///      identifies the tab itself), and optionally `CLAUI_PRIMARY` with
-///      `CLAUI_STATUS_FILE`. Overlays come last so they win over any
-///      same-keyed entry the captured shell happened to set.
+///      `CLAUI_NOTIFY_FILE`, and `CLAUI_STATUS_FILE`. Overlays come last so
+///      they win over any same-keyed entry the captured shell happened to set.
 pub(crate) fn build_spawn_env(
     captured: &ShellEnv,
-    is_primary: bool,
     project_id: &str,
     tab_id: &str,
 ) -> Vec<(String, String)> {
@@ -123,15 +114,12 @@ pub(crate) fn build_spawn_env(
             .to_string_lossy()
             .into_owned(),
     ));
-    if is_primary {
-        env.push(("CLAUI_PRIMARY".into(), "1".into()));
-        env.push((
-            "CLAUI_STATUS_FILE".into(),
-            crate::statusline::project_status_file_path(project_id)
-                .to_string_lossy()
-                .into_owned(),
-        ));
-    }
+    env.push((
+        "CLAUI_STATUS_FILE".into(),
+        crate::statusline::tab_status_file_path(tab_id)
+            .to_string_lossy()
+            .into_owned(),
+    ));
     env
 }
 
@@ -149,7 +137,6 @@ pub fn open_project(
     cols: u16,
     rows: u16,
     resume_session_id: Option<String>,
-    is_primary: bool,
     project_id: String,
     tab_id: String,
 ) -> Result<u32, String> {
@@ -179,7 +166,7 @@ pub fn open_project(
         args.push(sid.as_str());
     }
 
-    let env = build_spawn_env(crate::shell_env::get(), is_primary, &project_id, &tab_id);
+    let env = build_spawn_env(crate::shell_env::get(), &project_id, &tab_id);
 
     let claude = claude.to_string_lossy();
     spawn_terminal(
@@ -303,11 +290,14 @@ pub fn save_window_state(
     crate::window_state::save(&path, &state).map_err(|e| e.to_string())
 }
 
-/// Remove the per-project status file from `/tmp/claui/` when a project is
-/// closed. Idempotent — succeeds if the file does not exist.
+/// Remove a tab's status file from the temp dir when the tab closes.
+/// Idempotent — succeeds if the file does not exist.
 #[tauri::command]
-pub fn cleanup_project_status(project_id: String) -> Result<(), String> {
-    let path = crate::statusline::project_status_file_path(&project_id);
+pub fn cleanup_tab_status(tab_id: String) -> Result<(), String> {
+    if !crate::notify::is_safe_tab_id(&tab_id) {
+        return Err("invalid tab id".into());
+    }
+    let path = crate::statusline::tab_status_file_path(&tab_id);
     if path.exists() {
         std::fs::remove_file(&path).map_err(|e| e.to_string())?;
     }
@@ -367,27 +357,16 @@ mod tests {
     use std::path::Path;
 
     #[test]
-    fn build_spawn_env_marks_primary_with_status_file() {
-        let env = build_spawn_env(&ShellEnv::new(), true, "abc-123", "tab-1");
+    fn build_spawn_env_gives_every_claude_a_tab_status_file() {
+        let env = build_spawn_env(&ShellEnv::new(), "abc-123", "tab-1");
         assert!(env.iter().any(|(k, v)| k == "CLAUI_ACTIVE" && v == "1"));
-        assert!(env.iter().any(|(k, v)| k == "CLAUI_PRIMARY" && v == "1"));
         assert!(env.iter().any(|(k, v)| k == "CLAUI_PROJECT_ID" && v == "abc-123"));
         assert!(env.iter().any(|(k, v)| k == "CLAUI_TAB_ID" && v == "tab-1"));
-        let notify = env.iter().find(|(k, _)| k == "CLAUI_NOTIFY_FILE");
-        assert!(notify.unwrap().1.ends_with("notify-tab-1.json"));
-        let status = env.iter().find(|(k, _)| k == "CLAUI_STATUS_FILE");
-        assert!(status.unwrap().1.ends_with("status-abc-123.json"));
-    }
-
-    #[test]
-    fn build_spawn_env_skips_primary_and_status_file_for_non_primary() {
-        let env = build_spawn_env(&ShellEnv::new(), false, "abc-123", "tab-1");
-        assert!(env.iter().any(|(k, _)| k == "CLAUI_ACTIVE"));
-        assert!(env.iter().any(|(k, v)| k == "CLAUI_PROJECT_ID" && v == "abc-123"));
-        assert!(env.iter().any(|(k, v)| k == "CLAUI_TAB_ID" && v == "tab-1"));
-        assert!(env.iter().any(|(k, _)| k == "CLAUI_NOTIFY_FILE"));
+        let notify = env.iter().find(|(k, _)| k == "CLAUI_NOTIFY_FILE").unwrap();
+        assert!(notify.1.ends_with("notify-tab-1.json"));
+        let status = env.iter().find(|(k, _)| k == "CLAUI_STATUS_FILE").unwrap();
+        assert!(status.1.ends_with("status-tab-1.json"));
         assert!(!env.iter().any(|(k, _)| k == "CLAUI_PRIMARY"));
-        assert!(!env.iter().any(|(k, _)| k == "CLAUI_STATUS_FILE"));
     }
 
     #[test]
@@ -396,7 +375,7 @@ mod tests {
         captured.insert("FNM_DIR".into(), "/Users/u/.fnm".into());
         captured.insert("NVM_DIR".into(), "/Users/u/.nvm".into());
         captured.insert("EDITOR".into(), "nvim".into());
-        let env = build_spawn_env(&captured, false, "p", "tab-1");
+        let env = build_spawn_env(&captured, "p", "tab-1");
         assert!(env
             .iter()
             .any(|(k, v)| k == "FNM_DIR" && v == "/Users/u/.fnm"));
@@ -417,7 +396,7 @@ mod tests {
             "PATH".into(),
             format!("{fnm_path}:/opt/homebrew/bin:/usr/bin"),
         );
-        let env = build_spawn_env(&captured, false, "p", "tab-1");
+        let env = build_spawn_env(&captured, "p", "tab-1");
         let (_, path) = env.iter().find(|(k, _)| k == "PATH").unwrap();
         assert!(path.contains(fnm_path), "fnm symlink dropped: {path}");
         // Extras are still prepended for safety.
@@ -437,7 +416,7 @@ mod tests {
         // single-entry.
         let mut captured = ShellEnv::new();
         captured.insert("PATH".into(), "/usr/bin:/bin".into());
-        let env = build_spawn_env(&captured, false, "p", "tab-1");
+        let env = build_spawn_env(&captured, "p", "tab-1");
         let path_count = env.iter().filter(|(k, _)| k == "PATH").count();
         assert_eq!(path_count, 1, "expected exactly one PATH entry");
     }
