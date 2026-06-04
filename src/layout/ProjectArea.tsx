@@ -208,7 +208,7 @@ function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, set
         }}
         sessionsList={{
           sessions,
-          activeSessionId: status?.sessionId ?? null,
+          activeSessionId: tabs.find((t) => t.uid === activeUid)?.sessionId ?? null,
           openSessionIds: sessionIdsOpen,
           onPick: pickSession,
           onNew: startNewSession,
