@@ -194,7 +194,7 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   appending. `ProjectsSection` renders projects as `<ListRow>`s into the
   top of the right sidebar; it returns `null` when only one project is
   open (no choice to surface). `useProjectSwitchKeyboard` handles
-  `Ctrl+1..9` for project switching at the App level.
+  `Cmd+1..9` for project switching at the App level.
 - `status/useStatusByProject.ts` — listens to `status:update` events with
   the `{ projectId, tabId, status }` shape, aggregates them into a nested
   `Map<projectId, Map<tabId, StatusPayload>>` via a pure `aggregateStatus`.
@@ -262,7 +262,7 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   `<IconTerminal>` SVG icons as the title-bar toolbar so the visual
   language is consistent.
 - `layout/useLayoutKeyboard.ts` — extracted keydown effect for the
-  drawer / sidebar toggles and the numeric tab switcher (`Cmd+1..9`).
+  drawer / sidebar toggles and the numeric tab switcher (`Ctrl+1..9`).
   `Cmd+T` / `Cmd+Shift+T` / `Cmd+W` are NOT here — they're owned by the
   macOS File menu (see `src-tauri/src/menu.rs`); `ProjectArea` subscribes
   to the corresponding `menu:*` events the Rust side emits on click. The
@@ -312,9 +312,9 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   status bar at the bottom of the window (model / context / cost / 5h+7d
   limits, captured via a `statusLine` wrapper claui writes into project-local
   `.claude/settings.local.json`; one file per tab), the sessions sidebar,
-  workspace tabs (`Cmd+T` / `Cmd+Shift+T` / `Cmd+1..9` / `Cmd+W`), and
+  workspace tabs (`Cmd+T` / `Cmd+Shift+T` / `Ctrl+1..9` / `Cmd+W`), and
   multi-project tabs (`Cmd+Shift+N` Add Project / `Cmd+Shift+W` Close Project
-  / `Ctrl+1..9` switch project). The sessions sidebar marks rows whose
+  / `Cmd+1..9` switch project). The sessions sidebar marks rows whose
   session is currently open in some tab. Open projects + the active one
   persist to `<app_config_dir>/window.json` and restore on next launch
   (workspace tabs inside a project do NOT persist; each restored project
@@ -389,7 +389,7 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   action on the primary returns the state unchanged. We removed the
   predefined `.close_window()` item from the Window submenu because its
   default `Cmd+W` would otherwise fight File → Close Tab; the red
-  traffic-light button remains the way to close the window. `Ctrl+1..9`
+  traffic-light button remains the way to close the window. `Cmd+1..9`
   (project switch) is handled in `src/projects/useProjectSwitchKeyboard.ts`
   at the App level via a capture-phase keydown listener — nine items don't
   deserve menu entries.

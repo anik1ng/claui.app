@@ -11,27 +11,27 @@ const tab = (uid: string, isPrimary = false): Tab => ({
 });
 
 function ev(init: Partial<KeyboardEvent>): KeyboardEvent {
-  return new KeyboardEvent('keydown', { metaKey: true, ...init });
+  return new KeyboardEvent('keydown', { ctrlKey: true, ...init });
 }
 
 describe('keyboardEventToAction / switching', () => {
   const tabs = [tab('p', true), tab('a'), tab('b'), tab('c')];
 
-  it('Cmd+1 → setActive primary', () => {
+  it('Ctrl+1 → setActive primary', () => {
     expect(keyboardEventToAction(ev({ key: '1' }), tabs)).toEqual({
       type: 'setActive',
       uid: 'p',
     });
   });
 
-  it('Cmd+3 → setActive third tab', () => {
+  it('Ctrl+3 → setActive third tab', () => {
     expect(keyboardEventToAction(ev({ key: '3' }), tabs)).toEqual({
       type: 'setActive',
       uid: 'b',
     });
   });
 
-  it('Cmd+9 → setActive last tab', () => {
+  it('Ctrl+9 → setActive last tab', () => {
     expect(keyboardEventToAction(ev({ key: '9' }), tabs)).toEqual({
       type: 'setActive',
       uid: 'c',
@@ -42,29 +42,29 @@ describe('keyboardEventToAction / switching', () => {
 describe('keyboardEventToAction / edge cases', () => {
   const tabs = [tab('p', true), tab('a'), tab('b'), tab('c')];
 
-  it('Cmd+5 with 4 tabs → null', () => {
+  it('Ctrl+5 with 4 tabs → null', () => {
     expect(keyboardEventToAction(ev({ key: '5' }), tabs)).toBeNull();
   });
 
-  it('Cmd+9 with only primary → null', () => {
+  it('Ctrl+9 with only primary → null', () => {
     expect(keyboardEventToAction(ev({ key: '9' }), [tab('p', true)])).toBeNull();
   });
 
-  it('non-meta keys → null', () => {
-    const evt = new KeyboardEvent('keydown', { key: '1', metaKey: false });
+  it('non-ctrl keys → null', () => {
+    const evt = new KeyboardEvent('keydown', { key: '1', ctrlKey: false });
     expect(keyboardEventToAction(evt, tabs)).toBeNull();
   });
 
-  it('Ctrl+1 (ctrl, not meta) → null', () => {
-    const evt = new KeyboardEvent('keydown', { key: '1', ctrlKey: true });
+  it('Cmd+1 (meta, not ctrl) → null', () => {
+    const evt = new KeyboardEvent('keydown', { key: '1', metaKey: true });
     expect(keyboardEventToAction(evt, tabs)).toBeNull();
   });
 
-  it('Cmd+Shift+1 → null (no accidental match on shifted digits)', () => {
+  it('Ctrl+Shift+1 → null (no accidental match on shifted digits)', () => {
     expect(keyboardEventToAction(ev({ key: '1', shiftKey: true }), tabs)).toBeNull();
   });
 
-  it('Cmd with a non-digit → null', () => {
+  it('Ctrl with a non-digit → null', () => {
     expect(keyboardEventToAction(ev({ key: 'p' }), tabs)).toBeNull();
   });
 });

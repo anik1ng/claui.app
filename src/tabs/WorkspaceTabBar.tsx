@@ -74,7 +74,7 @@ export function WorkspaceTabBar({
                   primary tab — which has no × — still reserves the slot. */}
               <span className="ws-tab-tail">
                 {showShortcuts && labels[i] != null ? (
-                  <span className="ws-tab-hint" aria-hidden>⌘{labels[i]}</span>
+                  <span className="ws-tab-hint" aria-hidden>⌃{labels[i]}</span>
                 ) : !tab.isPrimary ? (
                   <button
                     type="button"

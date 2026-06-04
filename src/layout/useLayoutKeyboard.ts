@@ -56,7 +56,7 @@ function handleChromeKey(
  * Two shortcut families live here:
  *  - Drawer / sidebar toggles (Ctrl+\`, Ctrl+B, Escape) — claui-custom,
  *    not Mac-standard; managed in JS.
- *  - Numeric tab switching (Cmd+1..9) via `src/tabs/keyboard.ts` — pure
+ *  - Numeric tab switching (Ctrl+1..9) via `src/tabs/keyboard.ts` — pure
  *    mapping, tested independently.
  *
  * What is NOT here: ⌘T / ⌘⇧T / ⌘W. Those are owned by the macOS File
