@@ -1,3 +1,4 @@
+mod capabilities;
 mod claude;
 mod ipc;
 mod menu;
@@ -118,6 +119,7 @@ pub fn run() {
             ipc::pty_resize,
             ipc::pty_close,
             ipc::list_sessions,
+            ipc::get_capabilities,
             ipc::get_window_state,
             ipc::save_window_state,
             ipc::cleanup_project_status,

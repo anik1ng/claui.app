@@ -10,6 +10,7 @@ import { useProjects } from './projects/useProjects';
 import { useProjectSwitchKeyboard } from './projects/useProjectSwitchKeyboard';
 import { basename } from './projects/basename';
 import { useHeldModifier } from './layout/useHeldModifier';
+import { useChromeSlots } from './layout/useChromeSlots';
 import { useStatusByProject } from './status/useStatusByProject';
 import { useNotifyByProject } from './notify/useNotifyByProject';
 import { useWindowFocus } from './notify/useWindowFocus';
@@ -44,12 +45,8 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const heldModifier = useHeldModifier();
 
-  // Portal slots — tracked via callback refs so when a slot's parent unmounts
-  // (e.g. Sidebar toggled by Ctrl+B) and remounts, the new DOM node propagates
-  // here, ProjectArea re-renders, and createPortal targets the fresh element.
-  const [workspaceTabsSlot, setWorkspaceTabsSlot] = useState<HTMLElement | null>(null);
-  const [statusSlot, setStatusSlot] = useState<HTMLElement | null>(null);
-  const [sessionsSlot, setSessionsSlot] = useState<HTMLElement | null>(null);
+  // Portal slots for the active project's chrome (see useChromeSlots).
+  const chrome = useChromeSlots();
 
   useEffect(() => {
     setTheme(defaultTheme);
@@ -142,7 +139,7 @@ export default function App() {
         </div>
       )}
       <TitleBar
-        workspaceTabsRef={setWorkspaceTabsSlot}
+        workspaceTabsRef={chrome.setWorkspaceTabs}
         showTabActions={projects.length > 0}
         onOpenClaude={() => void emit('menu:new-claude-tab')}
         onOpenShell={() => void emit('menu:new-shell-tab')}
@@ -166,11 +163,7 @@ export default function App() {
                 onClearTabNotify={clearNotify}
                 setSidebarOpen={setSidebarOpen}
                 showTabShortcuts={heldModifier !== null}
-                slots={{
-                  workspaceTabs: workspaceTabsSlot,
-                  status: statusSlot,
-                  sessions: sessionsSlot,
-                }}
+                slots={chrome.slots}
               />
             ))}
           </div>
@@ -185,16 +178,17 @@ export default function App() {
                 showShortcuts={heldModifier !== null}
                 indicators={projectDots}
               />
-              {/* Portal target — the active ProjectArea renders SessionsSection
-                  into this slot via createPortal. */}
-              <div ref={setSessionsSlot} className="sessions-slot" />
+              {/* Portal targets — the active ProjectArea renders SessionsSection
+                  and CapabilitiesSection into these slots via createPortal. */}
+              <div ref={chrome.setSessions} className="sessions-slot" />
+              <div ref={chrome.setCapabilities} className="capabilities-slot" />
             </Sidebar>
           )}
         </div>
       )}
       {/* StatusBar sits at the bottom of the window. The active ProjectArea
           portals its <StatusBar /> here. Empty when no projects yet. */}
-      <div ref={setStatusSlot} />
+      <div ref={chrome.setStatus} />
       <UpdateToast
         toast={updateToast}
         onInstall={() => void installUpdate()}

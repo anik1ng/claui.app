@@ -1,5 +1,6 @@
 import { invoke, Channel } from '@tauri-apps/api/core';
 import type { NotifyKind } from '../notify/notifyStore';
+import type { Capabilities } from '../capabilities/types';
 
 // Re-export the Channel type so terminal components can annotate their
 // output callbacks without importing @tauri-apps/api/core directly —
@@ -119,6 +120,9 @@ export interface SessionInfo {
 
 export const listSessions = (path: string) =>
   invoke<SessionInfo[]>('list_sessions', { path });
+
+export const getCapabilities = (path: string) =>
+  invoke<Capabilities>('get_capabilities', { path });
 
 /**
  * Create a Channel that normalizes the backend's binary payload to a

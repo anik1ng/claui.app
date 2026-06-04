@@ -87,3 +87,12 @@
   flex-direction: column;
   min-height: 0;
 }
+/* The capabilities panel sits below Sessions and is content-sized: just its
+   collapsed group headers until expanded, then capped + scrolled by `.caps`.
+   Sessions (flex-grow) keeps the rest of the height as the primary list. */
+.capabilities-slot {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}

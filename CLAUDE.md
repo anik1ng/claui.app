@@ -107,6 +107,14 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   signals for itself.
 - `sessions.rs` — reads a project's `claude` session files from
   `~/.claude/projects/<encoded>/` for the sessions sidebar.
+- `capabilities.rs` — read-only snapshot for the capabilities sidebar:
+  enabled plugins (joining `~/.claude/settings.json` `enabledPlugins` with
+  `plugins/installed_plugins.json` install paths) and the skills/agents they
+  ship, plus the effective hooks/permissions (global settings merged with the
+  project's `.claude/settings.local.json`). Pure helpers (`resolve_enabled_plugins`,
+  `skills_under`, `agents_under`, `flatten_hooks`, `flatten_permissions`) are
+  `cargo test`-covered; the `read_capabilities_from` IO entry degrades every
+  unreadable source to empty (never panics). Exposed as `get_capabilities`.
 - `claude.rs` — locates the `claude` binary on `$PATH` and common install dirs.
 - `window_state.rs` — types + atomic save/load for `<app_config_dir>/window.json`
   (the persisted list of open projects). Versioned; stale paths are filtered
@@ -162,9 +170,12 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   not inline style), others are `visibility: hidden` on a
   `position: absolute; inset: 0` container so xterm geometry and scrollback
   survive a project switch. The window chrome — `WorkspaceTabBar`,
-  `StatusBar`, `SessionsSection` — is rendered into App-level slots
-  (`#workspace-tabs-slot`, `#status-slot`, `#sessions-slot`) via
-  `createPortal`. The portals are gated on `isActive`, so only one
+  `StatusBar`, `SessionsSection`, `CapabilitiesSection` — is rendered into
+  App-level slots (`#workspace-tabs-slot`, `#status-slot`, `#sessions-slot`,
+  `#capabilities-slot`) via `createPortal`, factored into the
+  `layout/ProjectChrome.tsx` component (the four portals) which `ProjectArea`
+  renders in one line; App tracks the slot nodes via `layout/useChromeSlots.ts`.
+  The portals are gated on `isActive`, so only one
   project's chrome ever occupies the slots. Per-project `useTabs(path, id)`,
   `useSessionsPolling(path)`, drawer state. Menu listeners
   (`menu:new-claude-tab` / `menu:new-shell-tab` / `menu:close-tab`) are
@@ -189,14 +200,23 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   limits), fed by the active project's status slice. Portaled into
   `#status-slot` at App-level by the active `ProjectArea`.
 - `sessions/Sidebar.tsx` — the right-hand sidebar shell. A bare flex
-  column that wraps two sections: `<ProjectsSection>` (rendered directly
-  by `App`) on top, and `#sessions-slot` (portal target for the active
-  project's `<SessionsSection>`) on the bottom.
+  column wrapping `<ProjectsSection>` (rendered directly by `App`) on top,
+  then `#sessions-slot` and `#capabilities-slot` (portal targets for the
+  active project's `<SessionsSection>` and `<CapabilitiesSection>`). The two
+  slots split the remaining height as independent scroll regions; the
+  `.sidebar` is `position: relative` so the overlay scrollbars anchor to it.
 - `sessions/SessionsSection.tsx` — the active project's session list,
   rendered as `<ListRow>`s. Portaled into `#sessions-slot` by the active
   `ProjectArea`. Each row carries the session title + relative-time meta;
   rows whose session is currently held by some workspace tab get a small
   `↗` badge.
+- `capabilities/*` — the read-only capabilities panel: `useCapabilities.ts`
+  (calls `get_capabilities` on mount + window focus, gated to the active
+  project), `CapabilitiesSection.tsx` (collapsible Skills / Plugins / Agents /
+  Hooks / Permissions `<details>` groups, per-group open state persisted to
+  `localStorage`), `types.ts`, `capabilities.css`. Info-only — no toggles or
+  actions. Portaled into `#capabilities-slot` by the active `ProjectArea`. MCP
+  (claude.ai connectors live remotely) and Todos are deliberately out of scope.
 - `sessions/ListRow.tsx` — the unified row used by both
   `ProjectsSection` and `SessionsSection`. One visual contract: label
   on the left (truncated with ellipsis), optional meta on the right,

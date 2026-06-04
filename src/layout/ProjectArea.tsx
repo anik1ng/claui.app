@@ -1,10 +1,7 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { TerminalView } from '../terminal/TerminalView';
-import { StatusBar } from '../status/StatusBar';
-import { SessionsSection } from '../sessions/SessionsSection';
+import { ProjectChrome } from './ProjectChrome';
 import { useSessionsPolling } from '../sessions/useSessionsPolling';
-import { WorkspaceTabBar } from '../tabs/WorkspaceTabBar';
 import { useTabs } from '../tabs/useTabs';
 import { openSessionIds } from '../tabs/openSessionIds';
 import { basename } from '../projects/basename';
@@ -29,6 +26,7 @@ export interface ProjectChromeSlots {
   workspaceTabs: HTMLElement | null;
   status: HTMLElement | null;
   sessions: HTMLElement | null;
+  capabilities: HTMLElement | null;
 }
 
 interface Props {
@@ -193,30 +191,29 @@ function ProjectAreaInner({ theme, projectId, projectPath, isActive, status, set
 
   return (
     <>
-      {isActive && slots.workspaceTabs && createPortal(
-        <WorkspaceTabBar
-          tabs={tabs}
-          activeUid={activeUid}
-          sessions={sessions}
-          onPickTab={setActiveTab}
-          onCloseTab={closeTabAndClear}
-          notify={notifyTabs}
-          showShortcuts={showTabShortcuts}
-          projectName={basename(projectPath)}
-        />,
-        slots.workspaceTabs,
-      )}
-      {isActive && slots.status && createPortal(<StatusBar status={status} />, slots.status)}
-      {isActive && slots.sessions && createPortal(
-        <SessionsSection
-          sessions={sessions}
-          activeSessionId={status?.sessionId ?? null}
-          openSessionIds={sessionIdsOpen}
-          onPick={pickSession}
-          onNew={startNewSession}
-        />,
-        slots.sessions,
-      )}
+      <ProjectChrome
+        isActive={isActive}
+        slots={slots}
+        projectPath={projectPath}
+        status={status}
+        tabBar={{
+          tabs,
+          activeUid,
+          sessions,
+          onPickTab: setActiveTab,
+          onCloseTab: closeTabAndClear,
+          notify: notifyTabs,
+          showShortcuts: showTabShortcuts,
+          projectName: basename(projectPath),
+        }}
+        sessionsList={{
+          sessions,
+          activeSessionId: status?.sessionId ?? null,
+          openSessionIds: sessionIdsOpen,
+          onPick: pickSession,
+          onNew: startNewSession,
+        }}
+      />
       <div className={`project-area${isActive ? ' is-active' : ''}`}>
         <div className="layout-workspace">
           {tabs.map((tab) => (

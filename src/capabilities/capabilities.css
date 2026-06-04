@@ -1,0 +1,110 @@
+/* Read-only capabilities panel — a recessed, independently-scrolling secondary
+   region in the right sidebar with collapsible groups. Ported from
+   docs/superpowers/mockup-current-base.html (.sidebar-secondary / .grp), using
+   claui theme variables. Info-only: no toggles, dots, or action affordances. */
+.caps {
+  /* Content-sized so the panel is just its (collapsed) group headers until the
+     user opens something; capped so a fully-expanded group can't dominate the
+     sidebar — past the cap it scrolls. Sessions takes the rest of the height. */
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 42vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-top: 1px solid var(--claui-divider);
+  background: rgba(0, 0, 0, 0.22);
+  padding: 4px 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+/* Scrollbar hidden entirely: this is a secondary panel that rarely needs to
+   scroll, and it's scrolled with the trackpad. We deliberately do NOT attach the
+   overlay scrollbar here — observing a content-sized flex panel with the
+   overlay's ResizeObserver could ping-pong the layout. No measuring = no jitter. */
+.caps::-webkit-scrollbar {
+  display: none;
+}
+
+/* De-emphasised group header: smaller, sentence case, deliberately lighter than
+   the Projects/Sessions section labels. */
+.caps-head {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 16px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--claui-fg-dim);
+  cursor: pointer;
+}
+.caps-head::-webkit-details-marker {
+  display: none;
+}
+.caps-head:hover {
+  color: var(--claui-fg);
+}
+.caps-chev {
+  display: inline-block;
+  width: 8px;
+  font-size: 9px;
+  opacity: 0.7;
+  transition: transform 120ms ease;
+}
+.caps-grp[open] > .caps-head .caps-chev {
+  transform: rotate(90deg);
+}
+.caps-label {
+  flex: 1 1 auto;
+}
+.caps-count {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--claui-active);
+  color: var(--claui-fg-dim);
+}
+.caps-body {
+  padding-bottom: 4px;
+}
+
+/* Rows: a touch smaller/tighter than Projects & Sessions rows. */
+.caps-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 18px 5px 30px;
+  font-size: 12px;
+  color: var(--claui-fg);
+}
+.caps-lead {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.caps-meta {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--claui-fg-dim);
+}
+
+/* Permission decision tag — colour = decision only (not interactive). */
+.caps-tag {
+  flex: 0 0 auto;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.caps-tag.allow {
+  color: #46c08a;
+  background: rgba(70, 192, 138, 0.12);
+}
+.caps-tag.ask {
+  color: var(--claui-notify-attention);
+  background: rgba(255, 153, 10, 0.12);
+}
+.caps-tag.deny {
+  color: #ff8080;
+  background: rgba(255, 128, 128, 0.12);
+}

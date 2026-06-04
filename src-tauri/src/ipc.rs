@@ -278,6 +278,11 @@ pub fn list_sessions(path: String) -> Vec<crate::sessions::SessionInfo> {
     crate::sessions::list_sessions(&path)
 }
 
+#[tauri::command]
+pub fn get_capabilities(path: String) -> crate::capabilities::Capabilities {
+    crate::capabilities::read_capabilities(&path)
+}
+
 /// Returns the persisted multi-project window state, or `None` if the file
 /// is missing, malformed, has an unknown version, or all recorded project
 /// paths are stale (i.e. no longer exist on disk).
