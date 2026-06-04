@@ -140,6 +140,18 @@ Workspace-tab visuals are unified with the toolbar: the `✦` / `$` text glyphs 
 
 ---
 
+### 2026-06-04 — Sessions sidebar: last-activity from the last message, not mtime
+
+**Context.** The sessions sidebar showed and sorted each session by `last_activity`, defined as the session file's mtime. But `claude --resume` and various housekeeping records (`permission-mode`, `pr-link`, `file-history-snapshot`, `system`, ...) rewrite the JSONL without any new conversation turn, bumping the mtime. Result: merely reopening (or even just touching) an old session moved it to the top of the list and updated its time, which the user reported as wrong. An empirical scan of real session files confirmed mtime runs minutes-to-an-hour ahead of the last actual message, and idle/resumed files end in a no-conversation record.
+
+**Decision.** `SessionInfo.last_activity` is now the max `timestamp` across `user` / `assistant` records only — the last real conversation turn — falling back to the file's mtime only when a session has no turns yet. Crucially the max is taken over `user` / `assistant` records ONLY: `system` and `pr-link` records also carry timestamps and are written on resume, so "max over all timestamped records" would not fix the bug. `sessions.rs` gains a single-pass `scan_session` (replacing `extract_title`, which folds in) plus a hand-rolled `parse_iso_millis` / `days_from_civil` (claude's timestamps are a fixed `YYYY-MM-DDTHH:MM:SS[.fff]Z` UTC format, so no `chrono` dependency). The `(mtime_ns, size)` cache fingerprint is unchanged — a metadata-only write still invalidates the cache and triggers a re-scan, but the recomputed `last_activity` stays put because no turn was added.
+
+**Consequences.** Reopening an old session no longer reorders the list or updates its time — order reflects conversation recency, which is stable across resumes. Trade-off: a session that is resumed and left idle keeps the timestamp of its last message even though its file was just touched (intended). A separate, pre-existing fix in the same area: the sidebar's highlighted ("active") session is now derived from the active tab's `sessionId` rather than the project's primary-only status payload, so switching tabs highlights the correct session.
+
+**References.** `src-tauri/src/sessions.rs` (`scan_session`, `parse_iso_millis`, `days_from_civil`, `SessionInfo.last_activity` doc + tests), `src/layout/ProjectArea.tsx` (`activeSessionId` from the active tab). No AUDIT_RULES rule changed.
+
+---
+
 ## Template (do not delete)
 
 ### YYYY-MM-DD — Short title
