@@ -7,14 +7,47 @@
   <meta name="description" content="claui hosts the real Claude Code CLI inside a native macOS app — workspace tabs, multiple projects, a live status bar, notifications when Claude needs you, and native shortcuts. Free and open." />
   <meta name="theme-color" content="#0a0a0a" />
   <link rel="icon" href="assets/icon.png" />
+  <link rel="canonical" href="https://claui.app/" />
 
   <!-- Open Graph / Twitter -->
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://claui.app" />
+  <meta property="og:site_name" content="claui" />
+  <meta property="og:url" content="https://claui.app/" />
   <meta property="og:title" content="claui — a native macOS shell for Claude Code" />
   <meta property="og:description" content="The real Claude Code CLI in a native macOS app. Tabs, multiple projects, a live status bar, notifications, native shortcuts." />
-  <meta property="og:image" content="https://claui.app/assets/icon.png" />
+  <meta property="og:image" content="https://claui.app/assets/og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="claui — a native macOS shell for Claude Code" />
   <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="claui — a native macOS shell for Claude Code" />
+  <meta name="twitter:description" content="The real Claude Code CLI in a native macOS app. Tabs, multiple projects, a live status bar, notifications, native shortcuts." />
+  <meta name="twitter:image" content="https://claui.app/assets/og.png" />
+
+  <!-- Structured data: helps search engines understand this is a free macOS app -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "claui",
+    "description": "A native macOS shell for Claude Code — the real claude CLI in a proper Mac app with workspace tabs, multiple projects, a live status bar, and native notifications.",
+    "url": "https://claui.app/",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "macOS",
+    "downloadUrl": "https://github.com/anik1ng/claui.app/releases/latest/download/claui-universal.dmg",
+    "softwareLicense": "https://opensource.org/license/mit",
+    "image": "https://claui.app/assets/og.png",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "author": {
+      "@type": "Person",
+      "name": "anik1ng"
+    }
+  }
+  </script>
 
   <link rel="preload" href="assets/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="style.css" />

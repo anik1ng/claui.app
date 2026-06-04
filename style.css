@@ -560,6 +560,15 @@ kbd {
   .more-grid { grid-template-columns: 1fr; }
   .os-toast { top: -58px; right: 4px; }
   .footer-fine { margin: 0; flex-basis: 100%; }
+
+  /* Perf: phones can't afford the desktop's GPU effects. Blur filters
+     (backdrop-filter, filter: blur) and oversized shadows dominate paint
+     time on mobile and drag down Speed Index — swap them for cheap solids. */
+  body::before { display: none; }
+  .topbar { backdrop-filter: none; background: rgba(10, 10, 10, 0.92); }
+  .os-toast { backdrop-filter: none; background: rgba(28, 28, 30, 0.96); }
+  .glow { display: none; }
+  .claui-window { box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6); }
 }
 
 /* ============================================================
