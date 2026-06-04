@@ -152,6 +152,48 @@ Workspace-tab visuals are unified with the toolbar: the `✦` / `$` text glyphs 
 
 ---
 
+### 2026-06-04 — Statusline write cadence measured: idle is free; per-tab fan-out is cleared
+
+**Context.** Before migrating the status pipeline from one-file-per-project to
+one-file-per-tab (see the local spec `docs/superpowers/specs/2026-06-04-per-tab-status-design.md`),
+the open question was whether fanning the status file out per tab would
+reintroduce the 80–100 % idle CPU that originally forced the per-project
+consolidation (`statusline.rs` watcher comment). The fear was N tabs × frequent
+statusline rewrites.
+
+**Decision.** Measure first. A background probe md5-polled
+`$TMPDIR/claui/status-*.json` at 5 Hz for ~8 minutes against the real running app
+with **4 projects open**. Result: the statusline is **event-driven, not
+timer-driven** — over ~7 minutes of idle, the idle projects' files were rewritten
+**zero** times and `claui`-process CPU sat at ~0; the only file that changed
+belonged to an actively-working claude (~0.1 writes/s, peak 2-in-2s); launch is a
+one-time 2–3-writes-per-project burst. So the per-tab multiplier at idle is
+N × 0 = 0, and steady-state cost tracks the number of *simultaneously active*
+claudes (≈1), not the number of open tabs. The old 80–100 % CPU was purely the
+full-dir-scan amplification bug defeating `React.memo`, never the write cost.
+Conclusion: **per-tab status is cleared on performance grounds**; the real risk is
+implementation correctness, not physical load.
+
+**Consequences.** The per-tab migration may proceed. The load-bearing safeguards
+are therefore correctness invariants, not throttling: (1) referential stability in
+the nested `Map<projectId, Map<tabId, StatusPayload>>` so one tab's update never
+re-renders an unrelated project; (2) a reducer change-guard so a tab's
+`sessionId` only mutates state when it actually changes; (3) only the active tab's
+payload feeds the `StatusBar`; (4) keep per-path emits (no full-dir scan) and the
+existing field-by-field JS dedupe. An optional wrapper-side skip-on-equal is a
+minor extra (the JS dedupe already keys on parsed fields, which are stable at
+idle). The regression acceptance check (2 projects × 2 idle tabs must not raise
+CPU vs today) stays as the guard; the hybrid scope remains the documented fallback
+if it ever fails. This entry exists so the perf question is not reopened from
+first principles — it was measured, not argued.
+
+**References.** Spec `docs/superpowers/specs/2026-06-04-per-tab-status-design.md`
+(gitignored; local-only), "Measured baseline (2026-06-04)" section.
+`src-tauri/src/statusline.rs` (the per-project pipeline measured), `src/status/useStatusByProject.ts`
+(the JS dedupe relied upon). No code changed by this entry.
+
+---
+
 ## Template (do not delete)
 
 ### YYYY-MM-DD — Short title
