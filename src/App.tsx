@@ -31,7 +31,7 @@ const EMPTY_STATUS: ReadonlyMap<string, StatusPayload> = new Map();
 const EMPTY_WORKING: ReadonlySet<string> = new Set();
 
 export default function App() {
-  const { projects, activeId, addProject, closeProject, setActive, isHydrating } = useProjects();
+  const { projects, activeId, addProject, closeProject, setActive, reorderProject, isHydrating } = useProjects();
   const statuses = useStatusByProject();
   const { byProject: activityByProject, clear: clearActivity } = useActivityByProject();
   const workingProjectsSet = useMemo(() => deriveWorkingProjects(activityByProject), [activityByProject]);
@@ -40,8 +40,7 @@ export default function App() {
     (id: string) => { const p = projects.find((x) => x.id === id); return p ? basename(p.path) : id; },
     [projects],
   );
-  const { byProject: notifyByProject, markViewed, clear: clearNotify, onFocus, onBlur } =
-    useNotifyByProject(getProjectName);
+  const { byProject: notifyByProject, markViewed, clear: clearNotify, onFocus, onBlur } = useNotifyByProject(getProjectName);
   const projectDots = useMemo(() => projectAggregate(notifyByProject), [notifyByProject]);
   const {
     toast: updateToast,
@@ -188,6 +187,7 @@ export default function App() {
                 showShortcuts={heldModifier !== null}
                 indicators={projectDots}
                 workingProjects={workingProjectsSet}
+                onReorder={reorderProject}
               />
               {/* Portal targets — the active ProjectArea renders SessionsSection
                   and CapabilitiesSection into these slots via createPortal. */}

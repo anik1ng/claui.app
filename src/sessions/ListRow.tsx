@@ -30,6 +30,12 @@ interface Props {
   /** Optional "Claude is working" flag. Lower priority than `indicator` — a
    *  notify kind always wins the channel strip. */
   working?: boolean;
+  /** Drag-reorder: mousedown starts a potential drag (projects list only). */
+  onMouseDown?: (e: React.MouseEvent<HTMLDivElement>) => void;
+  /** Drag-reorder: applies the lifted `dragging` class. */
+  dragging?: boolean;
+  /** Drag-reorder: per-row transform (translateY) while a drag is in progress. */
+  style?: React.CSSProperties;
 }
 
 /**
@@ -41,7 +47,7 @@ interface Props {
  * `<button>` can live inside it without invalid nesting (interactive elements
  * inside a button are not allowed).
  */
-export function ListRow({ label, meta, badge, isActive, onClick, onClose, title, hint, indicator, working }: Props) {
+export function ListRow({ label, meta, badge, isActive, onClick, onClose, title, hint, indicator, working, onMouseDown, dragging, style }: Props) {
   const channelClass =
     indicator && indicator !== 'none'
       ? ` notify-${indicator}`
@@ -50,7 +56,9 @@ export function ListRow({ label, meta, badge, isActive, onClick, onClose, title,
         : '';
   return (
     <div
-      className={`list-row${isActive ? ' active' : ''}${channelClass}`}
+      className={`list-row${isActive ? ' active' : ''}${channelClass}${dragging ? ' dragging' : ''}`}
+      style={style}
+      onMouseDown={onMouseDown}
       onClick={onClick}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {

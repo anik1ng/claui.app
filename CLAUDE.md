@@ -219,7 +219,16 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   appending. `ProjectsSection` renders projects as `<ListRow>`s into the
   top of the right sidebar; it returns `null` when only one project is
   open (no choice to surface). `useProjectSwitchKeyboard` handles
-  `Cmd+1..9` for project switching at the App level.
+  `Cmd+1..9` for project switching at the App level. Project rows can be
+  **drag-reordered** with the mouse: `projects/useProjectReorder.ts` is a
+  hand-rolled pointer drag (window mousemove/mouseup, the drawer-resize idiom;
+  NOT native HTML5 DnD, which would tangle with the enabled Tauri file-drop
+  handler), and `projects/reorderGeometry.ts` holds the pure tested math
+  (`targetIndex` = where the dragged row lands, `rowShift` = how neighbours
+  reflow to open the gap). A press under a 4px threshold stays a click (select);
+  a real drag sets a one-shot `didDrag` the row reads to suppress its click,
+  and commits via the reducer `reorder` action. The new order persists through
+  the existing `window.json` save and `Cmd+1..9` follows it (index-based).
 - `status/useStatusByProject.ts` — listens to `status:update` events with
   the `{ projectId, tabId, status }` shape, aggregates them into a nested
   `Map<projectId, Map<tabId, StatusPayload>>` via a pure `aggregateStatus`.

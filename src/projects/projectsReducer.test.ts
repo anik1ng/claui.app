@@ -79,3 +79,41 @@ describe('projectsReducer / restore', () => {
     expect(s).toBe(replacement);
   });
 });
+
+describe('projectsReducer / reorder', () => {
+  const start = () => ({
+    projects: [
+      { id: 'a', path: '/a' },
+      { id: 'b', path: '/b' },
+      { id: 'c', path: '/c' },
+      { id: 'd', path: '/d' },
+    ],
+    activeId: 'a',
+  });
+
+  it('moves an entry down to a later index', () => {
+    const next = projectsReducer(start(), { type: 'reorder', id: 'b', toIndex: 2 });
+    expect(next.projects.map((p) => p.id)).toEqual(['a', 'c', 'b', 'd']);
+    expect(next.activeId).toBe('a');
+  });
+
+  it('moves an entry up to the head', () => {
+    const next = projectsReducer(start(), { type: 'reorder', id: 'c', toIndex: 0 });
+    expect(next.projects.map((p) => p.id)).toEqual(['c', 'a', 'b', 'd']);
+  });
+
+  it('clamps an out-of-range index to the last slot', () => {
+    const next = projectsReducer(start(), { type: 'reorder', id: 'a', toIndex: 99 });
+    expect(next.projects.map((p) => p.id)).toEqual(['b', 'c', 'd', 'a']);
+  });
+
+  it('is a no-op (same reference) when the index is unchanged', () => {
+    const s = start();
+    expect(projectsReducer(s, { type: 'reorder', id: 'b', toIndex: 1 })).toBe(s);
+  });
+
+  it('is a no-op (same reference) for an unknown id', () => {
+    const s = start();
+    expect(projectsReducer(s, { type: 'reorder', id: 'zzz', toIndex: 0 })).toBe(s);
+  });
+});

@@ -4,6 +4,7 @@ export type ProjectsAction =
   | { type: 'add'; project: ProjectEntry }
   | { type: 'setActive'; id: string }
   | { type: 'closeProject'; id: string }
+  | { type: 'reorder'; id: string; toIndex: number }
   | { type: 'restore'; state: ProjectsState };
 
 export const initialState: ProjectsState = { projects: [], activeId: null };
@@ -38,6 +39,17 @@ export function projectsReducer(state: ProjectsState, action: ProjectsAction): P
         }
       }
       return { projects, activeId };
+    }
+
+    case 'reorder': {
+      const from = state.projects.findIndex((p) => p.id === action.id);
+      if (from < 0) return state;
+      const to = Math.max(0, Math.min(action.toIndex, state.projects.length - 1));
+      if (from === to) return state;
+      const projects = [...state.projects];
+      const [moved] = projects.splice(from, 1);
+      projects.splice(to, 0, moved);
+      return { ...state, projects };
     }
 
     case 'restore':

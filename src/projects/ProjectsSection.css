@@ -1,0 +1,21 @@
+/* Drag-reorder visuals for project rows. Non-dragged rows ease into the gap;
+   the dragged row lifts (elevated bg, slightly transparent) and tracks the
+   pointer via an inline translateY set by useProjectReorder. */
+/* Keep ListRow's hover bg/color fade (this higher-specificity rule would
+   otherwise replace the whole `transition` shorthand) and add transform for the
+   reorder reflow. `transform` is inert on session rows, which share this class. */
+.sidebar-list .list-row {
+  transition: background 120ms ease, color 120ms ease, transform 120ms ease;
+}
+.sidebar-list .list-row.dragging {
+  transition: none; /* the dragged row must track the pointer 1:1, no lag */
+  background: var(--claui-active);
+  opacity: 0.85;
+  cursor: grabbing;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-list .list-row {
+    transition: none;
+  }
+}

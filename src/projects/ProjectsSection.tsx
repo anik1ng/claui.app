@@ -3,7 +3,9 @@ import type { NotifyKind } from '../notify/notifyStore';
 import { ListRow } from '../sessions/ListRow';
 import { hintLabels } from '../layout/hintLabels';
 import { useOverlayScrollbar } from '../scroll/useOverlayScrollbar';
+import { useProjectReorder } from './useProjectReorder';
 import { basename } from './basename';
+import './ProjectsSection.css';
 
 interface Props {
   projects: ProjectEntry[];
@@ -18,6 +20,8 @@ interface Props {
   /** projectIds with at least one working tab — drives the grey channel strip
    *  when no notify indicator is present. */
   workingProjects: ReadonlySet<string>;
+  /** Move a project to a new index (drag-reorder). */
+  onReorder: (id: string, toIndex: number) => void;
 }
 
 /**
@@ -26,8 +30,9 @@ interface Props {
  * `<ListRow>` as the sessions section below so the two read as one unified
  * navigation panel.
  */
-export function ProjectsSection({ projects, activeId, onPick, onClose, onAdd, showShortcuts, indicators, workingProjects }: Props) {
+export function ProjectsSection({ projects, activeId, onPick, onClose, onAdd, showShortcuts, indicators, workingProjects, onReorder }: Props) {
   const listRef = useOverlayScrollbar(projects.length);
+  const { onRowMouseDown, rowStyle, isDragging, consumeDidDrag } = useProjectReorder(onReorder);
   if (projects.length < 2) return null;
   const labels = hintLabels(projects.length);
   return (
@@ -47,7 +52,13 @@ export function ProjectsSection({ projects, activeId, onPick, onClose, onAdd, sh
             title={p.path}
             indicator={indicators.get(p.id) ?? 'none'}
             working={workingProjects.has(p.id)}
-            onClick={() => onPick(p.id)}
+            onMouseDown={onRowMouseDown(p.id, i)}
+            dragging={isDragging(i)}
+            style={rowStyle(i)}
+            onClick={() => {
+              if (consumeDidDrag()) return;
+              onPick(p.id);
+            }}
             onClose={() => onClose(p.id)}
             hint={showShortcuts && labels[i] != null ? `⌘${labels[i]}` : undefined}
           />

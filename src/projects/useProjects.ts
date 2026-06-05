@@ -13,6 +13,9 @@ export interface UseProjects {
   addProject: (path: string) => string;
   closeProject: (id: string) => void;
   setActive: (id: string) => void;
+  /** Move a project to a new index (drag-reorder). `toIndex` is the final
+   *  array index after the dragged entry is removed. */
+  reorderProject: (id: string, toIndex: number) => void;
   /** True while window.json is being read on cold start — App should not render UI yet. */
   isHydrating: boolean;
 }
@@ -87,12 +90,17 @@ export function useProjects(): UseProjects {
     dispatch({ type: 'setActive', id });
   }, []);
 
+  const reorderProject = useCallback((id: string, toIndex: number) => {
+    dispatch({ type: 'reorder', id, toIndex });
+  }, []);
+
   return {
     projects: state.projects,
     activeId: state.activeId,
     addProject,
     closeProject,
     setActive,
+    reorderProject,
     isHydrating,
   };
 }
