@@ -154,9 +154,13 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   any path with control characters (a raw newline is a tty line submission no
   quoting can neutralize). `activePty` is a module-level registry of the active
   terminal's PTY id; `TerminalView` registers via the `useActivePty` hook keyed
-  on *activation* (active project × active tab), NOT DOM focus — a project
-  switch never refocuses the new terminal, so focus-based routing would send
-  drops to the previously-focused (hidden) terminal. The Tauri drag-drop
+  on *activation* (active project × active tab), NOT DOM focus — the drop event
+  has no DOM target and focus can drift (e.g. a sidebar click) independently of
+  which terminal is visible, so activation is the reliable drop target. (A
+  project switch *does* now refocus the newly-shown terminal via
+  `TabPane`'s `autoFocus={projectIsActive && isActive}`, so the user can type
+  immediately — but the drop registry deliberately stays activation-keyed, not
+  focus-keyed.) The Tauri drag-drop
   handler is left ENABLED in `lib.rs` for this; it also suppresses WKWebView's
   default "navigate to the dropped file" behaviour.
 - `notify/*` — the notification pipeline's webview half: `notifyStore.ts`

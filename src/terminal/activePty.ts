@@ -17,8 +17,10 @@ export function getActivePty(): number | null {
 
 /**
  * Register `ptyId` as the active drop target while `isActiveTerminal` is true.
- * Activation-driven, not focus-driven, so a project switch — which never
- * refocuses the new terminal — still routes drops to the visible one. The
+ * Activation-driven, not focus-driven: the drag-drop event has no DOM target,
+ * and DOM focus can drift independently of which terminal is visible (a click
+ * in the sidebar, for instance), so the active/visible terminal is the
+ * reliable drop target regardless of where focus currently sits. The
  * cleanup clears the registry on deactivation, PTY change, or unmount, but
  * only if this PTY still owns it (so a switch's set isn't clobbered by the
  * previous terminal's cleanup — React runs all cleanups before all setups).

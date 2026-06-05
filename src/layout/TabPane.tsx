@@ -65,7 +65,13 @@ export function TabPane({ tab, projectId, projectPath, theme, isActive, projectI
       <TerminalView
         theme={theme}
         open={open}
-        autoFocus={isActive}
+        // Gated on projectIsActive (not just isActive) so a project switch
+        // re-focuses the newly-shown terminal: all projects are mounted at
+        // once, so the active tab of a HIDDEN project keeps isActive=true —
+        // without the project gate, autoFocus never flips on a switch and the
+        // user has to click before typing. Same value as isActiveTerminal
+        // today, but a distinct concern (focus vs. the file-drop registry).
+        autoFocus={projectIsActive && isActive}
         isActiveTerminal={projectIsActive && isActive}
         onSpawnFailed={onSpawnFailed}
       />
