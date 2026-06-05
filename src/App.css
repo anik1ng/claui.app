@@ -228,6 +228,11 @@ body {
   from { background-position: 0 0%; }
   to   { background-position: 0 100%; }
 }
+/* Single-tab title-bar heading bar: decorative (no travel on a 14px bar, like
+   notify which is also static there) — just a neutral grey while working. */
+.ws-heading-bar.activity-working {
+  background: var(--claui-fg-dim);
+}
 /* Reduced motion: no travel — show a static dim-grey bar so "working" still
    reads, just without movement. */
 @media (prefers-reduced-motion: reduce) {

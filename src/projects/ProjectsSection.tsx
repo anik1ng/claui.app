@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { ProjectEntry } from '../ipc/commands';
 import type { NotifyKind } from '../notify/notifyStore';
 import { ListRow } from '../sessions/ListRow';
@@ -30,7 +31,7 @@ interface Props {
  * `<ListRow>` as the sessions section below so the two read as one unified
  * navigation panel.
  */
-export function ProjectsSection({ projects, activeId, onPick, onClose, onAdd, showShortcuts, indicators, workingProjects, onReorder }: Props) {
+function ProjectsSectionInner({ projects, activeId, onPick, onClose, onAdd, showShortcuts, indicators, workingProjects, onReorder }: Props) {
   const listRef = useOverlayScrollbar(projects.length);
   const { onRowMouseDown, rowStyle, isDragging, consumeDidDrag } = useProjectReorder(onReorder);
   if (projects.length < 2) return null;
@@ -68,3 +69,11 @@ export function ProjectsSection({ projects, activeId, onPick, onClose, onAdd, sh
     </>
   );
 }
+
+/**
+ * Memoised so an `activity:update` tick (which re-renders App) doesn't re-map
+ * every project row when this section's props are unchanged. All props are
+ * referentially stable across activity ticks: callbacks are `useCallback`,
+ * `indicators` is a `useMemo`, and `workingProjects` is content-stabilised in App.
+ */
+export const ProjectsSection = memo(ProjectsSectionInner);

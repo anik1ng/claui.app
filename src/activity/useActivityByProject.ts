@@ -10,6 +10,9 @@ export interface UseActivity {
    *  on a killed PTY, so the webview must clear the entry itself — otherwise a
    *  tab closed mid-work leaves a phantom "working" on its project row. */
   clear: (projectId: string, tabId: string) => void;
+  /** Drop a whole project's working state (project closed) — same rationale,
+   *  for all of its tabs at once. Prevents an orphaned entry lingering in the map. */
+  clearProject: (projectId: string) => void;
 }
 
 /**
@@ -26,5 +29,13 @@ export function useActivityByProject(): UseActivity {
   const clear = useCallback((projectId: string, tabId: string) => {
     setByProject((prev) => aggregateActivity(prev, { projectId, tabId, state: 'idle' }));
   }, []);
-  return { byProject, clear };
+  const clearProject = useCallback((projectId: string) => {
+    setByProject((prev) => {
+      if (!prev.has(projectId)) return prev;
+      const next = new Map(prev);
+      next.delete(projectId);
+      return next;
+    });
+  }, []);
+  return { byProject, clear, clearProject };
 }

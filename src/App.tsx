@@ -15,7 +15,7 @@ import { useStatusByProject } from './status/useStatusByProject';
 import { useGlobalRateLimits } from './status/useGlobalRateLimits';
 import { useNotifyByProject } from './notify/useNotifyByProject';
 import { useActivityByProject } from './activity/useActivityByProject';
-import { workingProjects as deriveWorkingProjects } from './activity/activityStore';
+import { useWorkingProjects } from './activity/useWorkingProjects';
 import { useWindowFocus } from './notify/useWindowFocus';
 import { projectAggregate, type NotifyKind } from './notify/notifyStore';
 import { useFileDrop } from './terminal/useFileDrop';
@@ -33,8 +33,8 @@ const EMPTY_WORKING: ReadonlySet<string> = new Set();
 export default function App() {
   const { projects, activeId, addProject, closeProject, setActive, reorderProject, isHydrating } = useProjects();
   const statuses = useStatusByProject();
-  const { byProject: activityByProject, clear: clearActivity } = useActivityByProject();
-  const workingProjectsSet = useMemo(() => deriveWorkingProjects(activityByProject), [activityByProject]);
+  const { byProject: activityByProject, clear: clearActivity, clearProject: clearActivityProject } = useActivityByProject();
+  const workingProjectsSet = useWorkingProjects(activityByProject);
   const globalRateLimits = useGlobalRateLimits();
   const getProjectName = useCallback(
     (id: string) => { const p = projects.find((x) => x.id === id); return p ? basename(p.path) : id; },
@@ -92,9 +92,11 @@ export default function App() {
 
   const handleCloseProject = useCallback(
     (id: string) => {
-      closeProject(id);
+      // Also drop the project's activity entry — its tabs' PTYs die without a
+      // Stop hook, so nothing else would ever clear it from the map.
+      closeProject(id); clearActivityProject(id);
     },
-    [closeProject],
+    [closeProject, clearActivityProject],
   );
 
   // Menu listeners are installed ONCE for App's lifetime. Live values are
@@ -171,7 +173,7 @@ export default function App() {
                 onClearTabNotify={clearNotify}
                 onClearTabActivity={clearActivity}
                 setSidebarOpen={setSidebarOpen}
-                showTabShortcuts={heldModifier !== null}
+                showTabShortcuts={heldModifier === 'ctrl'}
                 slots={chrome.slots}
               />
             ))}
@@ -184,7 +186,7 @@ export default function App() {
                 onPick={setActive}
                 onClose={handleCloseProject}
                 onAdd={requestAddProject}
-                showShortcuts={heldModifier !== null}
+                showShortcuts={heldModifier === 'meta'}
                 indicators={projectDots}
                 workingProjects={workingProjectsSet}
                 onReorder={reorderProject}

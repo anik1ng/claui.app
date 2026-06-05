@@ -50,10 +50,15 @@ export function WorkspaceTabBar({
   working,
 }: Props) {
   if (tabs.length < 2) {
-    const soleKind = tabs[0] ? notify.get(tabs[0].uid) : undefined;
+    const soleUid = tabs[0]?.uid;
+    const soleKind = soleUid ? notify.get(soleUid) : undefined;
+    // Same precedence as the multi-tab strip: a notify kind wins, else the
+    // working state. Without this the single-tab heading — the most common
+    // layout (one project, one primary tab) — never showed "Claude is working".
+    const channel = soleKind ? `notify-${soleKind}` : soleUid && working.has(soleUid) ? 'activity-working' : '';
     return (
       <div className="titlebar-heading">
-        {soleKind && <span className={`ws-heading-bar notify-${soleKind}`} aria-hidden />}
+        {channel && <span className={`ws-heading-bar ${channel}`} aria-hidden />}
         {projectName}
       </div>
     );

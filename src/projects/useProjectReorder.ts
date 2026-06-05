@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { rowShift, targetIndex } from './reorderGeometry';
 
 /** Movement past this many px turns a press into a drag (below it stays a click). */
@@ -7,7 +7,6 @@ const THRESHOLD = 4;
 interface DragState {
   id: string;
   source: number;
-  startY: number;
   midpoints: number[];
   rowHeight: number;
   deltaY: number;
@@ -15,7 +14,6 @@ interface DragState {
 }
 
 export interface UseProjectReorder {
-  draggingId: string | null;
   /** onMouseDown handler factory for a row (id + its index). */
   onRowMouseDown: (id: string, index: number) => (e: React.MouseEvent<HTMLDivElement>) => void;
   /** Per-row inline transform while a drag is in progress (undefined otherwise). */
@@ -28,9 +26,9 @@ export interface UseProjectReorder {
 
 /**
  * Begin a potential drag from a row mousedown. Installs window mousemove/mouseup
- * (the drawer-resize idiom). A press that never crosses `THRESHOLD` stays a
- * click: `apply` is never called and `commit` never fires. A real drag streams
- * `DragState` through `apply` and commits the final index on mouseup.
+ * (the drawer-resize idiom) and returns a teardown that removes them (or
+ * undefined if no drag started). A press that never crosses `THRESHOLD` stays a
+ * click; a real drag that lands on a DIFFERENT index commits via `commit`.
  */
 function installDrag(
   e: React.MouseEvent<HTMLDivElement>,
@@ -38,7 +36,8 @@ function installDrag(
   index: number,
   apply: (d: DragState | null) => void,
   commit: (id: string, toIndex: number) => void,
-): void {
+  onEnd: () => void,
+): (() => void) | undefined {
   if (e.button !== 0) return;
   // The × close button lives inside the row — don't start a drag from it.
   if ((e.target as HTMLElement).closest('.list-row-close')) return;
@@ -48,42 +47,66 @@ function installDrag(
   const midpoints = rects.map((r) => r.top + r.height / 2);
   const rowHeight = rects[index]?.height ?? 0;
   const startY = e.clientY;
+  const startScroll = list.scrollTop;
   let current: DragState | null = null;
 
+  const teardown = () => {
+    window.removeEventListener('mousemove', move);
+    window.removeEventListener('mouseup', up);
+  };
   const move = (ev: MouseEvent) => {
-    const deltaY = ev.clientY - startY;
-    if (!current && Math.abs(deltaY) < THRESHOLD) return;
-    current = { id, source: index, startY, midpoints, rowHeight, deltaY, target: targetIndex(ev.clientY, midpoints, index) };
+    if (!current && Math.abs(ev.clientY - startY) < THRESHOLD) return;
+    // Cached midpoints are in drag-start viewport coords; if the list scrolled
+    // since, shift the pointer by the scroll delta so the target stays correct.
+    const pointerY = ev.clientY + (list.scrollTop - startScroll);
+    const target = targetIndex(pointerY, midpoints, index);
+    current = { id, source: index, midpoints, rowHeight, deltaY: ev.clientY - startY, target };
     apply(current);
   };
   const up = () => {
-    window.removeEventListener('mousemove', move);
-    window.removeEventListener('mouseup', up);
-    if (current) commit(current.id, current.target);
+    teardown();
+    if (current && current.target !== current.source) commit(current.id, current.target);
     apply(null);
+    onEnd();
   };
   window.addEventListener('mousemove', move);
   window.addEventListener('mouseup', up);
+  return teardown;
 }
 
 /**
  * Hand-rolled pointer reorder for the projects list. A press below `THRESHOLD`
- * is left as a click (row select); a real drag commits via `onReorder` on
- * mouseup and sets a one-shot `didDrag` flag the row reads to skip its click.
+ * (or one that lands back on its own slot) is left as a click (row select); a
+ * real move commits via `onReorder` and sets a one-shot `didDrag` flag the row
+ * reads to skip its click. A drag interrupted by unmount is torn down via the
+ * effect cleanup so window listeners never leak.
  */
 export function useProjectReorder(onReorder: (id: string, toIndex: number) => void): UseProjectReorder {
   const [drag, setDrag] = useState<DragState | null>(null);
   const didDragRef = useRef(false);
+  const teardownRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => () => teardownRef.current?.(), []);
 
   const onRowMouseDown = useCallback(
     (id: string, index: number) => (e: React.MouseEvent<HTMLDivElement>) => {
       // Reset on every press so a stuck flag from a drag that fired no trailing
       // click (mouseup landed off-row) can't suppress this gesture's click.
       didDragRef.current = false;
-      installDrag(e, id, index, setDrag, (rid, toIndex) => {
-        didDragRef.current = true;
-        onReorder(rid, toIndex);
-      });
+      teardownRef.current =
+        installDrag(
+          e,
+          id,
+          index,
+          setDrag,
+          (rid, toIndex) => {
+            didDragRef.current = true;
+            onReorder(rid, toIndex);
+          },
+          () => {
+            teardownRef.current = null;
+          },
+        ) ?? null;
     },
     [onReorder],
   );
@@ -107,5 +130,5 @@ export function useProjectReorder(onReorder: (id: string, toIndex: number) => vo
     return true;
   }, []);
 
-  return { draggingId: drag?.id ?? null, onRowMouseDown, rowStyle, isDragging, consumeDidDrag };
+  return { onRowMouseDown, rowStyle, isDragging, consumeDidDrag };
 }
