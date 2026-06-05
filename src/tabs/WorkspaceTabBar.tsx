@@ -20,6 +20,8 @@ interface Props {
   projectName: string;
   /** tabId → kind for this project's tabs. */
   notify: ReadonlyMap<string, NotifyKind>;
+  /** tabIds whose Claude is currently working. */
+  working: ReadonlySet<string>;
 }
 
 /**
@@ -45,6 +47,7 @@ export function WorkspaceTabBar({
   showShortcuts,
   projectName,
   notify,
+  working,
 }: Props) {
   if (tabs.length < 2) {
     const soleKind = tabs[0] ? notify.get(tabs[0].uid) : undefined;
@@ -62,7 +65,8 @@ export function WorkspaceTabBar({
         {tabs.map((tab, i) => {
           const active = tab.uid === activeUid;
           const kind = notify.get(tab.uid);
-          const cls = `ws-tab${active ? ' active' : ''}${kind ? ` notify-${kind}` : ''}`;
+          const channel = kind ? ` notify-${kind}` : working.has(tab.uid) ? ' activity-working' : '';
+          const cls = `ws-tab${active ? ' active' : ''}${channel}`;
           return (
             <div key={tab.uid} className={cls} onClick={() => onPickTab(tab.uid)}>
               <span className="ws-tab-glyph" aria-hidden>

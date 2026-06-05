@@ -15,6 +15,9 @@ interface Props {
   showShortcuts: boolean;
   /** projectId → worst kind, for the row dot. */
   indicators: Map<string, NotifyKind>;
+  /** projectIds with at least one working tab — drives the grey channel strip
+   *  when no notify indicator is present. */
+  workingProjects: ReadonlySet<string>;
 }
 
 /**
@@ -23,7 +26,7 @@ interface Props {
  * `<ListRow>` as the sessions section below so the two read as one unified
  * navigation panel.
  */
-export function ProjectsSection({ projects, activeId, onPick, onClose, onAdd, showShortcuts, indicators }: Props) {
+export function ProjectsSection({ projects, activeId, onPick, onClose, onAdd, showShortcuts, indicators, workingProjects }: Props) {
   const listRef = useOverlayScrollbar(projects.length);
   if (projects.length < 2) return null;
   const labels = hintLabels(projects.length);
@@ -43,6 +46,7 @@ export function ProjectsSection({ projects, activeId, onPick, onClose, onAdd, sh
             isActive={p.id === activeId}
             title={p.path}
             indicator={indicators.get(p.id) ?? 'none'}
+            working={workingProjects.has(p.id)}
             onClick={() => onPick(p.id)}
             onClose={() => onClose(p.id)}
             hint={showShortcuts && labels[i] != null ? `⌘${labels[i]}` : undefined}

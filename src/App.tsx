@@ -14,6 +14,8 @@ import { useChromeSlots } from './layout/useChromeSlots';
 import { useStatusByProject } from './status/useStatusByProject';
 import { useGlobalRateLimits } from './status/useGlobalRateLimits';
 import { useNotifyByProject } from './notify/useNotifyByProject';
+import { useActivityByProject } from './activity/useActivityByProject';
+import { workingProjects as deriveWorkingProjects } from './activity/activityStore';
 import { useWindowFocus } from './notify/useWindowFocus';
 import { projectAggregate, type NotifyKind } from './notify/notifyStore';
 import { useFileDrop } from './terminal/useFileDrop';
@@ -26,10 +28,13 @@ import './App.css';
 
 const EMPTY_NOTIFY: ReadonlyMap<string, NotifyKind> = new Map();
 const EMPTY_STATUS: ReadonlyMap<string, StatusPayload> = new Map();
+const EMPTY_WORKING: ReadonlySet<string> = new Set();
 
 export default function App() {
   const { projects, activeId, addProject, closeProject, setActive, isHydrating } = useProjects();
   const statuses = useStatusByProject();
+  const { byProject: activityByProject, clear: clearActivity } = useActivityByProject();
+  const workingProjectsSet = useMemo(() => deriveWorkingProjects(activityByProject), [activityByProject]);
   const globalRateLimits = useGlobalRateLimits();
   const getProjectName = useCallback(
     (id: string) => { const p = projects.find((x) => x.id === id); return p ? basename(p.path) : id; },
@@ -162,8 +167,10 @@ export default function App() {
                 statusByTab={statuses.get(p.id) ?? EMPTY_STATUS}
                 globalRateLimits={globalRateLimits}
                 notifyTabs={notifyByProject.get(p.id) ?? EMPTY_NOTIFY}
+                workingTabs={activityByProject.get(p.id) ?? EMPTY_WORKING}
                 onViewActiveTab={markViewed}
                 onClearTabNotify={clearNotify}
+                onClearTabActivity={clearActivity}
                 setSidebarOpen={setSidebarOpen}
                 showTabShortcuts={heldModifier !== null}
                 slots={chrome.slots}
@@ -180,6 +187,7 @@ export default function App() {
                 onAdd={requestAddProject}
                 showShortcuts={heldModifier !== null}
                 indicators={projectDots}
+                workingProjects={workingProjectsSet}
               />
               {/* Portal targets — the active ProjectArea renders SessionsSection
                   and CapabilitiesSection into these slots via createPortal. */}

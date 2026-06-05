@@ -1,5 +1,5 @@
 import { useCallback, useEffect } from 'react';
-import { cleanupTabNotify, cleanupTabStatus } from '../ipc/commands';
+import { cleanupTabActivity, cleanupTabNotify, cleanupTabStatus } from '../ipc/commands';
 import { useListen } from './useListen';
 
 interface Params {
@@ -9,6 +9,7 @@ interface Params {
   closeTab: (uid: string) => void;
   onViewActiveTab: (projectId: string, tabId: string) => void;
   onClearTabNotify: (projectId: string, tabId: string) => void;
+  onClearTabActivity: (projectId: string, tabId: string) => void;
 }
 
 /** Select a tab when the `notify:activate` event targets this project.
@@ -36,6 +37,7 @@ export function useTabNotify({
   closeTab,
   onViewActiveTab,
   onClearTabNotify,
+  onClearTabActivity,
 }: Params): (uid: string) => void {
   useEffect(() => {
     if (isActive && activeUid) onViewActiveTab(projectId, activeUid);
@@ -45,9 +47,11 @@ export function useTabNotify({
     (uid: string) => {
       closeTab(uid);
       onClearTabNotify(projectId, uid);
+      onClearTabActivity(projectId, uid);
       void cleanupTabNotify(uid);
       void cleanupTabStatus(uid);
+      void cleanupTabActivity(uid);
     },
-    [closeTab, onClearTabNotify, projectId],
+    [closeTab, onClearTabNotify, onClearTabActivity, projectId],
   );
 }

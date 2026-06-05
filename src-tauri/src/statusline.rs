@@ -195,6 +195,7 @@ pub fn install_project_settings(project_path: &Path) -> std::io::Result<()> {
         }),
     );
     crate::notify::merge_hooks(&mut root, &crate::notify::script_path().to_string_lossy());
+    crate::activity::merge_hooks(&mut root, &crate::activity::script_path().to_string_lossy());
     let pretty = serde_json::to_string_pretty(&serde_json::Value::Object(root))?;
     std::fs::write(&path, format!("{pretty}\n"))?;
     Ok(())
@@ -245,6 +246,7 @@ pub fn start_watcher(app: AppHandle) -> notify::Result<()> {
             for path in &event.paths {
                 process_path(path, &app);
                 crate::notify::process_path(path, &app);
+                crate::activity::process_path(path, &app);
             }
         }
     });

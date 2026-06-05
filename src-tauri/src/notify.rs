@@ -99,7 +99,7 @@ pub fn merge_hooks(root: &mut serde_json::Map<String, serde_json::Value>, script
 }
 
 /// True if a hook-group entry's command list references our script path.
-fn entry_targets_script(entry: &serde_json::Value, script: &str) -> bool {
+pub(crate) fn entry_targets_script(entry: &serde_json::Value, script: &str) -> bool {
     entry
         .get("hooks")
         .and_then(|h| h.as_array())

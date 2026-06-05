@@ -110,6 +110,20 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   emits `notify:update` with payload `{ projectId, tabId, kind }`. Like the
   statusline wrapper, the notify script does not gate on `CLAUI_PRIMARY` (which
   no longer exists) — every claude tab signals for itself.
+- `activity.rs` — the "Claude is working right now" pipeline's Rust half,
+  mirroring `notify.rs`. Pure helpers (`activity_file_path`,
+  `filename_to_tab_id`, `parse`); `merge_hooks` idempotently injects claui's
+  `UserPromptSubmit` → `working` / `Stop` → `idle` hooks into the project's
+  `.claude/settings.local.json` (reusing `notify::entry_targets_script`);
+  `install_script` writes `/tmp/claui/claui-activity.sh`; `purge_stale_files`
+  wipes leftovers at startup. Each claude tab's hook writes
+  `/tmp/claui/activity-<tabId>.json` = `{ projectId, state }` gated on
+  `CLAUI_ACTIVITY_FILE`. The `statusline.rs` watcher also calls
+  `process_path`, which emits `activity:update` with `{ projectId, tabId,
+  state }`. "Working" spans the window between a prompt submit and the turn's
+  `Stop`; a mid-turn permission prompt keeps the state `working` (the notify
+  `attention` just takes visual precedence). Tab close removes the file via
+  `cleanup_tab_activity`.
 - `sessions.rs` — reads a project's `claude` session files from
   `~/.claude/projects/<encoded>/` for the sessions sidebar.
 - `capabilities.rs` — read-only snapshot for the capabilities sidebar:
@@ -168,6 +182,13 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   `useNotifyByProject.ts`, `useWindowFocus.ts`, `useTabNotify.ts` (deep-link
   tab activation), `osNotification.ts`, `useListen.ts`. See the strip-channel
   notes under "Conventions" below.
+- `activity/*` — the "Claude is working" channel's webview half:
+  `activityStore.ts` (pure `aggregateActivity` into
+  `Map<projectId, Set<tabId>>` with referential stability + `workingProjects`),
+  `useActivityByProject.ts` (listens to `activity:update`). App slices the map
+  per project: the per-tab `Set` feeds `WorkspaceTabBar`, the per-project
+  any-working `Set` feeds `ProjectsSection`. Rendered by reusing the existing
+  `--claui-ch` channel element (see Conventions).
 - `updater/useUpdaterCheck.ts` + `updater/UpdateToast.tsx` — the auto-updater
   check and its toast. `project/ProjectPicker.tsx` + `project/pickProjectFolder.ts`
   — the empty-state folder picker.
@@ -380,6 +401,19 @@ has no renderer. Only raw PTY bytes cross the IPC boundary:
   `idle_prompt` (~60 s after turn end) — this is intentional: it means the user
   actually stepped away, not merely clicked Stop. Sound and preferences UI are
   deferred (no settings infra yet).
+- The **activity channel** ("Claude is working right now") reuses the SAME
+  `--claui-ch` strip element as notify, but is visually distinct: a
+  **non-semantic dim grey** (`--claui-fg-dim`, no notify colour) that
+  **travels** along the 2px line (`claui-ch-travel` keyframe) instead of
+  pulsing in place. It is the LOWEST priority — any notify kind overrides it.
+  Precedence (`error > attention > done > working`) is resolved in JSX: each
+  `.ws-tab` / `.list-row` gets `notify-*` OR `activity-working`, never both, so
+  there is no CSS conflict. The travel needs a gradient + moving
+  `background-position`, so `App.css` styles `.activity-working::after` /
+  `::before` directly rather than via the `--claui-ch` colour var. Under
+  `prefers-reduced-motion` it falls back to a static grey bar. Signal source:
+  `UserPromptSubmit`/`Stop` hooks (see `activity.rs`); it is ambient and never
+  raises an OS notification.
 - The macOS File menu (`src-tauri/src/menu.rs`) owns the
   `Cmd+Shift+N Add Project` / `Cmd+Shift+W Close Project` / `Cmd+T New Terminal
   Tab` / `Cmd+Shift+T New Claude Tab` / `Cmd+W Close Tab` accelerators.

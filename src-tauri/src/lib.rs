@@ -1,3 +1,4 @@
+mod activity;
 mod capabilities;
 mod claude;
 mod ipc;
@@ -107,6 +108,10 @@ pub fn run() {
                 eprintln!("claui: failed to install the notify hook script: {e}");
             }
             notify::purge_stale_files();
+            if let Err(e) = activity::install_script() {
+                eprintln!("claui: failed to install the activity hook script: {e}");
+            }
+            activity::purge_stale_files();
             if let Err(e) = statusline::start_watcher(app.handle().clone()) {
                 eprintln!("claui: statusline watcher failed to start: {e}");
             }
@@ -124,6 +129,7 @@ pub fn run() {
             ipc::save_window_state,
             ipc::cleanup_tab_status,
             ipc::cleanup_tab_notify,
+            ipc::cleanup_tab_activity,
             ipc::stash_pending_activation,
             ipc::activate_pending,
         ])

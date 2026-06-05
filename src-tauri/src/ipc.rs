@@ -83,7 +83,7 @@ pub(crate) fn build_spawn_env(
     project_id: &str,
     tab_id: &str,
 ) -> Vec<(String, String)> {
-    let mut env: Vec<(String, String)> = Vec::with_capacity(captured.len() + 7);
+    let mut env: Vec<(String, String)> = Vec::with_capacity(captured.len() + 8);
     // Carry over every captured shell-env entry; PATH gets re-augmented
     // separately below so the extras prepend logic stays in one place.
     for (k, v) in captured {
@@ -117,6 +117,12 @@ pub(crate) fn build_spawn_env(
     env.push((
         "CLAUI_STATUS_FILE".into(),
         crate::statusline::tab_status_file_path(tab_id)
+            .to_string_lossy()
+            .into_owned(),
+    ));
+    env.push((
+        "CLAUI_ACTIVITY_FILE".into(),
+        crate::activity::activity_file_path(tab_id)
             .to_string_lossy()
             .into_owned(),
     ));
@@ -318,6 +324,20 @@ pub fn cleanup_tab_notify(tab_id: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Remove a tab's activity file from `/tmp/claui/` when the tab closes.
+/// Idempotent — succeeds if the file does not exist.
+#[tauri::command]
+pub fn cleanup_tab_activity(tab_id: String) -> Result<(), String> {
+    if !crate::notify::is_safe_tab_id(&tab_id) {
+        return Err("invalid tab id".into());
+    }
+    let path = crate::activity::activity_file_path(&tab_id);
+    if path.exists() {
+        std::fs::remove_file(&path).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 /// Stash the project/tab the user should land on when they click the
 /// OS notification banner. Called from the webview just before `sendNotification`
 /// so a fast click always finds the target. Overwrites any previous stash.
@@ -367,6 +387,13 @@ mod tests {
         let status = env.iter().find(|(k, _)| k == "CLAUI_STATUS_FILE").unwrap();
         assert!(status.1.ends_with("status-tab-1.json"));
         assert!(!env.iter().any(|(k, _)| k == "CLAUI_PRIMARY"));
+    }
+
+    #[test]
+    fn build_spawn_env_gives_every_claude_an_activity_file() {
+        let env = build_spawn_env(&ShellEnv::new(), "abc-123", "tab-1");
+        let activity = env.iter().find(|(k, _)| k == "CLAUI_ACTIVITY_FILE").unwrap();
+        assert!(activity.1.ends_with("activity-tab-1.json"));
     }
 
     #[test]

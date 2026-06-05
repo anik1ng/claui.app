@@ -202,3 +202,41 @@ body {
   .notify-attention,
   .notify-error { --claui-ch-anim: none; }
 }
+
+/* Activity channel: "Claude is working" — a non-semantic dim-grey segment that
+   travels along the same 2px channel element. Lower priority than notify, which
+   is enforced in JSX (the element gets `notify-*` OR `activity-working`, never
+   both). The travel needs a gradient + moving background-position, so it styles
+   the ::after / ::before pseudo-elements directly rather than via --claui-ch. */
+.ws-tab.activity-working::after {
+  background: linear-gradient(90deg, transparent, var(--claui-fg-dim), transparent);
+  background-size: 42% 100%;
+  background-repeat: no-repeat;
+  animation: claui-ch-travel 1.5s ease-in-out infinite alternate;
+}
+.list-row.activity-working::before {
+  background: linear-gradient(180deg, transparent, var(--claui-fg-dim), transparent);
+  background-size: 100% 42%;
+  background-repeat: no-repeat;
+  animation: claui-ch-travel-v 1.5s ease-in-out infinite alternate;
+}
+@keyframes claui-ch-travel {
+  from { background-position: 0% 0; }
+  to   { background-position: 100% 0; }
+}
+@keyframes claui-ch-travel-v {
+  from { background-position: 0 0%; }
+  to   { background-position: 0 100%; }
+}
+/* Reduced motion: no travel — show a static dim-grey bar so "working" still
+   reads, just without movement. */
+@media (prefers-reduced-motion: reduce) {
+  .ws-tab.activity-working::after {
+    background: var(--claui-fg-dim);
+    animation: none;
+  }
+  .list-row.activity-working::before {
+    background: var(--claui-fg-dim);
+    animation: none;
+  }
+}

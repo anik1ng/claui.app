@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { cleanupTabNotify, cleanupTabStatus } from '../ipc/commands';
+import { cleanupTabActivity, cleanupTabNotify, cleanupTabStatus } from '../ipc/commands';
 import type { Tab } from '../tabs/types';
 
 /**
@@ -20,6 +20,7 @@ export function useProjectCloseCleanup(tabs: Tab[]): void {
         if (tab.kind !== 'claude') continue;
         void cleanupTabStatus(tab.uid);
         void cleanupTabNotify(tab.uid);
+        void cleanupTabActivity(tab.uid);
       }
     };
   }, []);

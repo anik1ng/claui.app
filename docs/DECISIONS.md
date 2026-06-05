@@ -208,6 +208,18 @@ first principles — it was measured, not argued.
 
 ---
 
+### 2026-06-05 — Working-activity channel ("Claude is working right now")
+
+**Context.** With a project/tab in the background there was no way to tell whether Claude was actively churning or idle. The notify channel already surfaced `attention` (permission), `done` (idle ~60 s after a turn) and `error`, but had no "working right now" state — exactly the gap that makes a background tab ambiguous.
+
+**Decision.** Added a new `activity` channel mirroring the notify pipeline (`src-tauri/src/activity.rs`): Claude `UserPromptSubmit` → `working` / `Stop` → `idle` hooks (merged via `activity::merge_hooks`, reusing `notify::entry_targets_script`), each tab writing `/tmp/claui/activity-<tabId>.json` = `{ projectId, state }` gated on a new `CLAUI_ACTIVITY_FILE` env var; the `statusline.rs` watcher emits `activity:update`. The webview aggregates via pure `aggregateActivity` into `Map<projectId, Set<tabId>>` (`src/activity/activityStore.ts`). Visually it reuses the existing `--claui-ch` strip element (tab bottom underline / project row left strip) but is deliberately distinct from notify: a **non-semantic dim grey** (`--claui-fg-dim`) that **travels** (`claui-ch-travel` keyframe) instead of pulsing in place. Precedence `error > attention > done > working` is resolved in JSX — each element gets `notify-*` OR `activity-working`, never both.
+
+**Consequences.** "Working" deliberately stays set during a mid-turn permission prompt (Claude hasn't `Stop`ped); the higher-priority `attention` simply masks it, and it reappears when the prompt resolves — no extra hook needed. Grey carries no notify semantics, so reusing it for activity is consistent with the locked "colour = notify only" rule (see 2026-06-02 notifications-redesign entry). The travel motion needs a gradient + animated `background-position`, so `App.css` styles the `::after`/`::before` pseudo-elements directly instead of only setting `--claui-ch`; `prefers-reduced-motion` degrades to a static grey bar. The channel is ambient — it never raises an OS notification. Cleanup (`cleanup_tab_activity`) + startup purge mirror notify exactly.
+
+**References.** Spec `docs/superpowers/specs/2026-06-05-working-activity-indicator-design.md` and plan `docs/superpowers/plans/2026-06-05-working-activity-indicator.md` (both gitignored; local-only). `src-tauri/src/activity.rs`, `src-tauri/src/ipc.rs` (`CLAUI_ACTIVITY_FILE`, `cleanup_tab_activity`), `src-tauri/src/statusline.rs` (watcher + `install_project_settings`), `src/activity/activityStore.ts`, `src/activity/useActivityByProject.ts`, `src/App.css` (`.activity-working`). Relates to the 2026-06-02 notifications-redesign decision (strip channel, colour = notify only).
+
+---
+
 ## Template (do not delete)
 
 ### YYYY-MM-DD — Short title

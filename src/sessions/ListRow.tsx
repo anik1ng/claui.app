@@ -27,6 +27,9 @@ interface Props {
   /** Optional notification dot on the left (project aggregate). `'none'`
    *  renders a resting grey dot; omit entirely to render no dot (session rows). */
   indicator?: NotifyKind | 'none';
+  /** Optional "Claude is working" flag. Lower priority than `indicator` — a
+   *  notify kind always wins the channel strip. */
+  working?: boolean;
 }
 
 /**
@@ -38,11 +41,16 @@ interface Props {
  * `<button>` can live inside it without invalid nesting (interactive elements
  * inside a button are not allowed).
  */
-export function ListRow({ label, meta, badge, isActive, onClick, onClose, title, hint, indicator }: Props) {
-  const notifyClass = indicator && indicator !== 'none' ? ` notify-${indicator}` : '';
+export function ListRow({ label, meta, badge, isActive, onClick, onClose, title, hint, indicator, working }: Props) {
+  const channelClass =
+    indicator && indicator !== 'none'
+      ? ` notify-${indicator}`
+      : working
+        ? ' activity-working'
+        : '';
   return (
     <div
-      className={`list-row${isActive ? ' active' : ''}${notifyClass}`}
+      className={`list-row${isActive ? ' active' : ''}${channelClass}`}
       onClick={onClick}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {

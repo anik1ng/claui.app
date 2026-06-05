@@ -37,6 +37,16 @@ export interface NotifyUpdate {
 export const cleanupTabNotify = (tabId: string) =>
   invoke<void>('cleanup_tab_notify', { tabId });
 
+/** Shape of `activity:update` events — Claude's working/idle state per tab. */
+export interface ActivityUpdate {
+  projectId: string;
+  tabId: string;
+  state: 'working' | 'idle';
+}
+
+export const cleanupTabActivity = (tabId: string) =>
+  invoke<void>('cleanup_tab_activity', { tabId });
+
 /** Stash the project/tab the user should land on when they click an OS
  *  notification. Registered in Task 5; safe to call before then — the
  *  Rust side will reject it and the caller swallows the error. */

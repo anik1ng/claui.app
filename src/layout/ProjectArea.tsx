@@ -49,10 +49,14 @@ interface Props {
   globalRateLimits: RateLimits | null;
   /** This project's tab signals (tabId → kind), sliced by App. */
   notifyTabs: ReadonlyMap<string, NotifyKind>;
+  /** This project's working tabIds (slice of the activity map). */
+  workingTabs: ReadonlySet<string>;
   /** Report the active tab as viewed (clears its signal). */
   onViewActiveTab: (projectId: string, tabId: string) => void;
   /** Drop a tab's signal when it closes. */
   onClearTabNotify: (projectId: string, tabId: string) => void;
+  /** Drop a tab's working state when it closes (the killed PTY fires no `Stop`). */
+  onClearTabActivity: (projectId: string, tabId: string) => void;
 }
 
 /**
@@ -76,7 +80,7 @@ interface Props {
  * inner map) only when one of its tabs ticks, so the active project
  * re-renders while siblings are skipped.
  */
-function ProjectAreaInner({ theme, projectId, projectPath, isActive, statusByTab, globalRateLimits, setSidebarOpen, slots, showTabShortcuts, notifyTabs, onViewActiveTab, onClearTabNotify }: Props) {
+function ProjectAreaInner({ theme, projectId, projectPath, isActive, statusByTab, globalRateLimits, setSidebarOpen, slots, showTabShortcuts, notifyTabs, workingTabs, onViewActiveTab, onClearTabNotify, onClearTabActivity }: Props) {
   const {
     tabs,
     activeUid,
@@ -92,7 +96,7 @@ function ProjectAreaInner({ theme, projectId, projectPath, isActive, statusByTab
   const status = withGlobalLimits((activeUid && statusByTab.get(activeUid)) || null, globalRateLimits);
 
   const closeTabAndClear = useTabNotify({
-    projectId, isActive, activeUid, closeTab, onViewActiveTab, onClearTabNotify,
+    projectId, isActive, activeUid, closeTab, onViewActiveTab, onClearTabNotify, onClearTabActivity,
   });
 
   useNotifyActivateTab(projectId, setActiveTab);
@@ -192,8 +196,7 @@ function ProjectAreaInner({ theme, projectId, projectPath, isActive, statusByTab
   };
 
   const openShell = useCallback(
-    (ch: Channel<ArrayBuffer>, cols: number, rows: number) =>
-      openCommandTerminal(projectPath, ch, cols, rows),
+    (ch: Channel<ArrayBuffer>, cols: number, rows: number) => openCommandTerminal(projectPath, ch, cols, rows),
     [projectPath]);
 
   return (
@@ -210,6 +213,7 @@ function ProjectAreaInner({ theme, projectId, projectPath, isActive, statusByTab
           onPickTab: setActiveTab,
           onCloseTab: closeTabAndClear,
           notify: notifyTabs,
+          working: workingTabs,
           showShortcuts: showTabShortcuts,
           projectName: basename(projectPath),
         }}
