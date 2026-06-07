@@ -1,9 +1,13 @@
 // src/sessions/Sidebar.tsx
-import type { ReactNode } from 'react';
+import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
 import './Sidebar.css';
 
 interface Props {
   children?: ReactNode;
+  /** Current width in px (drag-resizable, persisted in localStorage). */
+  width: number;
+  /** Starts a resize drag from the left-edge handle. */
+  onHandleMouseDown: (e: ReactMouseEvent<HTMLDivElement>) => void;
 }
 
 /**
@@ -13,7 +17,14 @@ interface Props {
  * `<ProjectArea>` (whose `useSessionsPolling` provides the data scoped to
  * that project). The visual language of both sections is shared through
  * `<ListRow>`.
+ *
+ * The left edge carries a drag handle (`useSidebarResize`) for resizing.
  */
-export function Sidebar({ children }: Props) {
-  return <div className="sidebar">{children}</div>;
+export function Sidebar({ children, width, onHandleMouseDown }: Props) {
+  return (
+    <div className="sidebar" style={{ width }}>
+      <div className="sidebar-resize-handle" onMouseDown={onHandleMouseDown} aria-hidden />
+      {children}
+    </div>
+  );
 }

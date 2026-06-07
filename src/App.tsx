@@ -5,6 +5,7 @@ import { ProjectPicker } from './project/ProjectPicker';
 import { ProjectArea } from './layout/ProjectArea';
 import { TitleBar } from './layout/TitleBar';
 import { Sidebar } from './sessions/Sidebar';
+import { useSidebar } from './sessions/useSidebar';
 import { ProjectsSection } from './projects/ProjectsSection';
 import { useProjects } from './projects/useProjects';
 import { useProjectSwitchKeyboard } from './projects/useProjectSwitchKeyboard';
@@ -49,7 +50,7 @@ export default function App() {
     dismiss: dismissUpdate,
   } = useUpdaterCheck();
   const [claudeMissing, setClaudeMissing] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { open: sidebarOpen, setOpen: setSidebarOpen, width: sidebarWidth, onHandleMouseDown: onSidebarResize } = useSidebar();
   const heldModifier = useHeldModifier();
 
   // Portal slots for the active project's chrome (see useChromeSlots).
@@ -179,7 +180,7 @@ export default function App() {
             ))}
           </div>
           {sidebarOpen && (
-            <Sidebar>
+            <Sidebar width={sidebarWidth} onHandleMouseDown={onSidebarResize}>
               <ProjectsSection
                 projects={projects}
                 activeId={activeId}
