@@ -20,15 +20,19 @@ export function ensureActivationHandler(): void {
 
 let permissionGranted = false;
 
-const BODY: Record<Exclude<NotifyKind, 'done'>, string> = {
-  attention: 'Needs your input',
+// Title carries the action so the banner reads as a verb at a glance; the
+// project name goes in the body. macOS already shows the app name ("claui")
+// as the banner header, so putting the project name in the title only
+// duplicated it (e.g. "claui / claui / Needs your input").
+const TITLE: Record<Exclude<NotifyKind, 'done'>, string> = {
+  attention: 'Approval needed',
   error: 'Stopped with an error',
 };
 
 /** Send a system notification for an actionable event. Best-effort: silently
- *  no-ops if permission is denied. `title` is the project's display name. */
+ *  no-ops if permission is denied. `projectName` becomes the banner body. */
 export async function notifyOs(
-  title: string,
+  projectName: string,
   kind: NotifyKind,
   projectId: string,
   tabId: string,
@@ -42,5 +46,5 @@ export async function notifyOs(
   // (Task 5's handler) always finds it. The command is registered in Task 5;
   // the catch keeps this a harmless no-op until then.
   await stashPendingActivation(projectId, tabId).catch(() => {});
-  sendNotification({ title, body: BODY[kind] });
+  sendNotification({ title: TITLE[kind], body: projectName });
 }
