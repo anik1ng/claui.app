@@ -15,8 +15,8 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
-# No write access inside this (private) repo. Every mutation lands on the public
-# repo via PUBLIC_REPO_TOKEN in the publish job.
+# The build job only reads; the publish job elevates to contents: write to
+# create the GitHub Release in this same repo (see its job-level permissions).
 permissions:
   contents: read
 
@@ -113,6 +113,9 @@ jobs:
   publish:
     needs: build
     runs-on: ubuntu-latest
+    # Create the GitHub Release in this repo; needs write on contents.
+    permissions:
+      contents: write
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v8
@@ -120,9 +123,9 @@ jobs:
           name: release-out
           path: release-out
 
-      - name: Create release on public repo
+      - name: Create release
         env:
-          GH_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${GITHUB_REF#refs/tags/v}"
           # Idempotency: never clobber an existing public release for this tag.

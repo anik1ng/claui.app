@@ -29,8 +29,9 @@ jobs:
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          # The whole repo root is the site — it's already static.
-          path: .
+          # Only the landing lives under site/; application source sits at the
+          # repo root. Publish just the static site, not the whole tree.
+          path: site
 
       - name: Deploy to GitHub Pages
         id: deploy
