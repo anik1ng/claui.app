@@ -1,9 +1,9 @@
 name: pages
 
-# Deploy the static site to GitHub Pages on every push to main.
+# Deploy the static site to GitHub Pages on every push to master.
 on:
   push:
-    branches: [main]
+    branches: [master]
   workflow_dispatch:
 
 # Allow the workflow to publish to Pages; one deploy at a time, newest wins.
