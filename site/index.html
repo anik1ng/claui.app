@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>claui — a native macOS shell for Claude Code</title>
+  <meta name="description" content="claui hosts the real Claude Code CLI inside a native macOS app — workspace tabs, multiple projects, a live status bar, notifications when Claude needs you, and native shortcuts. Free and open." />
+  <meta name="theme-color" content="#0a0a0a" />
+  <link rel="icon" href="assets/icon.png" />
+  <link rel="canonical" href="https://claui.app/" />
+
+  <!-- Open Graph / Twitter -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="claui" />
+  <meta property="og:url" content="https://claui.app/" />
+  <meta property="og:title" content="claui — a native macOS shell for Claude Code" />
+  <meta property="og:description" content="The real Claude Code CLI in a native macOS app. Tabs, multiple projects, a live status bar, notifications, native shortcuts." />
+  <meta property="og:image" content="https://claui.app/assets/og.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="claui — a native macOS shell for Claude Code" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="claui — a native macOS shell for Claude Code" />
+  <meta name="twitter:description" content="The real Claude Code CLI in a native macOS app. Tabs, multiple projects, a live status bar, notifications, native shortcuts." />
+  <meta name="twitter:image" content="https://claui.app/assets/og.png" />
+
+  <!-- Structured data: helps search engines understand this is a free macOS app -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "claui",
+    "description": "A native macOS shell for Claude Code — the real claude CLI in a proper Mac app with workspace tabs, multiple projects, a live status bar, and native notifications.",
+    "url": "https://claui.app/",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "macOS",
+    "downloadUrl": "https://github.com/anik1ng/claui.app/releases/latest/download/claui-universal.dmg",
+    "softwareLicense": "https://opensource.org/license/mit",
+    "image": "https://claui.app/assets/og.png",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "author": {
+      "@type": "Person",
+      "name": "anik1ng"
+    }
+  }
+  </script>
+
+  <link rel="preload" href="assets/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Minimal top bar -->
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="claui home">
+      <img src="assets/icon.png" alt="" width="24" height="24" />
+      <span>claui</span>
+    </a>
+    <nav class="topbar-actions">
+      <a class="gh" href="https://github.com/anik1ng/claui.app" target="_blank" rel="noreferrer" aria-label="claui on GitHub">
+        <svg class="gh-mark" viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+        <span class="gh-stars" data-stars hidden></span>
+      </a>
+      <a class="btn btn-sm" href="https://github.com/anik1ng/claui.app/releases/latest/download/claui-universal.dmg">Download</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <!-- ===== HERO (pinned, scroll-scrubbed) ===== -->
+    <section class="hero" data-scrub>
+      <div class="hero-stage">
+        <div class="hero-copy">
+          <h1 class="hero-title">claui</h1>
+          <p class="hero-tagline">A native macOS shell for Claude&nbsp;Code.</p>
+          <p class="hero-sub">The real <code>claude</code> CLI, wrapped in a proper Mac app — tabs, projects, a live status bar, and a nudge when Claude needs you.</p>
+          <div class="hero-cta">
+            <a class="btn btn-lg" href="https://github.com/anik1ng/claui.app/releases/latest/download/claui-universal.dmg">
+              Download for macOS
+            </a>
+            <p class="hero-meta">Universal · Apple Silicon + Intel · free &amp; open</p>
+          </div>
+        </div>
+
+        <div class="window-wrap">
+          <div class="glow" aria-hidden="true"></div>
+          <!-- ===== claui window mockup ===== -->
+          <div class="claui-window" role="img" aria-label="The claui app window: a terminal running Claude Code with a projects and sessions sidebar.">
+            <div class="win-titlebar">
+              <span class="lights"><i></i><i></i><i></i></span>
+              <span class="tabstrip tabstrip-static">
+                <span class="tab tab-claude is-active">◆ claude</span>
+                <span class="tab tab-claude">◆ claude</span>
+                <span class="tab tab-shell">› shell</span>
+              </span>
+            </div>
+            <div class="win-body">
+              <div class="terminal">
+                <div class="term-head">
+                  <img class="mascot" src="assets/icon.png" alt="" width="40" height="40" />
+                  <div class="term-head-meta">
+                    <span class="t-strong">Claude&nbsp;Code <span class="t-dim">v2.1</span></span>
+                    <span class="t-dim">Opus 4.8 · Claude Max</span>
+                    <span class="t-dim">~/Projects/acme</span>
+                  </div>
+                </div>
+                <div class="term-feed">
+                  <p class="t-line" style="--i:0"><span class="t-prompt">›</span> add a dark-mode toggle to the settings page</p>
+                  <p class="t-line t-dim" style="--i:1">● Reading <span class="t-path">src/settings/Settings.tsx</span></p>
+                  <p class="t-line t-dim" style="--i:2">● Adding <span class="t-key">useTheme()</span> + a switch control…</p>
+                  <p class="t-line t-green" style="--i:3">✔ Updated 2 files, theme persists to localStorage.</p>
+                  <p class="t-line" style="--i:4"><span class="t-prompt">›</span> <span class="caret"></span></p>
+                </div>
+              </div>
+              <aside class="sidebar">
+                <div class="side-section">
+                  <div class="side-head">PROJECTS <span class="side-add">+ Add</span></div>
+                  <div class="side-row">acme</div>
+                  <div class="side-row">blog</div>
+                  <div class="side-row is-active">claui</div>
+                </div>
+                <div class="side-section">
+                  <div class="side-head">SESSIONS <span class="side-add">+ New</span></div>
+                  <div class="side-row side-session">Add dark-mode toggle <span class="side-meta">1m</span></div>
+                  <div class="side-row side-session">Fix login redirect <span class="side-meta">2h</span></div>
+                  <div class="side-row side-session">Refactor API client <span class="side-meta">1d</span></div>
+                  <div class="side-row side-session">Write unit tests <span class="side-meta">2d</span></div>
+                </div>
+              </aside>
+            </div>
+            <div class="win-statusbar">
+              <span class="sb-ctx"><span class="sb-label">Context</span>
+                <span class="sb-bar"><span class="sb-fill" style="--w:38%"></span></span> 38%</span>
+              <span class="sb-right">
+                <span class="sb-chip"><span class="sb-label">5h</span> 12%</span>
+                <span class="sb-chip"><span class="sb-label">7d</span> 4%</span>
+                <span class="sb-cost">$1.20</span>
+                <span class="sb-model">Opus 4.8</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== INTRO LINE ===== -->
+    <section class="band reveal">
+      <h2 class="band-title">It’s just <code>claude</code> — at home on the Mac.</h2>
+      <p class="band-sub">claui never touches the Anthropic API and never sees your credentials. It runs the real CLI you already use, and gives it a window worthy of it.</p>
+    </section>
+
+    <!-- ===== FEATURE: projects ===== -->
+    <section class="feature" data-scrub data-projects>
+      <div class="feature-stage">
+        <div class="feature-copy reveal">
+          <span class="kicker">Multiple projects</span>
+          <h2>Every repo, side by side.</h2>
+          <p>Keep your projects open in one window and switch between them instantly with <kbd>⌘⌥1–9</kbd> — each keeps its own tabs, sessions, and history. claui restores them on next launch.</p>
+        </div>
+        <div class="frame" aria-hidden="true">
+          <div class="claui-window">
+            <div class="win-titlebar"><span class="lights"><i></i><i></i><i></i></span><span class="win-title" data-proj-title>acme — claui</span></div>
+            <div class="win-body">
+              <div class="terminal">
+                <div class="term-feed">
+                  <p class="t-line t-dim" data-proj-ctx>~/Projects/acme</p>
+                  <p class="t-line"><span class="t-prompt">›</span> <span data-proj-line>run the tests</span> <span class="caret"></span></p>
+                </div>
+              </div>
+              <aside class="sidebar">
+                <div class="side-section">
+                  <div class="side-head">PROJECTS <span class="side-add">+ Add</span></div>
+                  <div class="side-row is-active" data-proj data-title="acme — claui" data-ctx="~/Projects/acme" data-line="run the tests">acme</div>
+                  <div class="side-row" data-proj data-title="blog — claui" data-ctx="~/Projects/blog" data-line="fix the build">blog</div>
+                  <div class="side-row" data-proj data-title="claui — claui" data-ctx="~/Projects/claui" data-line="ship v0.2">claui</div>
+                </div>
+              </aside>
+            </div>
+            <div class="win-statusbar">
+              <span class="sb-ctx"><span class="sb-label">Context</span>
+                <span class="sb-bar"><span class="sb-fill" style="--w:24%"></span></span> 24%</span>
+              <span class="sb-right"><span class="sb-cost">$0.40</span><span class="sb-model">Opus 4.8</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== FEATURE: tabs ===== -->
+    <section class="feature" data-scrub>
+      <div class="feature-stage">
+        <div class="feature-copy reveal">
+          <span class="kicker">Tabs in every project</span>
+          <h2>As many tabs as you need.</h2>
+          <p>Inside a project, open any number of tabs — Claude sessions or plain shells, side by side. <kbd>⌘T</kbd> for Claude, <kbd>⌘⇧T</kbd> for a shell, <kbd>⌘1–9</kbd> to switch.</p>
+        </div>
+        <div class="frame" aria-hidden="true">
+          <div class="claui-window">
+            <div class="win-titlebar">
+              <span class="lights"><i></i><i></i><i></i></span>
+              <span class="tabstrip">
+                <span class="tab tab-claude is-active" style="--i:0">◆ claude</span>
+                <span class="tab tab-claude" style="--i:1">◆ claude</span>
+                <span class="tab tab-shell" style="--i:2">› shell</span>
+                <span class="tab tab-claude" style="--i:3">◆ claude</span>
+              </span>
+            </div>
+            <div class="win-body win-body-full">
+              <div class="terminal">
+                <div class="term-feed">
+                  <p class="t-line"><span class="t-prompt">›</span> why is the build failing?</p>
+                  <p class="t-line t-dim">● Reading the CI log…</p>
+                  <p class="t-line t-green">✔ Missing env var in <span class="t-path">release.yml</span>.</p>
+                  <p class="t-line"><span class="t-prompt">›</span> <span class="caret"></span></p>
+                </div>
+              </div>
+            </div>
+            <div class="win-statusbar">
+              <span class="sb-ctx"><span class="sb-label">Context</span>
+                <span class="sb-bar"><span class="sb-fill" style="--w:46%"></span></span> 46%</span>
+              <span class="sb-right"><span class="sb-cost">$1.90</span><span class="sb-model">Opus 4.8</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== FEATURE: notifications ===== -->
+    <section class="feature" data-scrub>
+      <div class="feature-stage">
+        <div class="feature-copy reveal">
+          <span class="kicker">Notifications</span>
+          <h2>Know the moment Claude needs you.</h2>
+          <p>claui watches every tab and marks it with a calm strip — done, waiting on you, or errored. Step away while the window isn’t focused and a native notification brings you back — click it to land on the exact tab.</p>
+        </div>
+        <div class="frame" aria-hidden="true">
+          <!-- floating native notification — sits OUTSIDE the window, top-right -->
+          <div class="os-toast">
+            <img src="assets/icon.png" alt="" width="34" height="34" />
+            <div class="os-toast-body">
+              <span class="os-toast-title">claui</span>
+              <span class="os-toast-text">blog · Claude needs your permission</span>
+            </div>
+          </div>
+          <div class="claui-window">
+            <div class="win-titlebar">
+              <span class="lights"><i></i><i></i><i></i></span>
+              <span class="tabstrip tabstrip-static">
+                <span class="tab tab-claude is-active">◆ acme</span>
+                <span class="tab tab-claude notify-attention">◆ blog</span>
+                <span class="tab tab-shell">› shell</span>
+              </span>
+            </div>
+            <div class="win-body">
+              <div class="terminal">
+                <div class="term-feed">
+                  <p class="t-line"><span class="t-prompt">›</span> run the test suite</p>
+                  <p class="t-line t-green">✔ 48 passed in 6.2s</p>
+                  <p class="t-line"><span class="t-prompt">›</span> <span class="caret"></span></p>
+                </div>
+              </div>
+              <aside class="sidebar">
+                <div class="side-section">
+                  <div class="side-head">PROJECTS <span class="side-add">+ Add</span></div>
+                  <div class="side-row is-active">acme</div>
+                  <div class="side-row notify-attention">blog</div>
+                  <div class="side-row">claui</div>
+                </div>
+              </aside>
+            </div>
+            <div class="win-statusbar">
+              <span class="sb-ctx"><span class="sb-label">Context</span>
+                <span class="sb-bar"><span class="sb-fill" style="--w:52%"></span></span> 52%</span>
+              <span class="sb-right"><span class="sb-cost">$2.40</span><span class="sb-model">Opus 4.8</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== FEATURE: sessions ===== -->
+    <section class="feature" data-scrub>
+      <div class="feature-stage">
+        <div class="feature-copy reveal">
+          <span class="kicker">Claude, surfaced</span>
+          <h2>Pick up any conversation.</h2>
+          <p>Every past session is one click away in the sidebar — resume exactly where you left off. Plugins, skills, and more of Claude Code are coming to the same place.</p>
+        </div>
+        <div class="frame" aria-hidden="true">
+          <div class="claui-window">
+            <div class="win-titlebar"><span class="lights"><i></i><i></i><i></i></span><span class="win-title">acme — claui</span></div>
+            <div class="win-body">
+              <div class="terminal">
+                <div class="term-feed">
+                  <p class="t-line t-dim">● Resumed “Fix login redirect”</p>
+                  <p class="t-line"><span class="t-prompt">›</span> <span class="caret"></span></p>
+                </div>
+              </div>
+              <aside class="sidebar">
+                <div class="side-section">
+                  <div class="side-head">SESSIONS <span class="side-add">+ New</span></div>
+                  <div class="side-row side-session sess" style="--i:0">Fix login redirect <span class="badge">↗</span></div>
+                  <div class="side-row side-session sess" style="--i:1">Add dark-mode toggle <span class="side-meta">2h</span></div>
+                  <div class="side-row side-session sess" style="--i:2">Refactor API client <span class="side-meta">1d</span></div>
+                  <div class="side-row side-session sess" style="--i:3">Write unit tests <span class="side-meta">2d</span></div>
+                  <div class="side-row side-session sess" style="--i:4">Tidy CI workflow <span class="side-meta">3d</span></div>
+                </div>
+              </aside>
+            </div>
+            <div class="win-statusbar">
+              <span class="sb-ctx"><span class="sb-label">Context</span>
+                <span class="sb-bar"><span class="sb-fill" style="--w:30%"></span></span> 30%</span>
+              <span class="sb-right"><span class="sb-cost">$0.80</span><span class="sb-model">Opus 4.8</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== MORE: compact feature grid ===== -->
+    <section class="more reveal">
+      <h2 class="more-title">…and the comforts you’d expect.</h2>
+      <div class="more-grid">
+        <div class="more-card">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 15a7.5 7.5 0 0 1 15 0"/><path d="M12 15l3.5-2.5"/><path d="M4.5 15h0M19.5 15h0"/></svg>
+          <h3>Live status bar</h3>
+          <p>Model, context, cost, and your 5-hour and 7-day limits — always in view, straight from Claude Code.</p>
+        </div>
+        <div class="more-card">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3s6 6.4 6 10a6 6 0 0 1-12 0c0-3.6 6-10 6-10Z"/></svg>
+          <h3>Drag &amp; drop</h3>
+          <p>Drop a file or image onto the window; its path lands in the active terminal, safely quoted.</p>
+        </div>
+        <div class="more-card">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M8 14h8"/></svg>
+          <h3>Native menus &amp; shortcuts</h3>
+          <p>A real macOS menu bar and the keys you’d reach for — <kbd>⌘T</kbd>, <kbd>⌘W</kbd>, <kbd>⌘⇧N</kbd>.</p>
+        </div>
+        <div class="more-card">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-.5 4"/><path d="M20 4v6h-6"/></svg>
+          <h3>Auto-updates</h3>
+          <p>claui keeps itself current — new versions arrive with a quiet toast, never a download hunt.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== DOWNLOAD CTA ===== -->
+    <section class="cta reveal">
+      <h2>Bring Claude Code home.</h2>
+      <a class="btn btn-lg" href="https://github.com/anik1ng/claui.app/releases/latest/download/claui-universal.dmg">
+        Download for macOS
+      </a>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-brand">
+      <img src="assets/icon.png" alt="" width="20" height="20" />
+      <span>claui</span>
+    </div>
+    <nav class="footer-links">
+      <a href="https://github.com/anik1ng/claui.app" target="_blank" rel="noreferrer">GitHub</a>
+      <a href="https://github.com/anik1ng/claui.app/releases" target="_blank" rel="noreferrer">Releases</a>
+      <a href="https://www.anthropic.com/claude-code" target="_blank" rel="noreferrer">Claude Code</a>
+    </nav>
+    <p class="footer-fine">MIT licensed · not affiliated with Anthropic</p>
+  </footer>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
